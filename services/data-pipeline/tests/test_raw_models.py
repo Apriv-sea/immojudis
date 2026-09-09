@@ -51,3 +51,17 @@ def test_validate_raw_sales_rejects_cross_source_url() -> None:
 
     assert valid == []
     assert "source_url does not belong to source avoventes" in errors[0]
+
+
+def test_agrasc_accepts_linked_operators_but_not_lookalike_origins():
+    for host, accepted in [
+        ("www.agorastore-immo.fr", True),
+        ("www.immo-interactif.fr", True),
+        ("www.agorastore-immo.fr.evil.test", False),
+    ]:
+        errors = []
+        rows = validate_raw_sales(
+            "agrasc", [dict(source_name="agrasc", source_url=f"https://{host}/vente", title="Maison")], errors
+        )
+        assert bool(rows) is accepted
+        assert bool(errors) is not accepted

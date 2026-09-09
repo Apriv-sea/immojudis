@@ -14,7 +14,8 @@ SOURCE_ORIGINS: dict[str, tuple[str, ...]] = {
     "encheres_publiques": ("https://www.encheres-publiques.com", "https://encheres-publiques.com"),
     "petites_affiches": ("https://www.petitesaffiches.fr", "https://petitesaffiches.fr"),
     "cessions_etat": ("https://cessions.immobilier-etat.gouv.fr",),
-    "agrasc": ("https://agrasc.gouv.fr",),
+    # Official AGRASC cards link directly to these two auction operators.
+    "agrasc": ("https://agrasc.gouv.fr", "https://www.agorastore-immo.fr", "https://www.immo-interactif.fr"),
     "encheres_immobilieres": ("https://encheresimmobilieres.fr", "https://www.encheresimmobilieres.fr"),
     "notaires": (
         "https://www.immobilier.notaires.fr",
