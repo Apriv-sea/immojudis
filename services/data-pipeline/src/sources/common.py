@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import ssl
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -118,6 +119,7 @@ class PoliteHttpClient:
     allowed_redirect_origins: tuple[str, ...] = ()
     accept: str = "text/html,application/xhtml+xml"
     extra_headers: dict[str, str] | None = None
+    tls_context: ssl.SSLContext | None = None
 
     def __post_init__(self) -> None:
         self._last_request_at = 0.0
@@ -136,7 +138,7 @@ class PoliteHttpClient:
             headers=headers,
             timeout=self.timeout_seconds,
             follow_redirects=False,
-            verify=True,
+            verify=self.tls_context if self.tls_context is not None else True,
         )
         self._robots = RobotsRules()
         try:
@@ -150,9 +152,7 @@ class PoliteHttpClient:
         allowed_origins = (self.base_url, *self.allowed_redirect_origins)
         for redirect_count in range(MAX_SAFE_REDIRECTS + 1):
             if not is_allowed_origin_url(current_url, allowed_origins):
-                raise RuntimeError(
-                    f"refusing robots.txt redirect outside configured source origin: {current_url}"
-                )
+                raise RuntimeError(f"refusing robots.txt redirect outside configured source origin: {current_url}")
             response = self._client.get(current_url)
             if response.status_code not in REDIRECT_STATUS_CODES:
                 response.raise_for_status()

@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
+from uuid import UUID
 
 import httpx
 
 BRIDGE_RPC_NAME = "bridge_auction_sales_to_outcome_graph"
-COURT_RECONCILIATION_RPC_NAME = "reconcile_catalogue_competent_courts"
+COURT_RECONCILIATION_RPC_NAME = "reconcile_catalogue_competent_courts_batch"
 BRIDGE_TIMEOUT = httpx.Timeout(120.0, connect=20.0)
 
 
@@ -80,28 +81,52 @@ def bridge_auction_sales_before_cleanup(
         )
     result.require_complete()
 
-    reconciliation_payload = _call_rpc(
-        supabase_url,
-        service_role_key,
-        COURT_RECONCILIATION_RPC_NAME,
-        post=post,
-        operation_label="Competent-court reconciliation",
-    )
-    reconciliation_row = _single_result_row(reconciliation_payload)
-    reconciliation_scanned = _non_negative_int(reconciliation_row, "scanned_count")
-    corrected = _non_negative_int(reconciliation_row, "corrected_count")
-    already_correct = _non_negative_int(reconciliation_row, "already_correct_count")
-    blocked = _non_negative_int(reconciliation_row, "blocked_count")
-    reconciliation_complete = _strict_bool(reconciliation_row, "complete")
-    if (
-        not reconciliation_complete
-        or blocked != 0
-        or corrected + already_correct != reconciliation_scanned
-        or reconciliation_scanned != result.scanned_count
-    ):
-        raise OutcomeCatalogueBridgeError(
-            "Competent-court reconciliation is incomplete; destructive cleanup is disabled."
+    cursor: str | None = None
+    scanned = 0
+    # Fixed bound prevents a broken or changing catalogue from looping forever.
+    for _ in range(2000):
+        payload = _call_rpc(
+            supabase_url,
+            service_role_key,
+            COURT_RECONCILIATION_RPC_NAME,
+            post=post,
+            operation_label="Competent-court reconciliation",
+            arguments={"p_after_id": cursor, "p_limit": 25},
         )
+        row = _single_result_row(payload)
+        count = _non_negative_int(row, "scanned_count")
+        corrected = _non_negative_int(row, "corrected_count")
+        already_correct = _non_negative_int(row, "already_correct_count")
+        blocked = _non_negative_int(row, "blocked_count")
+        if not _strict_bool(row, "complete") or blocked or corrected + already_correct != count or count > 25:
+            raise OutcomeCatalogueBridgeError(
+                "Competent-court reconciliation is incomplete; destructive cleanup is disabled."
+            )
+        scanned += count
+        if scanned > result.scanned_count:
+            raise OutcomeCatalogueBridgeError(
+                "Catalogue changed during reconciliation; destructive cleanup is disabled."
+            )
+        more = _strict_bool(row, "has_more")
+        next_cursor = row.get("next_cursor")
+        if count:
+            try:
+                parsed = UUID(str(next_cursor))
+                if cursor is not None and parsed.int <= UUID(cursor).int:
+                    raise ValueError("non-increasing cursor")
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise OutcomeCatalogueBridgeError(
+                    "Invalid reconciliation cursor; destructive cleanup is disabled."
+                ) from exc
+            cursor = str(parsed)
+        elif more:
+            raise OutcomeCatalogueBridgeError("Empty reconciliation page; destructive cleanup is disabled.")
+        if not more:
+            if scanned != result.scanned_count:
+                raise OutcomeCatalogueBridgeError("Incomplete reconciliation scan; destructive cleanup is disabled.")
+            break
+    else:
+        raise OutcomeCatalogueBridgeError("Reconciliation page bound exceeded; destructive cleanup is disabled.")
     return result
 
 
@@ -112,6 +137,7 @@ def _call_rpc(
     *,
     post: PostCallable,
     operation_label: str,
+    arguments: Mapping[str, object] | None = None,
 ) -> object:
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/rpc/{rpc_name}"
     try:
@@ -123,7 +149,7 @@ def _call_rpc(
                 "Content-Type": "application/json",
                 "Prefer": "return=representation",
             },
-            json={},
+            json=dict(arguments or {}),
             timeout=BRIDGE_TIMEOUT,
         )
     except httpx.HTTPError as exc:
@@ -132,8 +158,7 @@ def _call_rpc(
         ) from exc
     if response.is_error:
         raise OutcomeCatalogueBridgeError(
-            f"{operation_label} RPC failed; destructive cleanup is disabled "
-            f"(HTTP {response.status_code})."
+            f"{operation_label} RPC failed; destructive cleanup is disabled (HTTP {response.status_code})."
         )
     try:
         return response.json()
@@ -146,17 +171,14 @@ def _call_rpc(
 def _required_setting(settings: Mapping[str, object], key: str) -> str:
     value = settings.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise OutcomeCatalogueBridgeError(
-            f"{key} is required to bridge the catalogue before destructive cleanup."
-        )
+        raise OutcomeCatalogueBridgeError(f"{key} is required to bridge the catalogue before destructive cleanup.")
     return value.strip()
 
 
 def _single_result_row(payload: object) -> Mapping[str, object]:
     if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], dict):
         raise OutcomeCatalogueBridgeError(
-            "Outcome catalogue bridge RPC returned an unexpected result shape; "
-            "destructive cleanup is disabled."
+            "Outcome catalogue bridge RPC returned an unexpected result shape; destructive cleanup is disabled."
         )
     return payload[0]
 
