@@ -1134,6 +1134,8 @@ def _finalize_sale_for_app(sale: AuctionSale, *, geocode: bool = True) -> None:
     source_description = extract_source_description(sale)
     if source_description:
         sale.raw_payload["source_description"] = source_description
+    else:
+        sale.raw_payload.pop("source_description", None)
     if geocode:
         geocode_sale(sale)
     fill_tribunal(sale)

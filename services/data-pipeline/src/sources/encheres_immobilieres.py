@@ -718,8 +718,8 @@ def _raw_sale(item: dict[str, Any]) -> dict[str, Any] | None:
     slug = str(item.get("url") or "")
     if not slug:
         return None
-    description = _without_template_placeholder(
-        _html_text(item.get("complement")) or clean_text(item.get("description"))
+    description = _without_template_placeholder(_html_text(item.get("complement"))) or _without_template_placeholder(
+        clean_text(item.get("description"))
     )
     lawyer = item.get("avocat") if isinstance(item.get("avocat"), dict) else {}
     title = clean_text(item.get("titre"))
@@ -872,7 +872,7 @@ def _html_text(value: Any) -> str | None:
 
 def _without_template_placeholder(value: str | None) -> str | None:
     text = clean_text(value)
-    if text and re.fullmatch(r"\$[a-z][a-z0-9_]*", text, re.I):
+    if text and re.fullmatch(r"\$[a-z0-9][a-z0-9_]*", text, re.I):
         return None
     return text
 
