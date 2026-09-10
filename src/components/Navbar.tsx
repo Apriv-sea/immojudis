@@ -25,6 +25,7 @@ const AUTH_NAV_ITEMS = [
 const PRO_NAV_ITEM = { to: "/publish", label: "Publier" } as const;
 const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin" } as const;
 const HOME_NAV_ITEMS = [
+  { to: "/comment-ca-marche", label: "Comment ça marche" },
   { to: "/sales", label: "Rechercher un bien" },
   { to: "/avocats", label: "Trouver un avocat" },
   { to: "/annonce-exemple", label: "Annonce exemple" },
@@ -233,14 +234,16 @@ export function Navbar() {
 
   if (isHome) {
     return (
-      <header className="ij-site-header">
+      <header className="ij-site-header ij-cinematic-header">
         <div className="ij-site-header-inner">
           <HeaderLogo />
 
           <nav className="ij-home-nav" aria-label="Navigation principale">
-            {HOME_NAV_ITEMS.map((item) => (
+            {HOME_NAV_ITEMS.filter((item) =>
+              ["/sales", "/comment-ca-marche", "/a-propos"].includes(item.to),
+            ).map((item) => (
               <Link key={item.label} to={item.to}>
-                {item.label}
+                {item.to === "/sales" ? "Les ventes" : item.label}
                 {hasNavChevron(item) ? <ChevronDown aria-hidden className="h-4 w-4" /> : null}
               </Link>
             ))}

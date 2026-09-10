@@ -5046,3 +5046,43 @@
 .mapboxgl-ctrl-attrib {
   filter: drop-shadow(0 3px 8px rgb(19 34 56 / 12%));
 }
+
+
+.ij-cinematic-page { background: #faf9f6; }
+.ij-cinematic-header { position: fixed; padding: 24px 32px 0; color: white; pointer-events: none; }
+.ij-cinematic-header > * { pointer-events: auto; }
+.ij-cinematic-header .ij-site-header-inner { width: min(100%, 1236px); min-height: 80px; padding: 12px 28px; border: 1px solid rgb(226 234 247 / 40%); border-radius: 26px; background: rgb(24 31 48 / 76%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), inset 0 -1px 0 rgb(255 255 255 / 6%), 0 10px 32px rgb(10 17 30 / 18%); backdrop-filter: blur(24px) saturate(140%); -webkit-backdrop-filter: blur(24px) saturate(140%); overflow: visible; }
+.ij-cinematic-header .ij-site-header-inner > .ij-home-logo { align-items: center; }
+.ij-cinematic-header .ij-site-header-inner .ij-home-logo small { display: none; }
+.ij-cinematic-header .ij-site-header-inner::before { content: none; }
+.ij-cinematic-header .ij-home-logo,.ij-cinematic-header .ij-home-logo-mark { color: white; }
+.ij-cinematic-header .ij-home-logo-mark img { filter: brightness(0) invert(1); }
+.ij-cinematic-header .ij-home-logo strong { font-size: 38px; font-weight: 500; }
+.ij-cinematic-header .ij-home-logo small { color: #d0d4db; font-family: var(--font-display); font-size: 16px; }
+.ij-cinematic-header .ij-home-logo strong span { color: #deb477; }
+.ij-cinematic-header .ij-home-nav { justify-content: flex-end; gap: 32px; color: #eee; font-family: var(--font-display); font-size: 19px; }
+.ij-cinematic-header .ij-home-actions { margin-left: 18px; }
+.ij-cinematic-header .ij-home-actions .ij-signup-button { display: none; }
+.ij-cinematic-header .ij-login-button { border: 1px solid #cbb476; border-radius: 13px; color: #ead69d; background: rgb(203 180 118 / 15%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%); font-family: var(--font-display); font-size: 18px; }
+.ij-cinematic-header .ij-home-menu-button { color: white; background: rgb(255 255 255 / 12%); }
+.ij-cinematic-header .ij-mobile-panel .ij-home-logo,.ij-cinematic-header .ij-mobile-panel .ij-home-logo-mark { color: #132238; }
+.ij-cinematic-header .ij-mobile-panel .ij-home-logo-mark img { filter: none; }
+.ij-cinematic-header .ij-mobile-panel .ij-home-logo small { color: #657080; }
+.ij-cinematic-header .ij-mobile-panel .ij-login-button { color: #132238; border-color: #b2a18a; }
+.ij-cinematic-header .ij-home-nav a:hover { color: #ead69d; }
+.ij-cinematic-header .ij-site-header-inner a:focus-visible,
+.ij-cinematic-header .ij-home-menu-button:focus-visible { outline: 2px solid #ead69d; outline-offset: 5px; }
+.ij-cinematic-header .ij-site-header-inner .ij-login-button:hover { background: rgb(203 180 118 / 28%); color: #fff2c8; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ij-cinematic-header .ij-site-header-inner { background: #202839; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ij-cinematic-header .ij-site-header-inner { background: #202839; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@media (max-width: 760px) {
+  .ij-cinematic-header { padding: 12px 24px 0; }
+  .ij-cinematic-header .ij-site-header-inner { min-height: 64px; padding: 10px 14px; border-radius: 20px; gap: 12px; }
+  .ij-cinematic-header .ij-home-logo { gap: 6px; }
+  .ij-cinematic-header .ij-home-logo strong { font-size: 30px; }
+  .ij-cinematic-header .ij-home-logo small { font-size: 12px; max-width: 220px; }
+}

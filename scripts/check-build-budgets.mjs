@@ -8,7 +8,13 @@ const MAX_CLIENT_CHUNK_BYTES = 1_850_000;
 // Separate favorites and alerts routes add independently loaded client chunks.
 const MAX_TOTAL_CLIENT_JS_BYTES = 4_200_000;
 const MAX_LANDING_IMAGE_BYTES = 350_000;
-const MAX_PUBLIC_MEDIA_BYTES = 1_600_000;
+// New homepage: lossless panorama for large screens plus editorial photography.
+const MAX_PUBLIC_MEDIA_BYTES = 5_000_000;
+const HOMEPAGE_IMAGE_BUDGETS = {
+  "public/media/landing/cinematic-bordeaux-lossless.webp": 2_300_000,
+  "public/media/landing/gallery-townhouse.webp": 460_000,
+  "public/media/landing/gallery-land.webp": 460_000,
+};
 const MAX_BUSINESS_MODULE_LINES = 1_500;
 
 const businessModules = [
@@ -157,7 +163,7 @@ for (const budget of routeBudgets) {
 const landingImages = await filesUnder("public/media/landing", (path) => path.endsWith(".webp"));
 for (const path of landingImages) {
   const bytes = (await stat(path)).size;
-  if (bytes > MAX_LANDING_IMAGE_BYTES) {
+  if (bytes > (HOMEPAGE_IMAGE_BUDGETS[path] ?? MAX_LANDING_IMAGE_BYTES)) {
     throw new Error(`Image landing trop lourde: ${path} (${bytes} octets).`);
   }
 }
