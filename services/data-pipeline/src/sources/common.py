@@ -231,9 +231,9 @@ class PoliteHttpClient:
 def listing_signature(sale: dict[str, Any]) -> str | None:
     """Change-signature of a scraped list item (date + price), or None when the
     list page does not yet expose both (then we must fetch the detail page)."""
-    from src.normalize import extract_starting_price, make_sale_signature, parse_french_datetime
+    from src.normalize import extract_starting_price, make_sale_signature, parse_french_datetime, source_sale_timezone
 
-    sale_date = parse_french_datetime(sale.get("sale_date"))
+    sale_date = parse_french_datetime(sale.get("sale_date"), local_timezone=source_sale_timezone(sale))
     price = extract_starting_price(sale)
     if sale_date is None and price is None:
         return None

@@ -27,6 +27,7 @@ from src.normalize import (
     parse_french_datetime,
     parse_price,
     parse_surface,
+    source_sale_timezone,
     strip_accents,
 )
 from src.pdf_enrichment import (
@@ -58,7 +59,10 @@ def enrich_sale_from_pdf_text(sale: AuctionSale, pdf_texts: list[dict[str, objec
     if not sale.occupancy_status:
         sale.occupancy_status = _extract_occupancy_status(combined)
     if sale.sale_date is None:
-        sale_date = _extract_sale_date_from_documents(pdf_texts) or _extract_sale_date_with_evidence(combined)
+        timezone = source_sale_timezone(sale.raw_payload)
+        sale_date = _extract_sale_date_from_documents(pdf_texts, local_timezone=timezone) or _extract_sale_date_with_evidence(
+            combined, local_timezone=timezone,
+        )
         if sale_date:
             _assign_pdf_sale_date(sale, sale_date)
     starting_price = _extract_starting_price_from_documents(pdf_texts)
@@ -467,7 +471,9 @@ def _extract_visit_dates_from_documents(pdf_texts: list[dict[str, object]] | lis
     return candidates[0]
 
 
-def _extract_sale_date_from_documents(pdf_texts: list[dict[str, object]] | list[str]) -> dict[str, object] | None:
+def _extract_sale_date_from_documents(
+    pdf_texts: list[dict[str, object]] | list[str], *, local_timezone: str = "Europe/Paris",
+) -> dict[str, object] | None:
     candidates: list[dict[str, object]] = []
     for item in pdf_texts:
         if not isinstance(item, dict):
@@ -484,7 +490,7 @@ def _extract_sale_date_from_documents(pdf_texts: list[dict[str, object]] | list[
             for page in pages:
                 if not isinstance(page, dict):
                     continue
-                extracted = _extract_sale_date_with_evidence(str(page.get("text") or ""))
+                extracted = _extract_sale_date_with_evidence(str(page.get("text") or ""), local_timezone=local_timezone)
                 if not extracted:
                     continue
                 extracted.update(
@@ -499,7 +505,7 @@ def _extract_sale_date_from_documents(pdf_texts: list[dict[str, object]] | list[
                 )
                 candidates.append(extracted)
         if len(candidates) == item_candidate_count:
-            extracted = _extract_sale_date_with_evidence(str(item.get("text") or ""))
+            extracted = _extract_sale_date_with_evidence(str(item.get("text") or ""), local_timezone=local_timezone)
             if extracted:
                 extracted.update(
                     {
@@ -939,11 +945,11 @@ def _decimal_to_int_or_float(value: Decimal | None) -> int | float | None:
     return int(value) if value == value.to_integral_value() else float(value)
 
 
-def _extract_sale_date_with_evidence(text: str) -> dict[str, object] | None:
+def _extract_sale_date_with_evidence(text: str, *, local_timezone: str = "Europe/Paris") -> dict[str, object] | None:
     candidates: list[dict[str, object]] = []
     for chunk in _visit_candidate_chunks(text):
         for phrase in _sale_date_candidate_phrases(chunk):
-            parsed = parse_french_datetime(phrase)
+            parsed = parse_french_datetime(phrase, local_timezone=local_timezone)
             if parsed is None:
                 continue
             candidates.append(

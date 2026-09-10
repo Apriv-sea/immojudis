@@ -77,7 +77,7 @@ def test_parse_french_datetime_handles_month_and_hour() -> None:
     assert parsed.year == 2024
     assert parsed.month == 12
     assert parsed.day == 12
-    assert parsed.hour == 14
+    assert parsed.hour == 13  # 14:30 Europe/Paris in winter
     assert parsed.minute == 30
 
 
