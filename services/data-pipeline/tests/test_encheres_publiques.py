@@ -1,15 +1,43 @@
+import json
 from decimal import Decimal
 
 from src.asset_normalization import normalize_asset_features
 from src.normalize import normalize_sale
+from src.sale_procedure import classify_sale_procedure
 from src.sources.common import is_allowed_origin_url
 from src.sources.encheres_publiques import (
     BASE_URL,
     CANONICAL_BASE_URL,
     _enrich_sale_from_detail,
+    _source_sale_schedule,
     parse_encheres_publiques_detail_html,
     parse_encheres_publiques_html,
 )
+
+
+def test_sale_schedule_keeps_matching_boundaries_without_mixing_lot_and_event() -> None:
+    event = {"ouverture_date": 1789556400, "fermeture_date": 1789642800}
+    assert _source_sale_schedule({}, event) is not None
+    assert _source_sale_schedule({"ouverture_date": 1789556400}, event) is None
+    assert _source_sale_schedule({"fermeture_date": 1789642800}, event) is None
+    assert _source_sale_schedule({"ouverture_date": 1789642800, "fermeture_date": 1789556400}, {}) is None
+    assert _source_sale_schedule({"ouverture_date": 10**100, "fermeture_date": 10**101}, {}) is None
+
+
+def test_detail_window_survives_normalization_and_procedure_classification() -> None:
+    state = {
+        "Lot:123": {
+            "id": "123", "categorie": "immobilier", "nom": "Maison à Bordeaux",
+            "description": "Vente notariale en ligne", "mise_a_prix": 100000,
+            "ouverture_date": 1789556400, "fermeture_date": 1789642800,
+        },
+    }
+    payload = {"props": {"pageProps": {"apolloState": {"data": state}}}}
+    html = '<script id="__NEXT_DATA__" type="application/json">' + json.dumps(payload) + '</script>'
+    raw = parse_encheres_publiques_detail_html(html, f"{BASE_URL}/encheres/maison_123")
+    sale = classify_sale_procedure(normalize_sale(raw))
+    assert sale.sale_procedure["sale_window"]["opens_at"] == raw["sale_date"]
+    assert sale.sale_procedure["sale_window"]["closes_at"] == raw["source_sale_schedule"]["closes_at"]
 
 
 def test_encheres_publiques_accepts_only_its_www_and_canonical_origins() -> None:

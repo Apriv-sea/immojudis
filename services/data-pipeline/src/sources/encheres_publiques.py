@@ -146,6 +146,7 @@ def parse_encheres_publiques_html(html: str, page_url: str) -> list[dict[str, An
                 "starting_price_eur": lot.get("mise_a_prix"),
                 "adjudication_price_eur": adjudication_price,
                 "sale_date": _timestamp_to_iso(lot.get("ouverture_date") or event.get("ouverture_date")),
+                "source_sale_schedule": _source_sale_schedule(lot, event),
                 "lawyer_name": _lawyer_name(organizer),
                 "tribunal": _tribunal_name(organizer, event),
                 "status": _sale_status(adjudication_price, lot.get("termine")),
@@ -212,6 +213,7 @@ def parse_encheres_publiques_detail_html(html: str, source_url: str) -> dict[str
         "starting_price_eur": lot.get("mise_a_prix") or lot.get("prix_plancher"),
         "adjudication_price_eur": adjudication_price,
         "sale_date": _timestamp_to_iso(lot.get("ouverture_date") or lot.get("fermeture_date") or event.get("ouverture_date")),
+        "source_sale_schedule": _source_sale_schedule(lot, event),
         "visit_dates": visit_dates,
         "lawyer_name": _lawyer_name(organizer),
         "lawyer_contact": _plain_text(organizer.get("telephone") or organizer.get("phone")),
@@ -265,6 +267,10 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
 
     details = parse_encheres_publiques_detail_html(html, source_url)
     for key, value in details.items():
+        if key == "source_sale_schedule":
+            # The detail page supersedes the list, including an incomplete interval.
+            sale[key] = value
+            continue
         if value in (None, "", []):
             continue
         if key == "source_blocks" and isinstance(value, dict):
@@ -384,12 +390,26 @@ def _coordinates(address: dict[str, Any]) -> tuple[str | None, str | None]:
     return (str(latitude) if latitude is not None else None, str(longitude) if longitude is not None else None)
 
 
+def _source_sale_schedule(lot: dict[str, Any], event: dict[str, Any]) -> dict[str, str] | None:
+    # Never mix a lot opening with an event closing (different populations).
+    has_lot_boundary = any(lot.get(key) is not None for key in ("ouverture_date", "fermeture_date"))
+    schedule = lot if has_lot_boundary else event
+    opens_at = _timestamp_to_iso(schedule.get("ouverture_date"))
+    closes_at = _timestamp_to_iso(schedule.get("fermeture_date"))
+    if not opens_at or not closes_at or datetime.fromisoformat(closes_at) <= datetime.fromisoformat(opens_at):
+        return None
+    return {"opens_at": opens_at, "closes_at": closes_at}
+
+
 def _timestamp_to_iso(value: object) -> str | None:
     try:
         timestamp = int(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
-    return datetime.fromtimestamp(timestamp, UTC).isoformat()
+    try:
+        return datetime.fromtimestamp(timestamp, UTC).isoformat()
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def _timestamp_to_display(value: object) -> str | None:
