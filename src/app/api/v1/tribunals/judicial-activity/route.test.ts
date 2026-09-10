@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildTribunalJudicialActivity } from "@/lib/tribunal-judicial-activity";
+import {
+  buildTribunalJudicialActivity,
+  TribunalCourtUnresolvedError,
+} from "@/lib/tribunal-judicial-activity";
 
 const mocks = vi.hoisted(() => ({
   getActivity: vi.fn(),
@@ -82,5 +85,13 @@ describe("GET /api/v1/tribunals/judicial-activity", () => {
 
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("public, max-age=0, no-cache");
+  });
+
+  it("distingue un rattachement non résolu d’une panne du service", async () => {
+    mocks.getActivity.mockRejectedValue(new TribunalCourtUnresolvedError());
+    const response = await request();
+    expect(response.status).toBe(422);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({ code: "COURT_UNRESOLVED" });
   });
 });

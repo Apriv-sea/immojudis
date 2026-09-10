@@ -2,6 +2,7 @@ import { propertyTypeLabel } from "@/lib/format";
 import type { AuctionSale, SaleVenueType } from "@/lib/types";
 
 export const MAX_COMPARED_SALES = 3;
+export const MAX_SAVED_COMPARED_SALES = 12;
 const MAX_SNAPSHOT_CANDIDATES = 30;
 
 // Only catalogue facts belong in this temporary comparison, even when the
@@ -67,7 +68,7 @@ export function buildSaleComparisonSnapshot(
   return {
     version: 1,
     capturedAt,
-    items: items.slice(0, MAX_COMPARED_SALES).map((item) => normalizeComparedSale(item)),
+    items: items.slice(0, MAX_SAVED_COMPARED_SALES).map((item) => normalizeComparedSale(item)),
   };
 }
 
@@ -77,7 +78,7 @@ export function readSaleComparisonSnapshot(value: unknown): ComparedSale[] {
   const items: ComparedSale[] = [];
   const seen = new Set<string>();
   for (const rawItem of value.items.slice(0, MAX_SNAPSHOT_CANDIDATES)) {
-    if (items.length >= MAX_COMPARED_SALES) break;
+    if (items.length >= MAX_SAVED_COMPARED_SALES) break;
     if (!isRecord(rawItem) || !isUuid(rawItem.id) || seen.has(rawItem.id)) continue;
     seen.add(rawItem.id);
     items.push(normalizeComparedSale(rawItem));

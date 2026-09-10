@@ -16,7 +16,6 @@ type AnalysisSetRow = Database["public"]["Tables"]["user_sale_analysis_sets"]["R
 type AnalysisSetInsert = Database["public"]["Tables"]["user_sale_analysis_sets"]["Insert"];
 type AnalysisSetUpdate = Database["public"]["Tables"]["user_sale_analysis_sets"]["Update"];
 type AnalysisItemRow = Database["public"]["Tables"]["user_sale_analysis_items"]["Row"];
-type AnalysisItemInsert = Database["public"]["Tables"]["user_sale_analysis_items"]["Insert"];
 type AnalysisSetMetadata = Pick<
   SaleAnalysisSetPayload,
   "name" | "analysisKind" | "notes" | "assumptions" | "summarySnapshot" | "isArchived"
@@ -95,6 +94,7 @@ export type SaleAnalysisSet = Omit<
   | "assumptions"
   | "summary_snapshot"
   | "share_token_hash"
+  | "shared_snapshot"
   | "shared_at"
   | "share_expires_at"
 > & {
@@ -184,29 +184,15 @@ export async function createSaleAnalysisSet({
 
   await assertSetLimit(auth, plan.limits.saleAnalysisSets);
 
-  const insertPayload: AnalysisSetInsert = {
-    user_id: auth.userId,
-    ...analysisSetPayloadToDb(preparedInput),
-  };
-
   const { data, error } = await auth.supabase
-    .from("user_sale_analysis_sets")
-    .insert(insertPayload)
-    .select("*")
+    .rpc("save_sale_analysis_set", {
+      p_metadata: asJson(analysisSetPayloadToDb(preparedInput)),
+      p_items: asJson(preparedInput.items),
+    })
     .single();
 
   if (error) throw error;
 
-  try {
-    await replaceAnalysisItems({ auth, setId: data.id, items: preparedInput.items });
-  } catch (error) {
-    await auth.supabase
-      .from("user_sale_analysis_sets")
-      .delete()
-      .eq("id", data.id)
-      .eq("user_id", auth.userId);
-    throw error;
-  }
   const [set] = await hydrateAnalysisSets({
     auth,
     sets: [data],
@@ -236,7 +222,7 @@ export async function updateSaleAnalysisSet({
   const preparedInput = await prepareAnalysisSetUpdate(input, requestedKind);
   const next = mergeAnalysisSetMetadata(existing, preparedInput);
 
-  if (!existing.is_archived && next.isArchived === false) {
+  if (next.isArchived === false) {
     await assertSetLimit(auth, plan.limits.saleAnalysisSets, existing.id);
   }
   if (preparedInput.items) {
@@ -244,20 +230,14 @@ export async function updateSaleAnalysisSet({
   }
 
   const { data, error } = await auth.supabase
-    .from("user_sale_analysis_sets")
-    .update({
-      ...analysisSetMetadataToDb(next),
-      updated_at: new Date().toISOString(),
+    .rpc("save_sale_analysis_set", {
+      p_set_id: setId,
+      p_metadata: asJson(analysisSetMetadataToDb(next)),
+      p_items: asJson(preparedInput.items ?? null),
     })
-    .eq("id", setId)
-    .eq("user_id", auth.userId)
-    .select("*")
     .single();
 
   if (error) throw error;
-  if (preparedInput.items) {
-    await replaceAnalysisItems({ auth, setId, items: preparedInput.items });
-  }
 
   const [set] = await hydrateAnalysisSets({
     auth,
@@ -305,9 +285,19 @@ export async function enableSaleComparisonShare({
   if (set.analysisKind !== "comparison") {
     throw new Error("Seules les comparaisons peuvent être partagées.");
   }
-  if (!readSaleComparisonSnapshot(set.summarySnapshot).length) {
+  const { data: ownedItems, error: itemsError } = await auth.supabase
+    .from("user_sale_analysis_items")
+    .select("sale_id")
+    .eq("analysis_set_id", setId)
+    .eq("user_id", auth.userId)
+    .order("item_order");
+  if (itemsError) throw itemsError;
+  if (!ownedItems?.length) {
     throw new Error("Cette comparaison ne contient aucun bien partageable.");
   }
+  const sharedSnapshot = await buildCanonicalComparisonSnapshot(
+    ownedItems.map((item) => ({ saleId: item.sale_id, decisionStatus: "watching" })),
+  );
 
   const token = randomBytes(24).toString("base64url");
   const sharedAt = new Date();
@@ -316,6 +306,7 @@ export async function enableSaleComparisonShare({
     .from("user_sale_analysis_sets")
     .update({
       share_token_hash: hashShareToken(token),
+      shared_snapshot: asJson(sharedSnapshot),
       shared_at: sharedAt.toISOString(),
       share_expires_at: expiresAt,
       updated_at: sharedAt.toISOString(),
@@ -344,6 +335,7 @@ export async function disableSaleComparisonShare({
     .from("user_sale_analysis_sets")
     .update({
       share_token_hash: null,
+      shared_snapshot: null,
       shared_at: null,
       share_expires_at: null,
       updated_at: new Date().toISOString(),
@@ -361,7 +353,7 @@ export async function getSharedSaleComparison(token: string): Promise<PublicShar
 
   const { data, error } = await supabaseAdmin
     .from("user_sale_analysis_sets")
-    .select("name,analysis_kind,summary_snapshot,shared_at,share_expires_at,updated_at")
+    .select("name,analysis_kind,shared_snapshot,shared_at,share_expires_at,updated_at")
     .eq("share_token_hash", hashShareToken(normalizedToken))
     .eq("analysis_kind", "comparison")
     .maybeSingle();
@@ -369,7 +361,7 @@ export async function getSharedSaleComparison(token: string): Promise<PublicShar
 
   const expiresAt = data?.share_expires_at;
   const sharedAt = data?.shared_at;
-  const items = readSaleComparisonSnapshot(data?.summary_snapshot);
+  const items = readSaleComparisonSnapshot(data?.shared_snapshot);
   if (
     !data ||
     !expiresAt ||
@@ -448,7 +440,13 @@ async function hydrateAnalysisSets({
 }
 
 function normalizeAnalysisSet(set: AnalysisSetRow, items: SaleAnalysisItem[]): SaleAnalysisSet {
-  const { share_token_hash: _shareTokenHash, shared_at, share_expires_at, ...safeSet } = set;
+  const {
+    share_token_hash: _shareTokenHash,
+    shared_snapshot: _sharedSnapshot,
+    shared_at,
+    share_expires_at,
+    ...safeSet
+  } = set;
   const shareExpiry = share_expires_at ? new Date(share_expires_at).getTime() : Number.NaN;
   return {
     ...safeSet,
@@ -534,41 +532,6 @@ async function fetchSaleSummaries(
       },
     ]),
   );
-}
-
-async function replaceAnalysisItems({
-  auth,
-  setId,
-  items,
-}: {
-  auth: SupabaseAuthContext;
-  setId: string;
-  items: z.output<typeof saleAnalysisItemInputSchema>[];
-}) {
-  const uniqueItems = dedupeItems(items);
-
-  const { error: deleteError } = await auth.supabase
-    .from("user_sale_analysis_items")
-    .delete()
-    .eq("analysis_set_id", setId)
-    .eq("user_id", auth.userId);
-  if (deleteError) throw deleteError;
-
-  const rows: AnalysisItemInsert[] = uniqueItems.map((item, index) => ({
-    analysis_set_id: setId,
-    user_id: auth.userId,
-    sale_id: item.saleId,
-    item_order: index,
-    decision_status: item.decisionStatus,
-    user_max_bid_eur: item.userMaxBidEur ?? null,
-    target_yield_pct: item.targetYieldPct ?? null,
-    expected_margin_pct: item.expectedMarginPct ?? null,
-    notes: item.notes ?? null,
-  }));
-
-  if (!rows.length) return;
-  const { error } = await auth.supabase.from("user_sale_analysis_items").insert(rows);
-  if (error) throw error;
 }
 
 async function assertSaleAnalysisAvailable(

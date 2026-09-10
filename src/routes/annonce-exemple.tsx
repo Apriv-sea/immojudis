@@ -1,9 +1,16 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { AnalysisSaleDetailView } from "@/components/SimplifiedSaleDetailView";
+import dynamic from "next/dynamic";
+import { SaleDetailSkeleton } from "@/components/SaleDetailView";
 import type { MarketEstimate } from "@/lib/market.functions";
 import type { AuctionSale } from "@/lib/types";
+
+const AnalysisSaleDetailView = dynamic(
+  () =>
+    import("@/components/SimplifiedSaleDetailView").then((module) => module.AnalysisSaleDetailView),
+  { loading: () => <SaleDetailSkeleton /> },
+);
 
 export function ExampleSalePage({
   examples,

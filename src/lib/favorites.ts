@@ -48,6 +48,7 @@ export type FavoritePlanAccess = {
 
 export type FavoriteSalesResponse = {
   favorites: FavoriteSale[];
+  unavailableSaleIds: string[];
   summary: FavoriteSalesSummary;
   plan: FavoritePlanAccess;
 };
@@ -74,11 +75,15 @@ export async function listFavoriteSales({
   const sales = await loadSalesByIds(
     auth,
     favoriteRows.map((favorite) => favorite.sale_id),
+    plan.plan,
   );
   const favorites = joinFavoriteRowsToSales(favoriteRows, sales);
 
   return {
     favorites,
+    unavailableSaleIds: favoriteRows
+      .filter((row) => !favorites.some((favorite) => favorite.saleId === row.sale_id))
+      .map((row) => row.sale_id),
     summary: buildFavoriteSalesSummary(favorites),
     plan: favoritePlanAccess(plan),
   };
@@ -93,7 +98,7 @@ export async function addFavoriteSale({
 }): Promise<FavoriteSaleMutationResponse> {
   const plan = await assertSaleFavoritesAvailable(auth);
   const { row, created } = await insertFavoriteRow(auth, input.saleId);
-  const sales = await loadSalesByIds(auth, [row.sale_id]);
+  const sales = await loadSalesByIds(auth, [row.sale_id], plan.plan);
   const [favorite] = joinFavoriteRowsToSales([row], sales);
 
   if (created) {
@@ -219,12 +224,13 @@ async function loadFavoriteRows(auth: SupabaseAuthContext): Promise<FavoriteRow[
 async function loadSalesByIds(
   auth: SupabaseAuthContext,
   saleIds: string[],
+  plan: PlanCode,
 ): Promise<AuctionSale[]> {
   const ids = [...new Set(saleIds)].filter(Boolean);
   if (!ids.length) return [];
 
   const { data, error } = await auth.supabase
-    .from(DETAIL_VIEW)
+    .from(plan === "analyse" ? DETAIL_VIEW : ("v_auction_sales_discovery" as typeof DETAIL_VIEW))
     .select(SALE_LIST_COLUMNS)
     .in("id", ids);
   if (error) throw error;

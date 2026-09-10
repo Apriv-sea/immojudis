@@ -15,6 +15,8 @@ import { isAdminAccount, isProfessionalAccount } from "@/lib/account";
 import { RESOURCES_PATH } from "@/lib/navigation";
 
 const AUTH_NAV_ITEMS = [
+  { to: "/favoris", label: "Mes favoris" },
+  { to: "/alertes", label: "Mes alertes" },
   { to: "/sales", label: "Annonces" },
   { to: "/tribunaux", label: "Tribunaux" },
   { to: "/avocats", label: "Avocats" },
@@ -160,7 +162,7 @@ export function Navbar() {
               aria-controls="product-mobile-navigation"
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(true)}
-              className="ml-auto inline-grid h-10 w-10 place-items-center rounded-md border border-border bg-white md:hidden"
+              className="ml-auto inline-grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border bg-white md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>

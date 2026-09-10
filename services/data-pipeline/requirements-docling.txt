@@ -2,4 +2,4 @@
 #
 # Install this file after requirements.txt when you want the Docling-first PDF pipeline.
 # The base HTTPX, Pydantic, and Supabase pins are kept compatible with this stack.
-docling==2.116.0
+docling==2.123.1

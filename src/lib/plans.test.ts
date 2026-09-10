@@ -20,9 +20,14 @@ describe("plan matrix", () => {
     const unexpectedlyUnlocked = Object.entries(PLAN_FEATURES.decouverte)
       .filter(
         (feature) =>
-          !["sales.filters", "sales.multiPropertyAnalysis", "lawyers.directory"].includes(
-            feature[0],
-          ),
+          ![
+            "sales.filters",
+            "alerts.advanced",
+            "alerts.watchedZones",
+            "sales.favorites",
+            "sales.multiPropertyAnalysis",
+            "lawyers.directory",
+          ].includes(feature[0]),
       )
       .filter(([, access]) => access !== "locked");
 
@@ -34,7 +39,7 @@ describe("plan matrix", () => {
     expect(featureIncluded("decouverte", "property.informationAgent")).toBe(false);
     expect(PLAN_LIMITS.decouverte.propertyReportsPerMonth).toBe(0);
     expect(PLAN_LIMITS.decouverte.pdfExportsPerMonth).toBe(0);
-    expect(PLAN_LIMITS.decouverte.favoriteSales).toBe(0);
+    expect(PLAN_LIMITS.decouverte.favoriteSales).toBe(10);
     expect(PLAN_LIMITS.decouverte.saleAnalysisSets).toBe(1);
     expect(PLAN_LIMITS.decouverte.saleAnalysisItems).toBe(3);
   });

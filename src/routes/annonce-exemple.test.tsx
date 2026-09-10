@@ -45,21 +45,21 @@ describe("ExampleSalePage", () => {
     ["bordeaux", "Bordeaux"],
     ["nantes", "Nantes"],
     ["toulouse", "Toulouse"],
-  ] as const)("rend l'exemple %s avec l'analyse publique complète", (bien, city) => {
+  ] as const)("rend l'exemple %s avec l'analyse publique complète", async (bien, city) => {
     mocks.bien = bien;
     render(<ExampleSalePage examples={EXAMPLE_SALE_RECORDS} />);
 
-    const detail = screen.getByTestId("example-detail");
+    const detail = await screen.findByTestId("example-detail");
     expect(detail.dataset.city).toBe(city);
     expect(detail.dataset.access).toBe("public-analysis");
     expect(detail.dataset.market).toBe("complete");
     expect(detail.dataset.returnTo).toBe("/#exemples");
   });
 
-  it("ignore l'ancien paramètre de limitation et conserve l'analyse complète", () => {
+  it("ignore l'ancien paramètre de limitation et conserve l'analyse complète", async () => {
     mocks.bien = "decouverte";
     render(<ExampleSalePage examples={EXAMPLE_SALE_RECORDS} />);
 
-    expect(screen.getByTestId("example-detail").dataset.city).toBe("Bordeaux");
+    expect((await screen.findByTestId("example-detail")).dataset.city).toBe("Bordeaux");
   });
 });

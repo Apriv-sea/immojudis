@@ -159,6 +159,20 @@ test("inscription → recherche → rapport → paiement → partage", async ({ 
   });
   expect(shareUrl).toContain("token-e2e");
   expect(journey).toEqual(["registration", "search", "report", "payment", "share"]);
+
+  await page.route("**/api/favorites", (route) =>
+    route.fulfill({ status: 200, json: { favorites: [], plan: {} } }),
+  );
+  await page.route("**/api/watched-zones**", (route) =>
+    route.fulfill({ status: 200, json: { zones: [], plan: {} } }),
+  );
+  await page.goto("/favoris");
+  await expect(page.getByRole("heading", { name: "Mes ventes suivies" })).toBeVisible();
+  await expect(page.getByText(/Aucune vente suivie disponible/)).toBeVisible();
+  await page.goto("/alertes");
+  await expect(page.getByRole("heading", { name: "Mes alertes", exact: true })).toBeVisible();
+  await expect(page.getByText("Aucune alerte enregistrée.")).toBeVisible();
+  await expect(page.getByText("Aucune zone enregistrée.")).toBeVisible();
 });
 
 function fakeJwt(payload: Record<string, unknown>) {

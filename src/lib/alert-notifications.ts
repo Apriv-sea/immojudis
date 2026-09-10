@@ -121,19 +121,22 @@ export async function createAlertNotificationsForMatches({
   matches,
   alerts,
   now = new Date(),
+  discovery = false,
 }: {
   auth: SupabaseAuthContext;
   matches: AlertNotificationMatchInput[];
   alerts: Pick<UserAlert, "id" | "alert_frequency">[];
   now?: Date;
+  discovery?: boolean;
 }): Promise<AlertNotificationCreateResult> {
-  const includeEmail = await emailAlertConsentEnabled(auth);
+  const includeEmail = !discovery && (await emailAlertConsentEnabled(auth));
   const rows = buildAlertNotificationRows({
     userId: auth.userId,
     matches,
     alerts,
     now,
     includeEmail,
+    discovery,
   });
 
   if (!rows.length) return { notificationCount: 0 };
@@ -267,12 +270,14 @@ export function buildAlertNotificationRows({
   alerts,
   now = new Date(),
   includeEmail = false,
+  discovery = false,
 }: {
   userId: string;
   matches: AlertNotificationMatchInput[];
   alerts: Pick<UserAlert, "id" | "alert_frequency">[];
   now?: Date;
   includeEmail?: boolean;
+  discovery?: boolean;
 }): NotificationInsert[] {
   const frequencyByAlert = new Map(alerts.map((alert) => [alert.id, alert.alert_frequency]));
 
@@ -283,7 +288,20 @@ export function buildAlertNotificationRows({
       const notificationKind = notificationKindForFrequency(frequency);
       const scheduledFor = scheduledForFrequency(frequency, now);
       const isInstant = frequency === "instant";
-      const snapshot = asJson(buildNotificationSnapshot({ match, frequency }));
+      const snapshot = asJson({
+        ...buildNotificationSnapshot({
+          match: discovery
+            ? {
+                ...match,
+                saleTitle: "Vente immobilière",
+                marketDiscountPct: null,
+                reasons: ["Critères publics correspondants"],
+              }
+            : match,
+          frequency,
+        }),
+        audience: discovery ? "discovery" : "analyse",
+      });
       const inAppRow: NotificationInsert = {
         user_id: userId,
         alert_id: match.alertId,
@@ -297,7 +315,7 @@ export function buildAlertNotificationRows({
         notification_snapshot: snapshot,
       };
 
-      if (!includeEmail) return [inAppRow];
+      if (!includeEmail || discovery) return [inAppRow];
 
       return [
         inAppRow,

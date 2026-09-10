@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearch } from "@/lib/router-compat";
 import { useQuery } from "@tanstack/react-query";
 import { SaleDetailSkeleton, SaleNotFoundComponent } from "@/components/SaleDetailView";
-import { DiscoverySaleDetailView } from "@/components/DiscoverySaleDetailView";
-import { AnalysisSaleDetailView } from "@/components/SimplifiedSaleDetailView";
+
 import { SalePublicPreview } from "@/components/SalePublicPreview";
 import { useAuth } from "@/hooks/use-auth";
 import { markSaleViewed } from "@/hooks/use-viewed-sales";
@@ -14,6 +14,18 @@ import { fetchAccessPlan } from "@/lib/client-api";
 import { safeSalesReturnTo, saleDetailPath } from "@/lib/navigation";
 import { saleSeoTitle } from "@/lib/seo";
 import type { AuctionSale } from "@/lib/types";
+
+const DiscoverySaleDetailView = dynamic(
+  () =>
+    import("@/components/DiscoverySaleDetailView").then((module) => module.DiscoverySaleDetailView),
+  { loading: () => <SaleDetailSkeleton /> },
+);
+
+const AnalysisSaleDetailView = dynamic(
+  () =>
+    import("@/components/SimplifiedSaleDetailView").then((module) => module.AnalysisSaleDetailView),
+  { loading: () => <SaleDetailSkeleton /> },
+);
 
 type SaleDetailRouteData = {
   sale: AuctionSale | null;

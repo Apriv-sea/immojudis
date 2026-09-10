@@ -145,8 +145,26 @@ export function SearchHeader({
   onSortChange: (sort: SearchSortKey) => void;
   onToggleLayout: () => void;
 }) {
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const header = headerRef.current;
+    const main = header?.closest("main");
+    if (!header || !main || typeof ResizeObserver === "undefined") return;
+    const update = () =>
+      main.style.setProperty("--sales-header-height", `${header.getBoundingClientRect().height}px`);
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    update();
+    return () => {
+      observer.disconnect();
+      main.style.removeProperty("--sales-header-height");
+    };
+  }, []);
   return (
-    <header className="top-0 z-40 border-b border-[#132238]/10 bg-[#fbfdff] shadow-[0_10px_30px_rgba(19,34,56,0.12)] lg:sticky">
+    <header
+      ref={headerRef}
+      className="top-0 z-40 border-b border-[#132238]/10 bg-[#fbfdff] shadow-[0_10px_30px_rgba(19,34,56,0.12)] lg:sticky"
+    >
       <div className="bg-[#071a31] text-white">
         <div className="px-3 py-3 sm:px-5 lg:px-6">
           <div className="grid gap-3 lg:grid-cols-[max-content_minmax(20rem,1fr)_auto] lg:items-center">

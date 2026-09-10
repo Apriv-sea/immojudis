@@ -1,11 +1,12 @@
 import type { SupabaseAuthContext } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { isDiscoveryAlertCompatible } from "@/lib/discovery-alerts";
 import { alertMatchesSale } from "@/lib/alerts";
 import { createAlertNotificationsForMatches } from "@/lib/alert-notifications";
 import { extractDpe } from "@/lib/dpe";
 import { estimateGrossYieldPct, pricePerM2 } from "@/lib/geo";
-import { featureIncluded, isPlanPeriodActive } from "@/lib/plans";
+import { featureIncluded } from "@/lib/plans";
 import { resolvePlanEntitlements } from "@/lib/property-reports";
 import { getSales } from "@/lib/queries";
 import { getPrecomputedMarketEstimate } from "@/lib/sale-market-estimates";
@@ -118,17 +119,27 @@ export async function evaluateUserAlertMatches({
     throw new Error("Alertes avancées réservées au plan Analyse.");
   }
 
+  const discovery = !plan.hasAnalysisAccess;
   const evaluatedAt = new Date().toISOString();
-  const [alerts, sales] = await Promise.all([
-    getActiveUserAlerts(auth),
-    getSales(
-      { status_in: ["active", "upcoming"] },
-      clampLimit(saleLimit, MAX_ALERT_EVALUATION_SALE_LIMIT),
-      "date_asc",
-      0,
-      { client: auth.supabase },
-    ),
-  ]);
+  const activeAlerts = await getActiveUserAlerts(auth);
+  const alerts = discovery
+    ? activeAlerts.filter(isDiscoveryAlertCompatible).slice(0, 1)
+    : activeAlerts;
+  const sales = await getSales(
+    {
+      status_in: ["active", "upcoming"],
+      ...(discovery && alerts.length === 1
+        ? {
+            city: alerts[0].city ?? undefined,
+            department: alerts[0].department ?? undefined,
+          }
+        : {}),
+    },
+    clampLimit(saleLimit, MAX_ALERT_EVALUATION_SALE_LIMIT),
+    "date_asc",
+    0,
+    { client: auth.supabase, discovery },
+  );
   const marketDiscountCache = new Map<string, Promise<number | null>>();
   const watchedZones = await getUserWatchedZonesForAlerts({ auth, alerts });
   const matches: AlertMatchSummary[] = [];
@@ -136,6 +147,7 @@ export async function evaluateUserAlertMatches({
   const matchCounts = new Map<string, number>();
 
   for (const alert of alerts) {
+    if (discovery && !isDiscoveryAlertCompatible(alert)) continue;
     const watchedZone = alert.watched_zone_id
       ? (watchedZones.get(alert.watched_zone_id) ?? null)
       : null;
@@ -165,6 +177,11 @@ export async function evaluateUserAlertMatches({
         marketDiscountPct,
         matchedAt: evaluatedAt,
       });
+      if (discovery) {
+        summary.saleTitle = "Vente immobilière";
+        summary.marketDiscountPct = null;
+        summary.reasons = ["Critères publics correspondants"];
+      }
       matches.push(summary);
       matchCounts.set(alert.id, (matchCounts.get(alert.id) ?? 0) + 1);
 
@@ -172,9 +189,11 @@ export async function evaluateUserAlertMatches({
         user_id: auth.userId,
         alert_id: alert.id,
         sale_id: sale.id,
-        match_reasons: result.reasons,
+        match_reasons: summary.reasons,
         matched_at: evaluatedAt,
-        match_snapshot: asJson(buildAlertMatchSnapshot({ alert, sale, summary, watchedZone })),
+        match_snapshot: asJson(
+          buildAlertMatchSnapshot({ alert, sale, summary, watchedZone, discovery }),
+        ),
       });
     }
   }
@@ -214,6 +233,7 @@ export async function evaluateUserAlertMatches({
           matches,
           alerts,
           now: new Date(evaluatedAt),
+          discovery,
         })
       : { notificationCount: 0 };
 
@@ -239,7 +259,7 @@ export async function runSmartAlertEvaluationBatch({
   const candidateUserIds = await getSmartAlertCandidateUserIds(
     clampLimit(userLimit * 4, MAX_ALERT_BATCH_USER_LIMIT * 4),
   );
-  const analyseUserIds = await filterAnalyseUserIds(candidateUserIds);
+  const analyseUserIds = candidateUserIds;
   const selectedUserIds = analyseUserIds.slice(
     0,
     clampLimit(userLimit, MAX_ALERT_BATCH_USER_LIMIT),
@@ -328,6 +348,7 @@ export function buildAlertMatchSnapshot({
   sale,
   summary,
   watchedZone,
+  discovery = false,
 }: {
   alert: Pick<
     UserAlert,
@@ -349,7 +370,27 @@ export function buildAlertMatchSnapshot({
   sale: AuctionSale;
   summary: AlertMatchSummary;
   watchedZone?: UserWatchedZone | null;
+  discovery?: boolean;
 }) {
+  if (discovery) {
+    return {
+      audience: "discovery",
+      alert: { id: alert.id, name: alert.name },
+      sale: {
+        id: sale.id,
+        title: "Vente immobilière",
+        city: sale.city,
+        department: sale.department,
+        startingPriceEur: sale.starting_price_eur,
+        saleDate: sale.sale_date,
+      },
+      match: {
+        reasons: ["Critères publics correspondants"],
+        marketDiscountPct: null,
+        matchedAt: summary.matchedAt,
+      },
+    };
+  }
   const surface = getSaleSurface(sale).value;
   const dpe = extractDpe(sale).class;
   const yieldPct = estimateGrossYieldPct(sale.starting_price_eur, surface, sale.department);
@@ -485,36 +526,6 @@ async function getSmartAlertCandidateUserIds(limit: number): Promise<string[]> {
 
   if (error) throw error;
   return Array.from(new Set((data ?? []).map((row) => row.user_id)));
-}
-
-async function filterAnalyseUserIds(userIds: string[]): Promise<string[]> {
-  if (!userIds.length) return [];
-
-  const [profilesResult, subscriptionsResult] = await Promise.all([
-    supabaseAdmin
-      .from("user_profiles")
-      .select("user_id,account_tier,user_role")
-      .in("user_id", userIds)
-      .or("account_tier.eq.premium,user_role.eq.admin"),
-    supabaseAdmin
-      .from("user_subscriptions")
-      .select("user_id,plan_code,status,current_period_end")
-      .in("user_id", userIds)
-      .eq("plan_code", "analyse"),
-  ]);
-
-  if (profilesResult.error) throw profilesResult.error;
-  if (subscriptionsResult.error) throw subscriptionsResult.error;
-  const allowed = new Set(
-    (subscriptionsResult.data ?? [])
-      .filter((subscription) =>
-        isPlanPeriodActive(subscription.status, subscription.current_period_end),
-      )
-      .map((subscription) => subscription.user_id),
-  );
-  for (const profile of profilesResult.data ?? []) allowed.add(profile.user_id);
-
-  return userIds.filter((userId) => allowed.has(userId));
 }
 
 function systemAuthForUser(userId: string): SupabaseAuthContext {

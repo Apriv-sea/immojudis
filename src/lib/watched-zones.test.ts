@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { watchedZoneInputSchema } from "@/lib/watched-zones";
+import { describe, expect, it, vi } from "vitest";
+import { deleteWatchedZone, watchedZoneInputSchema } from "@/lib/watched-zones";
+import type { SupabaseAuthContext } from "@/integrations/supabase/auth-middleware";
 import { watchedZoneMatchesSale } from "@/lib/watched-zones-shared";
 import type { AuctionSale, UserWatchedZone } from "@/lib/types";
 
@@ -94,6 +95,61 @@ function makeSale(overrides: Partial<AuctionSale> = {}): AuctionSale {
 }
 
 describe("watched zones", () => {
+  it.each([false, true])(
+    "disables linked alerts before deletion (update failure: %s)",
+    async (fails) => {
+      const events: string[] = [];
+      const alertError = fails ? new Error("update refused") : null;
+      const alertQuery = {
+        eq: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { error: Error | null }) => unknown) => {
+          events.push("alerts");
+          return Promise.resolve(resolve({ error: alertError }));
+        },
+      };
+      const update = vi.fn(() => alertQuery);
+      const deletion = {
+        eq: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { error: null }) => unknown) => {
+          events.push("delete");
+          return Promise.resolve(resolve({ error: null }));
+        },
+      };
+      const remove = vi.fn(() => deletion);
+      const zoneQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: makeZone(), error: null }),
+        delete: remove,
+      };
+      const auth = {
+        userId: "user-1",
+        supabase: { from: (table: string) => (table === "user_alerts" ? { update } : zoneQuery) },
+      } as unknown as SupabaseAuthContext;
+
+      const result = deleteWatchedZone({ auth, zoneId: "zone-1" });
+      if (fails) {
+        await expect(result).rejects.toThrow("update refused");
+        expect(remove).not.toHaveBeenCalled();
+        expect(events).toEqual(["alerts"]);
+      } else {
+        await expect(result).resolves.toEqual({ ok: true });
+        expect(events).toEqual(["alerts", "delete"]);
+        expect(deletion.eq.mock.calls).toEqual([
+          ["id", "zone-1"],
+          ["user_id", "user-1"],
+        ]);
+      }
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({ watched_zone_id: null, is_active: false }),
+      );
+      expect(alertQuery.eq.mock.calls).toEqual([
+        ["user_id", "user-1"],
+        ["watched_zone_id", "zone-1"],
+      ]);
+    },
+  );
+
   it("validates required fields for each zone kind", () => {
     expect(() =>
       watchedZoneInputSchema.parse({
