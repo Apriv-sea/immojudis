@@ -2,7 +2,7 @@
 
 ## Exécution
 
-- Découverte multi-sources chaque jour à 04:17 UTC.
+- Découverte multi-sources uniquement sur lancement manuel (`workflow_dispatch` ou admin).
 - File documentaire et IA toutes les deux heures, à la minute 37.
 - `workflow_dispatch` conserve le scan manuel et ajoute `enrichment_only`.
 - Un seul workflow écrivain à la fois ; aucune annulation du run actif.

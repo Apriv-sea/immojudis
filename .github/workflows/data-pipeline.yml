@@ -2,7 +2,6 @@ name: Immojudis Data Pipeline
 
 on:
   schedule:
-    - cron: "17 4 * * *"
     - cron: "37 */2 * * *"
   workflow_dispatch:
     inputs:
@@ -175,7 +174,8 @@ jobs:
             python -m src.verify_publication
             exit 0
           fi
-          if [ "$REQUESTED_ENRICHMENT_ONLY" = "true" ] || [ "$SCHEDULE" = "37 */2 * * *" ]; then
+          # Every scheduled run may only enrich existing records.
+          if [ "$REQUESTED_ENRICHMENT_ONLY" = "true" ] || [ -n "$SCHEDULE" ]; then
             python -m src.queued_runner --enrichment-only
             exit 0
           fi

@@ -33,8 +33,10 @@ for (const relativePath of collectionWorkflows) {
   const triggers = topLevelWorkflowTriggers(source);
   if (relativePath === ".github/workflows/data-pipeline.yml") {
     const schedules = [...source.matchAll(/- cron: "([^"]+)"/g)].map((match) => match[1]);
-    if (JSON.stringify(schedules) !== JSON.stringify(["17 4 * * *", "37 */2 * * *"])) {
-      failures.push(`${relativePath}: only daily discovery and two-hour enrichment are authorized`);
+    if (JSON.stringify(schedules) !== JSON.stringify(["37 */2 * * *"])) {
+      failures.push(
+        `${relativePath}: collection must remain manual; only two-hour enrichment is authorized`,
+      );
     }
   }
   if (!triggers.has("workflow_dispatch")) {

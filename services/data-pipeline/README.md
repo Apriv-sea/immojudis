@@ -356,7 +356,7 @@ python -m src.queued_runner
 ou `failed`.
 
 `python -m src.queued_runner` récupère le plus ancien run `queued` dans
-Supabase et lance le pipeline avec ses paramètres. La variante `--enrichment-only` est planifiée toutes les deux heures. La collecte nationale est planifiée quotidiennement à 04:17 UTC ; `workflow_dispatch` reste disponible.
+Supabase et lance le pipeline avec ses paramètres. La variante `--enrichment-only` est planifiée toutes les deux heures. La collecte nationale reste exclusivement manuelle, via `workflow_dispatch` ou l’admin.
 
 Le pipeline :
 
