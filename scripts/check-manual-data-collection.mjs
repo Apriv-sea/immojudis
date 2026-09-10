@@ -41,7 +41,8 @@ for (const relativePath of collectionWorkflows) {
     failures.push(`${relativePath}: workflow_dispatch is required`);
   }
   for (const trigger of triggers) {
-    const authorizedPipelineSchedule = relativePath === ".github/workflows/data-pipeline.yml" && trigger === "schedule";
+    const authorizedPipelineSchedule =
+      relativePath === ".github/workflows/data-pipeline.yml" && trigger === "schedule";
     if (!allowedWorkflowTriggers.has(trigger) && !authorizedPipelineSchedule) {
       failures.push(`${relativePath}: trigger '${trigger}' is not manual`);
     }
