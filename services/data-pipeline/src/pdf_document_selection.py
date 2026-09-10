@@ -261,6 +261,7 @@ def _extracted_document_profile(payload: dict[str, object]) -> dict[str, object]
         "document_type": document_type,
         "family": _document_family(document_type),
         "extraction_status": "extracted" if clean_text(payload.get("text")) else "empty",
+        "sha256": payload.get("sha256"),
         "text_chars": int(payload.get("text_chars") or len(str(payload.get("text") or ""))),
         "page_count": int(payload.get("page_count") or 0),
         "ocr_pages": int(payload.get("ocr_pages") or 0),

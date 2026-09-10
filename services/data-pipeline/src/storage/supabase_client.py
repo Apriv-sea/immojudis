@@ -255,13 +255,18 @@ def _transaction_write(table: str, payload: list[dict[str, object]], on_conflict
 
 
 def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> None:
+    settings = load_settings()
+    prompt_version = str(settings.get("llm_prompt_version") or "")
     jobs = []
     for sale in sales:
         if sale.status not in {"active", "upcoming"}:
             continue
         checks = sale.raw_payload.get("source_checks") or {}
+        analysis = sale.raw_payload.get("document_analysis") or {}
         revision = hashlib.sha256(json.dumps([
             document_fingerprint(sale.documents),
+            sorted((str(profile.get("url") or ""), str(profile.get("sha256") or "")) for profile in analysis.get("profiles", []) if isinstance(profile, dict)),
+            prompt_version, str(settings.get("replicate_model") or ""),
             sorted((url, check.get("fingerprint")) for url, check in checks.items()),
         ], sort_keys=True).encode()).hexdigest()
         kinds = []
@@ -270,7 +275,7 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
             # A failed document keeps the same retry budget across daily scans.
             last_success = analysis.get("last_successful_check_at") or "initial"
             kinds.append(("pdf", revision + str(last_success), 30))
-        if not sale.raw_payload.get("llm_display_description") or sale.raw_payload.get("source_content_changed"):
+        if not _has_current_llm_description(sale.raw_payload, prompt_version) or sale.raw_payload.get("source_content_changed"):
             kinds.append(("display_description", revision, 20))
         analysis = sale.raw_payload.get("document_analysis") or {}
         if analysis.get("documents_extracted") and (

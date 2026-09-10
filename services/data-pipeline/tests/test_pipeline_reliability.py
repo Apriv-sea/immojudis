@@ -128,3 +128,16 @@ def test_failed_pdf_retains_same_retry_identity_across_scans(monkeypatch):
     sale.raw_payload["document_analysis"]["checked_at"] = "2026-09-02T00:00:00+00:00"
     storage._enqueue_due_enrichment([sale], "url", "key")
     assert next(row["input_hash"] for row in rows if row["job_type"] == "pdf") == first
+
+
+def test_replaced_document_creates_new_fact_job_even_at_same_url(monkeypatch):
+    rows = []
+    monkeypatch.setattr(storage, "_postgrest_upsert", lambda url, key, table, payload, conflict: rows.extend(payload))
+    sale = normalize_sale({"source_name": "avoventes", "source_url": "https://example.test/replaced", "sale_date": "2099-01-01"})
+    sale.raw_payload["document_analysis"] = {"documents_extracted": 1, "profiles": [{"url": "https://example.test/pv.pdf", "sha256": "old"}]}
+    storage._enqueue_due_enrichment([sale], "url", "key")
+    old = next(row["input_hash"] for row in rows if row["job_type"] == "fact_extraction")
+    rows.clear()
+    sale.raw_payload["document_analysis"]["profiles"][0]["sha256"] = "new"
+    storage._enqueue_due_enrichment([sale], "url", "key")
+    assert next(row["input_hash"] for row in rows if row["job_type"] == "fact_extraction") != old
