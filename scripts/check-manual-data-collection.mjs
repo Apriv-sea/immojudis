@@ -22,9 +22,15 @@ const allowedVercelCronPaths = new Set([
 const allowedDatabaseCronJobs = new Set([
   "immojudis-operational-health",
   "immojudis-operational-history-retention",
-  "immojudis-market-valuations",
-  // Existing production watchdog: resumes enabled queued work, never creates a run.
-  "immojudis-licitor-resume",
+]);
+// Keep immutable migration history, but forbid reintroducing these schedules.
+// The terminal migration disables both; pgTAP checks the resulting database state.
+const historicalCollectionSchedules = new Map([
+  [
+    "immojudis-market-valuations",
+    "supabase/migrations/20260819164516_harden_market_valuation_pipeline.sql",
+  ],
+  ["immojudis-licitor-resume", "supabase/migrations/20260828095847_licitor_cloud_collector.sql"],
 ]);
 const failures = [];
 
@@ -69,7 +75,10 @@ for (const entry of await readdir(migrationDirectory, { withFileTypes: true })) 
     );
   }
   for (const jobName of jobNames) {
-    if (!allowedDatabaseCronJobs.has(jobName)) {
+    if (
+      !allowedDatabaseCronJobs.has(jobName) &&
+      historicalCollectionSchedules.get(jobName) !== relativePath
+    ) {
       failures.push(`${relativePath}: database cron '${jobName}' is not operational-only`);
     }
   }
