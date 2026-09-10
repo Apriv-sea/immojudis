@@ -1,6 +1,9 @@
 name: Immojudis Data Pipeline
 
 on:
+  schedule:
+    - cron: "17 4 * * *"
+    - cron: "37 */2 * * *"
   workflow_dispatch:
     inputs:
       run_id:
@@ -28,6 +31,16 @@ on:
         description: "Optional raw listing limit"
         required: false
         type: string
+      publication_check:
+        description: "Verify publication SQL with mandatory rollback"
+        required: false
+        default: false
+        type: boolean
+      enrichment_only:
+        description: "Process pending document and extraction jobs only"
+        required: false
+        default: false
+        type: boolean
       llm_backfill:
         description: "Backfill missing AI display descriptions from existing Supabase rows"
         required: false
@@ -40,7 +53,7 @@ permissions:
 
 concurrency:
   # Catalogue preservation and cleanup are deliberately single-writer.
-  group: immojudis-data-pipeline
+  group: ${{ inputs.publication_check && 'immojudis-publication-verification' || 'immojudis-data-pipeline' }}
   cancel-in-progress: false
 
 jobs:
@@ -60,8 +73,8 @@ jobs:
       PIPELINE_ENRICH_WORKERS: 2
       PIPELINE_LLM_WORKERS: 1
       PIPELINE_PDF_MAX_TARGETS: 10
-      # 0 = synthétiser tous les biens éligibles pendant le scan courant.
-      PIPELINE_LLM_MAX_TARGETS: 0
+      # Remaining descriptions are persisted in the enrichment queue.
+      PIPELINE_LLM_MAX_TARGETS: 20
       PIPELINE_LLM_BACKFILL_MAX_TARGETS: 10
       PIPELINE_LLM_BACKFILL_PROGRESS_EVERY: 5
       REPLICATE_MIN_INTERVAL_SECONDS: 1
@@ -94,6 +107,12 @@ jobs:
       ENABLE_AGRASC_BENCHMARK: true
       ENABLE_ENCHERES_IMMOBILIERES_BENCHMARK: true
       ENABLE_NOTAIRES_BENCHMARK: true
+      NOTAIRES_MAX_PAGES: 100
+      INFO_ENCHERES_MAX_PAGES: 100
+      CESSIONS_ETAT_MAX_PAGES: 100
+      ENCHERES_IMMOBILIERES_MAX_PAGES: 100
+      LICITOR_MAX_PAGES: 100
+      PIPELINE_IDLE_LLM_BACKFILL_ENABLED: false
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,12 +161,24 @@ jobs:
 
       - name: Run manually requested pipeline
         env:
+          REQUESTED_PUBLICATION_CHECK: ${{ github.event.inputs.publication_check }}
+          REQUESTED_ENRICHMENT_ONLY: ${{ github.event.inputs.enrichment_only }}
+          SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_RUN_ID: ${{ github.event.inputs.run_id }}
           REQUESTED_SOURCE: ${{ github.event.inputs.source }}
           REQUESTED_LIMIT: ${{ github.event.inputs.limit }}
           REQUESTED_LLM_BACKFILL: ${{ github.event.inputs.llm_backfill }}
         run: |
           set -euo pipefail
+
+          if [ "$REQUESTED_PUBLICATION_CHECK" = "true" ]; then
+            python -m src.verify_publication
+            exit 0
+          fi
+          if [ "$REQUESTED_ENRICHMENT_ONLY" = "true" ] || [ "$SCHEDULE" = "37 */2 * * *" ]; then
+            python -m src.queued_runner --enrichment-only
+            exit 0
+          fi
 
           args=(--source "${REQUESTED_SOURCE:-all}")
           if [ "${REQUESTED_LLM_BACKFILL:-false}" = "true" ]; then
@@ -160,3 +191,7 @@ jobs:
             args+=(--limit "$REQUESTED_LIMIT")
           fi
           python -m src.main "${args[@]}"
+
+      - name: Report source coverage and enrichment backlog
+        if: always()
+        run: python -m src.pipeline_health

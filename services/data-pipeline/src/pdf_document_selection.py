@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.config import load_settings
+from src.freshness import document_fingerprint
 from src.models import AuctionSale
 from src.normalize import (
     clean_text,
@@ -184,7 +186,7 @@ def _store_document_analysis_status(
     extracted_types = set(extracted_type_counts)
     available_types = set(type_counts)
     missing_core_documents = [
-        group for group, aliases in required_groups.items() if not (aliases & (extracted_types or available_types))
+        group for group, aliases in required_groups.items() if not (aliases & extracted_types)
     ]
 
     if not documents and not sale.documents:
@@ -201,6 +203,9 @@ def _store_document_analysis_status(
         warning = "Les principales familles de documents sont disponibles pour l'analyse."
 
     sale.raw_payload["document_analysis"] = {
+        "checked_at": datetime.now(UTC).isoformat(),
+        "input_fingerprint": document_fingerprint(sale.documents),
+        "failed_documents": max(0, len(_select_documents_for_extraction(sale.documents, sale=sale)) - len(text_profiles)),
         "coverage_status": coverage_status,
         "warning": warning,
         "documents_listed": len(sale.documents or []),

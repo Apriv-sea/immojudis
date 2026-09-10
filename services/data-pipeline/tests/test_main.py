@@ -1,9 +1,11 @@
 import sys
 import types
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 
+from src.freshness import document_fingerprint
 from src.models import AuctionSale
 from src.sources.common import ScrapeResult
 
@@ -83,6 +85,7 @@ def test_document_facts_version_forces_one_time_pdf_reanalysis() -> None:
     assert main._heavy_enrichment_already_current(sale, {"known-content"}, use_llm=False) is False
 
     sale.raw_payload["document_facts_version"] = main.DOCUMENT_FACTS_VERSION
+    sale.raw_payload["document_analysis"] = {"checked_at": datetime.now(UTC).isoformat(), "input_fingerprint": document_fingerprint(sale.documents)}
 
     assert main._needs_structured_heavy_enrichment(sale) is False
     assert main._heavy_enrichment_already_current(sale, {"known-content"}, use_llm=False) is True
@@ -637,7 +640,8 @@ def test_incremental_skip_only_skips_heavy_enrichment_not_publication(monkeypatc
     calls: list[str] = []
     settings = _settings()
     settings["incremental_enrichment"] = True
-    raw = {**_raw_sale(), "document_facts_version": main.DOCUMENT_FACTS_VERSION}
+    raw = {**_raw_sale(), "document_facts_version": main.DOCUMENT_FACTS_VERSION, "_known_unchanged": True}
+    raw["document_analysis"] = {"checked_at": datetime.now(UTC).isoformat(), "input_fingerprint": document_fingerprint(raw.get("documents", []))}
 
     monkeypatch.setattr(main, "load_settings", lambda: settings)
     monkeypatch.setattr(main, "create_run_in_supabase", lambda *args, **kwargs: "run-1")

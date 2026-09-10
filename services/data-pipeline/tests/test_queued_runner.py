@@ -245,11 +245,11 @@ def test_enrichment_queue_runs_pdf_before_fact_extraction_and_completes_jobs(mon
     )
     monkeypatch.setattr(queued_runner, "fetch_sale_for_data_refresh", lambda source_url: sale)
     monkeypatch.setattr(queued_runner, "create_llm_client", lambda: object())
-    monkeypatch.setattr(queued_runner, "enrich_sale_from_pdfs", lambda current: calls.append("pdf"))
+    monkeypatch.setattr(queued_runner, "enrich_sale_from_pdfs", lambda current: calls.append("pdf") or SimpleNamespace(errors=0))
     monkeypatch.setattr(
         queued_runner,
         "enrich_sale_with_llm",
-        lambda current, client: calls.append("facts_then_display")
+        lambda current, client, **kwargs: calls.append("facts_then_display")
         or SimpleNamespace(unavailable=False, valid_json=1, error_messages=[]),
     )
     monkeypatch.setattr(queued_runner, "normalize_asset_features", lambda current: calls.append("normalize"))
@@ -290,7 +290,7 @@ def test_enrichment_queue_marks_every_sale_job_failed_on_extraction_error(monkey
     monkeypatch.setattr(
         queued_runner,
         "enrich_sale_with_llm",
-        lambda current, client: SimpleNamespace(
+        lambda current, client, **kwargs: SimpleNamespace(
             unavailable=False,
             valid_json=0,
             error_messages=["invalid structured response"],

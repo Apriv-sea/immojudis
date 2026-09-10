@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from collections import defaultdict
+from datetime import UTC, datetime
 
 from src.asset_normalization import normalize_asset_features
 from src.cadastre import enrich_cadastre_sales
@@ -10,6 +12,7 @@ from src.config import load_settings
 from src.dpe import enrich_dpe_sales
 from src.enrichment.extract_structured import enrich_sale_with_llm
 from src.enrichment.llm_client import LLMClientUnavailable, create_llm_client
+from src.freshness import documents_are_current
 from src.information_agent_evidence import run_information_agent_evidence_batch
 from src.main import (
     SOURCE_NAMES,
@@ -241,10 +244,16 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                     error_message="sale not found",
                 )
             continue
+        if sale.sale_date is not None and sale.sale_date < datetime.now(UTC):
+            for job in sale_jobs:
+                finish_auction_enrichment_job_in_supabase(str(job.get("id") or ""), succeeded=True)
+            continue
         job_types = {str(job.get("job_type") or "") for job in sale_jobs}
         try:
-            if "pdf" in job_types and sale.documents:
-                enrich_sale_from_pdfs(sale)
+            if "pdf" in job_types and sale.documents and not documents_are_current(sale):
+                pdf_stats = enrich_sale_from_pdfs(sale)
+                if pdf_stats.errors or (sale.raw_payload.get("document_analysis") or {}).get("failed_documents"):
+                    raise RuntimeError("Document extraction incomplete; retry required")
             if job_types & {"fact_extraction", "display_description"}:
                 if llm_client is None:
                     raise RuntimeError("LLM client unavailable")
@@ -256,8 +265,8 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                     sale,
                     prompt_version=prompt_version,
                 )
-                if not (display_only_mode and description_current):
-                    llm_stats = enrich_sale_with_llm(sale, client=llm_client)
+                if not (display_only_mode and description_current and "fact_extraction" not in job_types):
+                    llm_stats = enrich_sale_with_llm(sale, client=llm_client, **({"extraction_mode": "structured_then_display"} if "fact_extraction" in job_types else {}))
                     if llm_stats.unavailable or not llm_stats.valid_json:
                         detail = (
                             llm_stats.error_messages[-1]
@@ -265,6 +274,8 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                             else "LLM extraction incomplete"
                         )
                         raise RuntimeError(detail)
+            if "display_description" in job_types or "fact_extraction" in job_types:
+                sale.raw_payload.pop("source_content_changed", None)
             fill_tribunal(sale)
             classify_sale_procedure(sale)
             normalize_asset_features(sale)
@@ -287,4 +298,12 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
 
 
 if __name__ == "__main__":
+    if "--enrichment-only" in sys.argv:
+        # Claim small batches so their 30-minute leases cannot expire while
+        # waiting behind other expensive documents. GitHub serializes writers.
+        deadline = time.monotonic() + 40 * 60
+        while time.monotonic() < deadline:
+            if not run_enrichment_queue_batch(limit=2):
+                break
+        sys.exit(0)
     sys.exit(main())

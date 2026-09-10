@@ -1,5 +1,7 @@
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -8,6 +10,11 @@ from src.court_competence import CompetentCourtAssignment
 from src.normalize import normalize_sale
 from src.storage import supabase_client
 from src.storage.supabase_client import _sanitize_postgrest_payload, _secondary_source_urls
+
+
+@pytest.fixture(autouse=True)
+def isolate_enrichment_queue(monkeypatch):
+    monkeypatch.setattr(supabase_client, "_enqueue_due_enrichment", lambda *args: None)
 
 
 def test_postgrest_upsert_batch_retries_cloudflare_520(monkeypatch) -> None:
@@ -549,6 +556,8 @@ def test_upsert_sales_prefers_direct_postgres_when_db_url_is_configured(monkeypa
         lambda supabase_url, api_key, sales, now: calls.append((supabase_url, "asset_tables", len(sales))),
     )
 
+    monkeypatch.setattr(supabase_client, "_postgres_connect", lambda _: nullcontext(SimpleNamespace(execute=lambda *args: None)))
+    monkeypatch.setattr(supabase_client, "_transaction_write", lambda table, payload, conflict: calls.append(("postgresql://example", table, len(payload))))
     assert supabase_client.upsert_sales_to_supabase([sale]) == 1
     assert calls == [
         ("postgresql://example", "auction_sales", 1),
@@ -738,6 +747,8 @@ def test_upsert_sales_can_preserve_last_seen_during_recompute(monkeypatch) -> No
     )
     monkeypatch.setattr(supabase_client, "_upsert_asset_tables_with_rest", lambda *args: None)
 
+    monkeypatch.setattr(supabase_client, "_postgres_connect", lambda _: nullcontext(SimpleNamespace(execute=lambda *args: None)))
+    monkeypatch.setattr(supabase_client, "_transaction_write", lambda table, payload, conflict: captured.setdefault("payload", payload))
     assert supabase_client.upsert_sales_to_supabase([sale], refresh_last_seen=False) == 1
 
     payload = captured["payload"]

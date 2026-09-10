@@ -17,7 +17,7 @@ from src.normalize import (
     no_lease_occupancy_status,
 )
 from src.raw_models import validate_raw_sales
-from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
+from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 
 BASE_URL = "https://www.info-encheres.com"
@@ -63,6 +63,7 @@ def scrape_info_encheres_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    pagination = PaginationCoverage()
     for page_url in _list_urls(max_pages):
         try:
             html = client.get(page_url)
@@ -70,7 +71,10 @@ def scrape_info_encheres_aquitaine_result(
             LOGGER.error("Info Encheres list fetch failed for %s: %s", page_url, exc)
             errors.append(f"{page_url}: {exc}")
             continue
-        for sale in parse_info_encheres_list_html(html, page_url=page_url):
+        page_sales = parse_info_encheres_list_html(html, page_url=page_url)
+        if not pagination.accept(page_sales):
+            break
+        for sale in page_sales:
             if sale.get("department") not in TARGET_DEPARTMENTS:
                 continue
             if should_fetch_detail(sale, known):
@@ -79,7 +83,7 @@ def scrape_info_encheres_aquitaine_result(
     return ScrapeResult(
         validate_raw_sales("info_encheres", unique_dicts(raw_sales, "source_url"), errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(), **pagination.metrics()},
     )
 
 

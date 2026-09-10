@@ -13,7 +13,7 @@ from src.config import TARGET_DEPARTMENTS, load_settings
 from src.enrichment.surface_reasoning import extract_surface_facts_from_text
 from src.normalize import clean_text, has_rented_occupancy_signal, no_lease_occupancy_status, strip_accents
 from src.raw_models import validate_raw_sales
-from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
+from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 
 BASE_URL = "https://encheresimmobilieres.fr"
@@ -91,6 +91,7 @@ def scrape_encheres_immobilieres_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    pagination = PaginationCoverage()
     for page_url in _list_urls(max_pages):
         try:
             html = client.get(page_url)
@@ -98,7 +99,10 @@ def scrape_encheres_immobilieres_aquitaine_result(
             LOGGER.error("EncheresImmobilieres list fetch failed for %s: %s", page_url, exc)
             errors.append(f"{page_url}: {exc}")
             continue
-        for sale in parse_encheres_immobilieres_html(html):
+        page_sales = parse_encheres_immobilieres_html(html)
+        if not pagination.accept(page_sales):
+            break
+        for sale in page_sales:
             if sale.get("department") in TARGET_DEPARTMENTS:
                 if should_fetch_detail(sale, known):
                     _enrich_sale_from_detail(client, sale, errors)
@@ -107,7 +111,7 @@ def scrape_encheres_immobilieres_aquitaine_result(
     return ScrapeResult(
         validate_raw_sales("encheres_immobilieres", unique_dicts(raw_sales, "source_url"), errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(), **pagination.metrics()},
     )
 
 

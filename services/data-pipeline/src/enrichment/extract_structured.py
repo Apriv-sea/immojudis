@@ -331,6 +331,7 @@ def enrich_sale_with_llm(
     sale: AuctionSale,
     client: ReplicateClient | None = None,
     output_dir: Path = LLM_EXTRACTIONS_DIR,
+    extraction_mode: str | None = None,
 ) -> LLMEnrichmentStats:
     stats = LLMEnrichmentStats()
     settings = load_settings()
@@ -343,7 +344,7 @@ def enrich_sale_with_llm(
     else:
         sale.raw_payload.pop("source_description", None)
 
-    extraction_mode = str(settings.get("llm_extraction_mode") or "display_description")
+    extraction_mode = extraction_mode or str(settings.get("llm_extraction_mode") or "display_description")
     if extraction_mode == "display_description":
         contexts = [load_llm_context_for_sale(sale, max_chars=int(settings["llm_pdf_max_chars"]))]
     else:

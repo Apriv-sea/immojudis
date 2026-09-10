@@ -147,7 +147,7 @@ def build_quality_report(
         "with_app_surface_pct": _pct(sum(sale.app_surface_m2 is not None for sale in sales), total),
         "with_rooms_count_pct": _pct(sum(sale.rooms_count is not None for sale in sales), total),
         "with_bedrooms_count_pct": _pct(sum(sale.bedrooms_count is not None for sale in sales), total),
-        "with_occupancy_status_pct": _pct(sum(bool(sale.occupancy_status) for sale in sales), total),
+        "with_occupancy_status_pct": _pct(sum(sale.occupancy_status not in (None, "", "unknown") for sale in sales), total),
         "with_energy_diagnostics_pct": _pct(sum(_has_energy_diagnostics(sale) for sale in sales), total),
         "with_raw_text_enriched_pct": _pct(
             sum("PDF TEXT ENRICHMENT" in (sale.raw_text or "") for sale in sales),

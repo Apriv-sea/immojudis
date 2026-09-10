@@ -12,7 +12,7 @@ import httpx
 from src.config import FRANCE_DEPARTMENTS, TARGET_DEPARTMENTS, load_settings
 from src.normalize import LATIN_LETTERS_PATTERN, SURFACE_VALUE_PATTERN, clean_text, parse_surface
 from src.raw_models import validate_raw_sales
-from src.sources.common import PoliteHttpClient, ScrapeResult, unique_dicts
+from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, unique_dicts
 
 BASE_URL = "https://www.immobilier.notaires.fr"
 API_URL = f"{BASE_URL}/pub-services/inotr-www-annonces/v1/annonces"
@@ -55,14 +55,18 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    coverage = []
     for transaction_type in TRANSACTION_TYPES:
         for department in _department_filters():
+            pagination = PaginationCoverage()
+            coverage.append(pagination)
             for page in range(1, max_pages + 1):
                 url = _api_url(page, transaction_type, department)
                 try:
                     payload = client.get(url)
                 except httpx.HTTPStatusError as exc:
                     if _is_page_out_of_range_error(exc, page):
+                        pagination.exhausted = bool(pagination.seen)
                         LOGGER.info("Notaires pagination ended at %s", url)
                         break
                     LOGGER.error("Notaires API fetch failed for %s: %s", url, exc)
@@ -73,7 +77,7 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                     errors.append(f"{url}: {exc}")
                     continue
                 sales = parse_notaires_json(payload)
-                if not sales:
+                if not pagination.accept(sales):
                     break
                 for sale in sales:
                     if not _enrich_sale_from_detail(client, sale, errors):
@@ -84,7 +88,7 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
     return ScrapeResult(
         validate_raw_sales("notaires", unique_dicts(raw_sales, "source_url"), errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(), "coverage_complete": all(item.exhausted for item in coverage), "partitions": [item.metrics() for item in coverage]},
     )
 
 

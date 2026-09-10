@@ -16,6 +16,7 @@ import tempfile
 import unicodedata
 import zipfile
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import quote, unquote, urljoin, urlparse, urlsplit, urlunsplit
@@ -26,6 +27,7 @@ import httpcore
 import httpx
 
 from src.config import DOCLING_TEXTS_DIR, DOCUMENTS_DIR, PDF_DOCUMENT_TEXTS_DIR, load_settings
+from src.freshness import timestamp_is_fresh
 from src.models import AuctionSale
 from src.normalize import (
     clean_text,
@@ -237,16 +239,32 @@ def download_documents(
         ):
             LOGGER.info("Discarding unsupported document cache entry %s", file_path)
             file_path.unlink(missing_ok=True)
-        if not file_path.exists():
+        metadata_path = file_path.with_suffix(file_path.suffix + ".http.json")
+        try:
+            metadata = json.loads(metadata_path.read_text())
+        except (OSError, ValueError):
+            metadata = {}
+        request_headers = dict(headers)
+        if file_path.exists():
+            if metadata.get("etag"):
+                request_headers["If-None-Match"] = metadata["etag"]
+            if metadata.get("last_modified"):
+                request_headers["If-Modified-Since"] = metadata["last_modified"]
+        if not file_path.exists() or not timestamp_is_fresh(metadata.get("checked_at")):
             download_error: Exception | None = None
             try:
                 for candidate_url in _document_url_variants(url):
                     try:
                         response = _download_document_response(
                             candidate_url,
-                            headers=headers,
+                            headers=request_headers,
                             timeout_seconds=float(settings["request_timeout_seconds"]),
                         )
+                        if getattr(response, "status_code", 200) == 304 and file_path.exists():
+                            metadata["checked_at"] = datetime.now(UTC).isoformat()
+                            metadata_path.write_text(json.dumps(metadata))
+                            download_error = None
+                            break
                         response.raise_for_status()
                         response_headers = getattr(response, "headers", {})
                         content_type = response_headers.get("content-type", "")
@@ -268,7 +286,23 @@ def download_documents(
                         continue
                     if candidate_url != url:
                         LOGGER.info("PDF URL Unicode variant succeeded for %s", url)
-                    file_path.write_bytes(content)
+                    if file_path.exists():
+                        previous = file_path.read_bytes()
+                        if previous != content:
+                            sale.raw_payload["source_content_changed"] = True
+                            sale.raw_payload.pop("llm_prompt_version", None)
+                            archive = sale_dir / "versions"
+                            archive.mkdir(exist_ok=True)
+                            (archive / (hashlib.sha256(previous).hexdigest() + file_path.suffix)).write_bytes(previous)
+                    temporary = file_path.with_suffix(file_path.suffix + ".tmp")
+                    temporary.write_bytes(content)
+                    temporary.replace(file_path)
+                    metadata_path.write_text(json.dumps({
+                        "checked_at": datetime.now(UTC).isoformat(),
+                        "etag": response_headers.get("etag"),
+                        "last_modified": response_headers.get("last-modified"),
+                        "sha256": hashlib.sha256(content).hexdigest(),
+                    }))
                     if stats:
                         stats.downloaded += 1
                     download_error = None

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import time
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -31,6 +32,7 @@ from src.asset_normalization import (
 from src.config import LLM_EXTRACTIONS_DIR, PDF_TEXTS_DIR, load_settings
 from src.court_competence import tribunal_reference_rows
 from src.dedupe import merge_duplicate_sales
+from src.freshness import document_fingerprint, documents_are_current
 from src.models import AuctionSale
 from src.normalize import make_sale_signature
 from src.pdf_enrichment import classify_document_type, sale_storage_id
@@ -230,6 +232,62 @@ def get_supabase_client() -> Client | None:
     return create_client(str(url), str(key))
 
 
+_PUBLICATION_CONNECTION: ContextVar[Any] = ContextVar("publication_connection", default=None)
+
+
+def _transaction_write(table: str, payload: list[dict[str, object]], on_conflict: str | None = None, *, ignore_conflicts: bool = False) -> None:
+    connection = _PUBLICATION_CONNECTION.get()
+    if not payload:
+        return
+    columns = list(dict.fromkeys(key for row in payload for key in row))
+    names = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
+    statement = sql.SQL("insert into {} ({}) select {} from jsonb_populate_recordset(null::{}, %s)").format(
+        sql.Identifier("public", table), names, names, sql.Identifier("public", table)
+    )
+    if on_conflict:
+        keys = on_conflict.split(",")
+        updates = [] if ignore_conflicts else [column for column in columns if column not in keys]
+        statement += sql.SQL(" on conflict ({}) ").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys))
+        statement += (sql.SQL("do update set ") + sql.SQL(", ").join(
+            sql.SQL("{} = excluded.{}").format(sql.Identifier(column), sql.Identifier(column)) for column in updates
+        )) if updates else sql.SQL("do nothing")
+    connection.execute(statement, (Jsonb(_sanitize_postgrest_payload(payload)),))
+
+
+def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> None:
+    jobs = []
+    for sale in sales:
+        if sale.status not in {"active", "upcoming"}:
+            continue
+        checks = sale.raw_payload.get("source_checks") or {}
+        revision = hashlib.sha256(json.dumps([
+            document_fingerprint(sale.documents),
+            sorted((url, check.get("fingerprint")) for url, check in checks.items()),
+        ], sort_keys=True).encode()).hexdigest()
+        kinds = []
+        if sale.documents and not documents_are_current(sale):
+            kinds.append(("pdf", revision + datetime.now(UTC).date().isoformat(), 30))
+        if not sale.raw_payload.get("llm_display_description") or sale.raw_payload.get("source_content_changed"):
+            kinds.append(("display_description", revision, 20))
+        analysis = sale.raw_payload.get("document_analysis") or {}
+        if analysis.get("documents_extracted") and (
+            not sale.app_surface_m2 or sale.occupancy_status in {None, "unknown"}
+            or sale.raw_payload.get("source_conflicts")
+            or (sale.raw_payload.get("surface_analysis") or {}).get("contradictions")
+        ):
+            kinds.append(("fact_extraction", revision, 25))
+        for kind, fingerprint, priority in kinds:
+            jobs.append({"source_url": sale.source_url, "job_type": kind,
+                         "input_hash": "pipeline_v2:" + fingerprint,
+                         # Older jobs eventually outrank freshly discovered PDFs.
+                         "priority": priority - int(datetime.now(UTC).timestamp() // 3600)})
+    if jobs:
+        if _PUBLICATION_CONNECTION.get() is not None:
+            _transaction_write("auction_enrichment_jobs", jobs, "source_url,job_type,input_hash", ignore_conflicts=True)
+        else:
+            _postgrest_upsert(url, key, "auction_enrichment_jobs", jobs, "source_url,job_type,input_hash")
+
+
 def upsert_sales_to_supabase(
     sales: list[AuctionSale],
     *,
@@ -242,6 +300,18 @@ def upsert_sales_to_supabase(
     if not url or not key:
         LOGGER.info("Supabase variables are missing; skipping upsert")
         return 0
+    if db_url and _PUBLICATION_CONNECTION.get() is None:
+        # All product tables commit together. A failed transaction never falls
+        # back to partially committed REST writes.
+        with _postgres_connect(str(db_url)) as connection:
+            connection.execute("set local lock_timeout = '15s'")
+            connection.execute("set local statement_timeout = '120s'")
+            token = _PUBLICATION_CONNECTION.set(connection)
+            try:
+                result = upsert_sales_to_supabase(sales, refresh_last_seen=refresh_last_seen)
+                return result
+            finally:
+                _PUBLICATION_CONNECTION.reset(token)
     now = datetime.now(UTC).isoformat()
     payload = []
     for sale in sales:
@@ -263,21 +333,10 @@ def upsert_sales_to_supabase(
             tribunal_rows,
             on_conflict="code",
         )
-    if db_url:
-        try:
-            _postgres_upsert(str(db_url), "auction_sales", payload, on_conflict="source_url")
-            _sync_normalized_sale_tables_with_rest(
-                str(url),
-                str(key),
-                sales,
-                now,
-                refresh_last_seen=refresh_last_seen,
-            )
-            _upsert_asset_tables_with_rest(str(url), str(key), sales, now)
-            return len(payload)
-        except Exception as exc:
-            LOGGER.warning("Direct Postgres auction_sales sync failed; falling back to REST: %s", exc)
-    _upsert_with_rest(str(url), str(key), payload)
+    if _PUBLICATION_CONNECTION.get() is not None:
+        _transaction_write("auction_sales", payload, "source_url")
+    else:
+        _upsert_with_rest(str(url), str(key), payload)
     _sync_normalized_sale_tables_with_rest(
         str(url),
         str(key),
@@ -286,6 +345,7 @@ def upsert_sales_to_supabase(
         refresh_last_seen=refresh_last_seen,
     )
     _upsert_asset_tables_with_rest(str(url), str(key), sales, now)
+    _enqueue_due_enrichment(sales, str(url), str(key))
     return len(payload)
 
 
@@ -461,8 +521,7 @@ def claim_auction_enrichment_jobs_from_supabase(limit: int = 10) -> list[dict[st
         timeout=30,
     )
     if response.is_error:
-        LOGGER.warning("Supabase enrichment job claim failed: %s", response.text[:500])
-        return []
+        response.raise_for_status()
     rows = response.json()
     return [row for row in rows if isinstance(row, dict)]
 
@@ -496,7 +555,7 @@ def finish_auction_enrichment_job_in_supabase(
         timeout=30,
     )
     if response.is_error:
-        LOGGER.warning("Supabase enrichment job finish failed for %s: %s", job_id, response.text[:500])
+        response.raise_for_status()
 
 
 def fetch_next_data_refresh_request_from_supabase() -> dict[str, Any] | None:
@@ -1687,6 +1746,9 @@ def _postgrest_upsert(
     payload: list[dict[str, object]],
     on_conflict: str,
 ) -> None:
+    if _PUBLICATION_CONNECTION.get() is not None:
+        _transaction_write(table, payload, on_conflict)
+        return
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{table}"
     for batch in _postgrest_batches(payload, _postgrest_batch_size(table)):
         response = _postgrest_upsert_batch(
@@ -1749,6 +1811,9 @@ def _postgrest_upsert_batch(
 
 
 def _postgrest_insert(supabase_url: str, api_key: str, table: str, payload: list[dict[str, object]]) -> None:
+    if _PUBLICATION_CONNECTION.get() is not None:
+        _transaction_write(table, payload)
+        return
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{table}"
     for batch in _postgrest_batches(payload, _postgrest_batch_size(table)):
         response = _postgrest_request_with_retries(
@@ -1786,6 +1851,10 @@ def _postgrest_delete(supabase_url: str, api_key: str, table: str, params: dict[
 
 
 def _postgrest_delete_by_source_urls(supabase_url: str, api_key: str, table: str, source_urls: list[str]) -> int:
+    connection = _PUBLICATION_CONNECTION.get()
+    if connection is not None:
+        connection.execute(sql.SQL("delete from {} where source_url = any(%s)").format(sql.Identifier("public", table)), (source_urls,))
+        return len(set(source_urls))
     unique = _unique_source_urls(source_urls)
     for index in range(0, len(unique), POSTGREST_SOURCE_URL_DELETE_BATCH_SIZE):
         batch = unique[index : index + POSTGREST_SOURCE_URL_DELETE_BATCH_SIZE]

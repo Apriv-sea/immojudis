@@ -106,6 +106,9 @@ def merge_duplicate_sales(sales: Iterable[AuctionSale]) -> list[AuctionSale]:
             by_hash[key] = sale
             sale.dedupe_confidence = sale.dedupe_confidence or "content_hash"
             continue
+        if not _same_property(existing, sale):
+            passthrough.append(sale)
+            continue
         preferred, secondary = _choose_primary(existing, sale), sale
         if preferred is sale:
             secondary = existing
@@ -140,10 +143,20 @@ def _richness_score(sale: AuctionSale) -> int:
     score = sum(not _is_empty(getattr(sale, field)) for field in RICHNESS_FIELDS)
     score += min(len(sale.documents), 3)
     score += min(len(sale.score_factors), 3)
-    score += min(len(sale.quality_flags), 3)
+    score -= min(len(sale.quality_flags), 3)
     if sale.raw_text:
         score += min(len(sale.raw_text) // 250, 4)
     return score
+
+
+def _field_authority(sale: AuctionSale, field: str) -> tuple[int, str]:
+    payload = sale.raw_payload
+    documentary = int(bool(payload.get(f"pdf_{field}_extraction")))
+    if "surface" in field:
+        documentary = int(str(sale.surface_source or "").lower() in {"pdf", "document", "carrez"})
+    checks = payload.get("source_checks") or {}
+    checked = str((checks.get(sale.source_url) or {}).get("checked_at") or "")
+    return documentary, checked
 
 
 def _merge_into(target: AuctionSale, source: AuctionSale, confidence: str) -> AuctionSale:
@@ -160,12 +173,24 @@ def _merge_into(target: AuctionSale, source: AuctionSale, confidence: str) -> Au
         incoming = getattr(source, field)
         if _is_empty(current) and not _is_empty(incoming):
             setattr(target, field, incoming)
+        elif field not in {"raw_payload", "raw_text"} and not _is_empty(incoming) and current != incoming and not isinstance(current, (list, dict)):
+            conflicts = target.raw_payload.setdefault("source_conflicts", [])
+            if _field_authority(source, field) > _field_authority(target, field):
+                setattr(target, field, incoming)
+            conflict = {"field": field, "selected": str(getattr(target, field)), "observed_primary": str(current), "alternative": str(incoming), "selected_source": target.source_url, "alternative_source": source.source_url}
+            if conflict not in conflicts:
+                conflicts.append(conflict)
         elif field in {"documents", "quality_flags", "score_factors"} and isinstance(current, list) and isinstance(incoming, list):
             if field == "score_factors":
                 setattr(target, field, _merge_score_factors(current, incoming))
             else:
                 setattr(target, field, _merge_lists(current, incoming))
         elif field == "raw_payload" and isinstance(current, dict) and isinstance(incoming, dict):
+            current.setdefault("source_checks", {}).update(incoming.get("source_checks") or {})
+            if incoming.get("source_content_changed"):
+                current["source_content_changed"] = True
+                current.pop("llm_prompt_version", None)
+                current.pop("document_facts_version", None)
             current.setdefault("merged_sources", [])
             current["merged_sources"].append(_observation_summary(source))
 
@@ -281,6 +306,14 @@ def _prices_close(first: Any, second: Any, tolerance: float = 0.02) -> bool:
 
 
 def _same_property(first: AuctionSale, second: AuctionSale) -> bool:
+    for key in ("lot_number", "lot_id"):
+        first_lot, second_lot = first.raw_payload.get(key), second.raw_payload.get(key)
+        if first_lot and second_lot and str(first_lot) != str(second_lot):
+            return False
+    first_surface = first.app_surface_m2 or first.habitable_surface_m2 or first.carrez_surface_m2
+    second_surface = second.app_surface_m2 or second.habitable_surface_m2 or second.carrez_surface_m2
+    if first_surface and second_surface and abs(first_surface - second_surface) / max(first_surface, second_surface) > 0.2:
+        return False
     # Deux annonces à la même adresse précise = même bien, SAUF si elles sont
     # clairement deux lots/ventes distincts : date ET prix renseignés des deux
     # côtés et tous deux différents (ex. deux lots d'un même immeuble). Sinon
