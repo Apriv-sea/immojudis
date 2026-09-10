@@ -26,7 +26,7 @@ class ScoreComponent:
     question: str | None = None
 
 
-RISK_DETECTOR_VERSION = "risk_context_v3"
+RISK_DETECTOR_VERSION = "risk_context_v4"
 
 BUSINESS_RULE_VERSION = "business_rules_v1"
 

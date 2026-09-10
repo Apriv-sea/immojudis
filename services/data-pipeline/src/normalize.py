@@ -333,6 +333,14 @@ def normalize_sale_property_type(raw_sale: dict[str, object]) -> str:
             "sous_categorie",
         )
     )
+    # Some source pages classify an apartment under "Terrain" while their
+    # specific listing title identifies the dwelling. Do not value the shared
+    # cadastral parcel as the surface of the apartment.
+    detail_title = clean_text(_source_block_lookup(raw_sale, "titre_detail", "detail_titre", "asset_title"))
+    if property_type == "land" and detail_title and re.match(
+        r"^(?:un[e]?\s+)?(?:appartement|studio|maison|villa)\b", detail_title, re.I
+    ):
+        return normalize_property_type(detail_title)
     if property_type not in {"other", "unknown"}:
         return property_type
 
@@ -596,6 +604,8 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
     if title is None:
         title = clean_text(_source_block_lookup(raw_sale, "titre", "title"))
     property_type = normalize_sale_property_type(raw_sale)
+    if detail_title and property_type in {"apartment", "house"} and normalize_property_type(title) == "land":
+        title = detail_title
     description = clean_text(_field_or_source_block(raw_sale, "description", "description", "detail_description"))
     if description and re.fullmatch(r"\$[a-z0-9][a-z0-9_]*", description, re.I):
         description = None
@@ -731,6 +741,13 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
     app_surface_m2 = parse_surface(raw_sale.get("app_surface_m2"))
     app_surface_kind = clean_text(raw_sale.get("app_surface_kind"))
     surface_scope = clean_text(raw_sale.get("surface_scope"))
+    if app_surface_kind == "land" and property_type in {"apartment", "house"}:
+        # A corrected dwelling classification invalidates an earlier parcel-based
+        # application surface. Preserve land_surface_m2 as a separate source fact.
+        app_surface_m2 = None
+        app_surface_kind = None
+        if surface_scope == "land":
+            surface_scope = None
     if app_surface_m2 is None:
         app_surface_m2, app_surface_kind, surface_scope = _derive_initial_app_surface(
             property_type=property_type,

@@ -489,6 +489,12 @@ def _risk_match_is_negated(text: str, start: int, end: int, label: str) -> bool:
         return False
     before = text[max(0, start - 90) : start].lower()
     context = text[max(0, start - 90) : min(len(text), end + 90)].lower()
+    if label == "termites":
+        # A negative finding in one room must not suppress another room's finding.
+        boundaries = r"[.;\n]|\bmais\b|\ben\s+revanche\b"
+        before = re.split(boundaries, before, flags=re.I)[-1]
+        after = re.split(boundaries, text[end : end + 90], flags=re.I)[0]
+        context = before + text[start:end].lower() + after.lower()
     negation_patterns = (
         r"aucun(?:e|es|s)?\s+\w{0,25}$",
         r"absence\s+(?:de|d['’])\s*\w{0,25}$",
@@ -528,6 +534,46 @@ def _risk_match_is_negated(text: str, start: int, end: int, label: str) -> bool:
 
 
 def _hazard_context_is_positive(label: str, context: str) -> bool:
+    if label == "termites":
+        # The statutory report title describes its scope, not its conclusion.
+        evidence = re.sub(
+            r"[ée]tat\s+relatif\s+[àa]\s+la\s+pr[ée]sence\s+de\s+termites?",
+            "état termites",
+            context,
+            flags=re.I,
+        )
+        for statement in re.split(r"[.;\n]|\bmais\b|\ben\s+revanche\b", evidence, flags=re.I):
+            if re.search(
+                r"\bsi\b.{0,60}termites?|"
+                r"termites?.{0,60}ne\s+(?:peut|peuvent)\s+(?:pas\s+)?[êe]tre\s+exclu",
+                statement,
+                re.I,
+            ):
+                # Conditional instructions and inaccessible areas establish no positive finding.
+                continue
+            # A regulatory reminder is conditional, not a finding in this building.
+            statement = re.sub(
+                r"(?:dans\s+le\s+cas\s+de|en\s+cas\s+de)\s+"
+                r"(?:la\s+)?(?:pr[ée]sence|infestation)\s+de\s+termites?[^,]*",
+                "rappel conditionnel",
+                statement,
+                flags=re.I,
+            )
+            if re.search(
+                r"(?:absence|aucun[es]*|pas)\s+(?:de\s+|d['’])?"
+                r"(?:indices?\s+(?:de\s+|d['’]))?(?:infestation\s+de\s+)?termites?",
+                statement,
+                re.I,
+            ) or _risk_match_is_negated(statement, 0, len(statement), label):
+                continue
+            if re.search(
+                r"(?:pr[ée]sence|indices?|infestation|attaque).{0,100}termites?|"
+                r"termites?.{0,100}(?:pr[ée]sents?|positif|d[ée]tect[ée]s?|rep[ée]r[ée]s?)",
+                statement,
+                re.I,
+            ):
+                return True
+        return False
     if _risk_match_is_negated(context, 0, len(context), label):
         return False
     patterns = {

@@ -51,6 +51,19 @@ from src.models import AuctionSale
 
 
 def _score_sale(sale: AuctionSale, risks: list[dict[str, Any]]) -> None:
+    if any(risk.get("severity") is None for risk in risks):
+        # Reviewed documentary reservations may be real without a quantified severity.
+        # Do not crash on Decimal(None), invent a penalty, or retain the previous score.
+        sale.investment_score = None
+        sale.score_confidence = None
+        sale.score_version = None
+        sale.score_factors = []
+        sale.investment_summary = "Score non calculé : des risques documentés restent à qualifier."
+        sale.raw_payload["score_factors"] = []
+        sale.raw_payload.pop("investment_analysis", None)
+        sale.raw_payload["score_status"] = "withheld_unqualified_risks"
+        return
+    sale.raw_payload.pop("score_status", None)
     weights = _load_scoring_weights()
     sale.score_version = str(weights.get("version", "v1"))
     components = [
