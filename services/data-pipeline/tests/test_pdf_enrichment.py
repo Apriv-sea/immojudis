@@ -493,9 +493,9 @@ def test_enrich_sale_from_pdf_text_extracts_sale_date_with_provenance() -> None:
 
     enrich_sale_from_pdf_text(sale, pdf_texts)
 
-    assert sale.sale_date == datetime(2026, 10, 15, 15, 0, tzinfo=UTC)
+    assert sale.sale_date == datetime(2026, 10, 15, 13, 0, tzinfo=UTC)
     extraction = sale.raw_payload["pdf_sale_date_extraction"]
-    assert extraction["sale_date"] == "2026-10-15T15:00:00+00:00"
+    assert extraction["sale_date"] == "2026-10-15T13:00:00+00:00"
     assert extraction["document_label"] == "Cahier des conditions de vente"
     assert extraction["document_url"] == "https://example.test/ccv"
     assert extraction["document_type"] == "cahier_conditions_vente"
