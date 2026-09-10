@@ -187,7 +187,7 @@
 }
 .chapter[aria-pressed="true"] .number {
   color: #fff;
-  background: #987a40;
+  background: #80612f;
 }
 .chapter:not(:last-child)::after {
   content: "";
