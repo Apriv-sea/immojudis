@@ -5,6 +5,7 @@ import unicodedata
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dateutil import parser
 
@@ -268,7 +269,30 @@ def parse_confidence(value: object | None) -> Decimal | None:
     return confidence
 
 
-def parse_french_datetime(value: object | None) -> datetime | None:
+def source_sale_timezone(raw_sale: dict[str, object]) -> str:
+    # Use an explicit source timezone when provided; never infer it from the property's address.
+    return clean_text(_field_or_source_block(raw_sale, "sale_timezone", "sale_timezone", "audience_timezone")) or "Europe/Paris"
+
+
+def _civil_time_to_utc(parsed: datetime, *, has_time: bool, local_timezone: str) -> datetime | None:
+    if not has_time:
+        return parsed.replace(tzinfo=UTC)
+    try:
+        zone = ZoneInfo(local_timezone)
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        return None
+    local = parsed.replace(tzinfo=zone)
+    # Neither choose a repeated DST hour nor silently move a nonexistent hour.
+    if local.utcoffset() != local.replace(fold=1).utcoffset():
+        return None
+    result = local.astimezone(UTC)
+    if result.astimezone(zone).replace(tzinfo=None) != parsed:
+        return None
+    return result
+
+
+def parse_french_datetime(value: object | None, *, local_timezone: str = "Europe/Paris") -> datetime | None:
+    """Parse metropolitan French civil times; keep explicit offsets and date-only storage."""
     text = clean_text(value)
     if not text:
         return None
@@ -283,22 +307,42 @@ def parse_french_datetime(value: object | None) -> datetime | None:
             parsed = None
         if parsed is not None:
             if parsed.tzinfo is None:
-                return parsed.replace(tzinfo=UTC)
+                # Published French sale times are local civil times. Preserve the
+                # existing date-only convention until dates have their own field.
+                return _civil_time_to_utc(
+                    parsed, has_time=bool(re.search(r"[T\s]\d{2}:\d{2}", iso_match.group(1))),
+                    local_timezone=local_timezone,
+                )
             return parsed.astimezone(UTC)
     lowered = text.lower()
     for weekday in FRENCH_WEEKDAYS:
         lowered = re.sub(rf"\b{weekday}\b", "", lowered)
     lowered = lowered.replace(" à ", " ")
-    lowered = re.sub(r"\b([0-2]?\d)h([0-5]\d)?\b", lambda m: f"{m.group(1)}:{m.group(2) or '00'}", lowered)
-    lowered = lowered.replace("heures", ":00").replace("heure", ":00")
+    lowered = re.sub(
+        r"\b([0-2]?\d)\s*(?:heures?|h)\s*([0-5]\d)?\b",
+        lambda m: f"{m.group(1)}:{m.group(2) or '00'}", lowered,
+    )
     for fr, en in FRENCH_MONTHS.items():
         lowered = lowered.replace(fr, en)
+    # Keep venue names (including hyphens) out of dateutil's date grammar.
+    months = "|".join(sorted(set(FRENCH_MONTHS.values())))
+    dated = list(re.finditer(
+        rf"\b\d{{1,2}}\s+(?:{months})\s+\d{{4}}"
+        r"(?:\s*,?\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:Z|UTC|GMT|[+-]\d{2}:?\d{2})?)?",
+        lowered, re.I,
+    ))
+    if len(dated) == 1:
+        candidate = dated[0].group(0).strip()
+        if not re.search(r"\d{1,2}:\d{2}", lowered) or re.search(r"\d{1,2}:\d{2}", candidate):
+            lowered = candidate
     try:
         parsed = parser.parse(lowered, dayfirst=True, fuzzy=True)
     except (ValueError, TypeError, OverflowError):
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
+        return _civil_time_to_utc(
+            parsed, has_time=bool(re.search(r"\d{1,2}:\d{2}", lowered)), local_timezone=local_timezone,
+        )
     return parsed.astimezone(UTC)
 
 
@@ -631,7 +675,8 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
             "audience",
             "date_de_l_audience",
             "seance_date",
-        )
+        ),
+        local_timezone=source_sale_timezone(raw_sale),
     )
     adjudication_price = extract_adjudication_price(raw_sale)
     status = normalize_status(_field_or_source_block(raw_sale, "status", "status", "statut"), sale_date)
