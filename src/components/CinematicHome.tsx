@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Image from "next/image";
 import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
 import Search from "lucide-react/dist/esm/icons/search.js";
@@ -56,59 +55,6 @@ export function CinematicHero() {
           ))}
         </nav>
       </div>
-    </section>
-  );
-}
-
-export function CinematicIntro() {
-  const section = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const target = section.current;
-    if (
-      !target ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      !("IntersectionObserver" in window)
-    )
-      return;
-    target.dataset.reveal = "pending";
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          target.dataset.reveal = "visible";
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.12 },
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <section ref={section} className={styles.intro} aria-labelledby="cinematic-intro-title">
-      <div>
-        <p className={styles.eyebrow}>Des biens réels. Des informations claires.</p>
-        <h2 id="cinematic-intro-title">Une opportunité commence par une lecture claire.</h2>
-        <p className={styles.description}>
-          Découvrez des biens mis aux enchères et les informations disponibles pour préparer votre
-          projet.
-        </p>
-        <a className={styles.example} href="/annonce-exemple">
-          Découvrir une annonce exemple <ArrowRight size={18} aria-hidden="true" />
-        </a>
-      </div>
-      <a
-        href="/annonce-exemple"
-        className={styles.imageLink}
-        aria-label="Découvrir une annonce exemple"
-      >
-        <Image
-          src="/media/landing/cinematic-balcony-v2.webp"
-          alt="Façades en pierre et balcon bordelais dans la lumière du soir"
-          width={1400}
-          height={700}
-          sizes="(max-width: 760px) 100vw, 48vw"
-        />
-      </a>
     </section>
   );
 }
