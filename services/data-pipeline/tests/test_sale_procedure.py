@@ -12,6 +12,34 @@ from src.sale_procedure import (
 VERIFIED_AT = "2026-08-20T09:30:00+00:00"
 
 
+def test_preserves_online_notarial_window_but_not_judicial_audience_slot() -> None:
+    schedule = {"opens_at": "2026-09-16T13:00:00+00:00", "closes_at": "2026-09-17T13:00:00+00:00"}
+    notary = make_sale(
+        source_name="notaires", tribunal=None, tribunal_code=None,
+        description="Vente notariale en ligne", raw_payload={"source_sale_schedule": schedule},
+    )
+    classified = classify_sale_procedure(notary, verified_at=VERIFIED_AT)
+    assert classified.sale_procedure["sale_window"] == {**schedule, "source_url": notary.source_url}
+    assert classify_sale_procedure(classified, verified_at=VERIFIED_AT).sale_procedure["sale_window"] == {
+        **schedule, "source_url": notary.source_url,
+    }
+    judicial = make_sale(raw_payload={"source_sale_schedule": schedule})
+    judicial_procedure = classify_sale_procedure(judicial).sale_procedure
+    assert "sale_window" not in judicial_procedure
+    assert judicial_procedure["sale_session"]["closes_at"] == schedule["closes_at"]
+
+
+def test_rejects_unzoned_source_window() -> None:
+    sale = make_sale(
+        source_name="notaires", tribunal=None, tribunal_code=None,
+        description="Vente notariale en ligne",
+        raw_payload={"source_sale_schedule": {
+            "opens_at": "2026-09-16T13:00:00", "closes_at": "2026-09-17T13:00:00",
+        }},
+    )
+    assert "sale_window" not in classify_sale_procedure(sale).sale_procedure
+
+
 def make_sale(**overrides: object) -> AuctionSale:
     payload: dict[str, object] = {
         "source_name": "avoventes",
