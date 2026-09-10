@@ -372,7 +372,7 @@ function BidCeilingWorkspace({
             <div className="flex flex-col items-end gap-2">
               {/* Sélecteur de profil */}
               <div
-                className="inline-flex rounded-full border border-border bg-white p-1"
+                className="flex max-w-full flex-wrap justify-end gap-1 rounded-2xl border border-border bg-white p-1 sm:rounded-full"
                 role="radiogroup"
                 aria-label="Profil d'enchère"
               >
@@ -383,7 +383,7 @@ function BidCeilingWorkspace({
                     role="radio"
                     aria-checked={item.key === state.scenario}
                     onClick={() => setState((current) => ({ ...current, scenario: item.key }))}
-                    className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                    className={`min-h-10 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                       item.key === state.scenario
                         ? "bg-gold text-background"
                         : "text-muted-foreground hover:text-foreground"
