@@ -1,6 +1,7 @@
 import type * as React from "react";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "@/lib/router-compat";
+import { usePathname } from "next/navigation";
+import { Link } from "@/lib/router-compat";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.js";
 import LogOut from "lucide-react/dist/esm/icons/log-out.js";
 import Menu from "lucide-react/dist/esm/icons/menu.js";
@@ -32,14 +33,13 @@ const HOME_NAV_ITEMS = [
 const NON_HOME_PUBLIC_NAV_ITEMS = HOME_NAV_ITEMS.filter((item) => item.to !== "/annonce-exemple");
 
 export function Navbar() {
-  const location = useLocation();
+  const pathname = usePathname();
   const { user, profile, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isHome = location.pathname === "/";
-  const isAdminArea = location.pathname === "/admin" || location.pathname.startsWith("/admin/");
-  const isSalesListing = location.pathname === "/sales" || location.pathname === "/sales/";
-  const isProductPage =
-    location.pathname === "/annonce-exemple" || /^\/sales\/[^/]+/.test(location.pathname);
+  const isHome = pathname === "/";
+  const isAdminArea = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isSalesListing = pathname === "/sales" || pathname === "/sales/";
+  const isProductPage = pathname === "/annonce-exemple" || /^\/sales\/[^/]+/.test(pathname);
   const admin = isAdminAccount(user, profile);
   const navItems = user
     ? [
