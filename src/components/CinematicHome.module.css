@@ -88,7 +88,7 @@
   align-self: stretch;
   border: 0;
   border-radius: 10px;
-  background: #aa8146;
+  background: #80612f;
   color: #fff;
   padding: 0 27px;
   cursor: pointer;
@@ -126,7 +126,7 @@
     transform 800ms;
 }
 .intro[data-reveal="pending"] {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(24px);
 }
 .eyebrow {
@@ -184,7 +184,7 @@
 }
 @keyframes arrive {
   from {
-    opacity: 0;
+    opacity: 1;
     transform: translateY(20px);
   }
   to {

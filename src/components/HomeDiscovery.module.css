@@ -24,16 +24,15 @@
 }
 .root [data-reveal] {
   transition:
-    opacity 650ms ease,
     transform 650ms ease;
 }
 .root [data-visible="false"] {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(22px);
 }
 .eyebrow {
   margin: 0 0 17px;
-  color: #956c30;
+  color: #89612a;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -474,7 +473,7 @@
 }
 @keyframes excerptIn {
   from {
-    opacity: 0.4;
+    opacity: 1;
     transform: translateY(5px);
   }
   to {
