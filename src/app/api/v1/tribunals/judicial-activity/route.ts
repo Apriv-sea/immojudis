@@ -2,6 +2,7 @@ import { apiError, apiJson, createApiRequestContext } from "@/lib/api-observabil
 import {
   tribunalJudicialActivityQuerySchema,
   tribunalJudicialActivityResponseSchema,
+  TribunalCourtUnresolvedError,
 } from "@/lib/tribunal-judicial-activity";
 import { getTribunalJudicialActivity } from "@/lib/tribunal-judicial-activity-repository";
 
@@ -21,6 +22,18 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof TribunalCourtUnresolvedError) {
+      return apiJson(
+        {
+          ok: false,
+          code: "COURT_UNRESOLVED",
+          error: "Le rattachement exact au tribunal reste à confirmer.",
+          requestId: context.requestId,
+        },
+        context,
+        { status: 422 },
+      );
+    }
     const response = apiError(error, context, {
       fallbackMessage: "Activité judiciaire du tribunal temporairement indisponible.",
       fallbackStatus: 503,

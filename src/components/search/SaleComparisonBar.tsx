@@ -1,10 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { MAX_COMPARED_SALES, type ComparedSale } from "@/lib/search/sale-comparison";
 
-const SaleComparisonDialog = dynamic(() => import("./SaleComparisonDialog"));
+const SaleComparisonDialog = dynamic(() => import("./SaleComparisonDialog"), {
+  loading: () => (
+    <p role="status" className="px-4 py-2 text-sm">
+      Chargement du comparateur…
+    </p>
+  ),
+});
 
 export function SaleComparisonBar({
   items,
@@ -32,7 +39,7 @@ export function SaleComparisonBar({
         ref={barRef}
         tabIndex={-1}
         aria-label="Sélection à comparer"
-        className="sticky top-[var(--sales-header-height)] z-20 border-y border-[#d6e3e8] bg-[#f4faf8] px-3 py-3 shadow-sm outline-none sm:px-5"
+        className="sticky top-0 lg:top-[var(--sales-header-height)] z-20 border-y border-[#d6e3e8] bg-[#f4faf8] px-3 py-3 shadow-sm outline-none sm:px-5"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -44,6 +51,11 @@ export function SaleComparisonBar({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {userId ? (
+              <Link href="/favoris" className="px-2 py-3 text-sm font-bold underline">
+                Mes favoris
+              </Link>
+            ) : null}
             {items.length > 0 ? (
               <button
                 type="button"

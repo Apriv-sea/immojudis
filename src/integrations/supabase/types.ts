@@ -2574,6 +2574,7 @@ export type Database = {
           notes: string | null;
           share_expires_at: string | null;
           share_token_hash: string | null;
+          shared_snapshot: Json | null;
           shared_at: string | null;
           summary_snapshot: Json;
           updated_at: string;
@@ -2589,6 +2590,7 @@ export type Database = {
           notes?: string | null;
           share_expires_at?: string | null;
           share_token_hash?: string | null;
+          shared_snapshot?: Json | null;
           shared_at?: string | null;
           summary_snapshot?: Json;
           updated_at?: string;
@@ -2604,6 +2606,7 @@ export type Database = {
           notes?: string | null;
           share_expires_at?: string | null;
           share_token_hash?: string | null;
+          shared_snapshot?: Json | null;
           shared_at?: string | null;
           summary_snapshot?: Json;
           updated_at?: string;
@@ -3877,6 +3880,10 @@ export type Database = {
       };
     };
     Functions: {
+      save_sale_analysis_set: {
+        Args: { p_metadata: Json; p_items: Json; p_set_id?: string };
+        Returns: Database["public"]["Tables"]["user_sale_analysis_sets"]["Row"];
+      };
       approve_information_agent_mission_bounded: {
         Args: { p_message_sha256: string; p_mission_id: string; p_user_id: string };
         Returns: {

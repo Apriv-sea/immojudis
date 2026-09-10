@@ -73,6 +73,7 @@ function AuthenticatedSavedSaleComparisons({
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("Ma comparaison");
+  const [shareLink, setShareLink] = useState<{ setId: string; url: string } | null>(null);
   const queryKey = ["sale-analysis-sets", userId] as const;
   const setsQuery = useQuery({
     queryKey,
@@ -113,6 +114,7 @@ function AuthenticatedSavedSaleComparisons({
   const deleteMutation = useMutation({
     mutationFn: (setId: string) => deleteSaleAnalysisSet({ setId }),
     onSuccess: (_response, setId) => {
+      setShareLink((current) => (current?.setId === setId ? null : current));
       queryClient.setQueryData<SaleAnalysisSetListResponse>(queryKey, (current) =>
         current ? { ...current, sets: current.sets.filter((set) => set.id !== setId) } : current,
       );
@@ -128,8 +130,13 @@ function AuthenticatedSavedSaleComparisons({
     onSuccess: async (share, setId) => {
       updateSharing(queryClient, queryKey, setId, share);
       if (share.url) {
-        await copyText(share.url);
-        toast.success("Lien de comparaison copié. Il expire dans 30 jours.");
+        setShareLink({ setId, url: share.url });
+        try {
+          await copyText(share.url);
+          toast.success("Lien de comparaison copié. Il expire dans 30 jours.");
+        } catch {
+          toast.success("Lien créé. Copiez-le dans le champ ci-dessous.");
+        }
       }
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Partage impossible"),
@@ -138,6 +145,7 @@ function AuthenticatedSavedSaleComparisons({
   const unshareMutation = useMutation({
     mutationFn: (setId: string) => disableSaleComparisonShare({ setId }),
     onSuccess: (share, setId) => {
+      setShareLink((current) => (current?.setId === setId ? null : current));
       updateSharing(queryClient, queryKey, setId, share);
       toast.success("Lien de partage désactivé.");
     },
@@ -188,6 +196,18 @@ function AuthenticatedSavedSaleComparisons({
         </p>
       ) : null}
 
+      {shareLink ? (
+        <label className="mt-3 block text-xs font-bold">
+          Lien de partage · valable 30 jours
+          <input
+            readOnly
+            value={shareLink.url}
+            onFocus={(event) => event.currentTarget.select()}
+            className="mt-1 min-h-11 w-full rounded-md border border-[#b8c9d1] px-3 font-normal"
+          />
+        </label>
+      ) : null}
+
       {savedSets.length ? (
         <ul
           className="mt-3 max-h-36 space-y-2 overflow-y-auto pr-1"
@@ -202,6 +222,12 @@ function AuthenticatedSavedSaleComparisons({
               }
               onRestore={() => {
                 const restored = readSaleComparisonSnapshot(set.summary_snapshot);
+                if (restored.length > 3) {
+                  toast.error(
+                    "Cette analyse dépasse les trois biens du comparateur rapide. Son lien partagé affiche tous les biens.",
+                  );
+                  return;
+                }
                 if (!restored.length) {
                   toast.error(
                     "Cette ancienne sauvegarde ne contient plus de données restaurables.",

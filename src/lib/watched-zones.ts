@@ -197,6 +197,7 @@ export async function deleteWatchedZone({
     .from("user_alerts")
     .update({
       watched_zone_id: null,
+      is_active: false,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", auth.userId)

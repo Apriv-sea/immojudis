@@ -5,7 +5,8 @@ import { runInNewContext } from "node:vm";
 const MAX_CLIENT_CHUNK_BYTES = 1_850_000;
 // The protected admin editor adds an isolated client route; keep a small global
 // allowance for it while enforcing a dedicated initial-load budget below.
-const MAX_TOTAL_CLIENT_JS_BYTES = 4_020_000;
+// Separate favorites and alerts routes add independently loaded client chunks.
+const MAX_TOTAL_CLIENT_JS_BYTES = 4_200_000;
 const MAX_LANDING_IMAGE_BYTES = 350_000;
 const MAX_PUBLIC_MEDIA_BYTES = 1_600_000;
 const MAX_BUSINESS_MODULE_LINES = 1_500;
@@ -38,6 +39,20 @@ const businessModules = [
 ];
 
 const routeBudgets = [
+  {
+    name: "favorites",
+    manifest: ".next/server/app/favoris/page_client-reference-manifest.js",
+    routeKey: "/favoris/page",
+    entryKey: "[project]/src/app/favoris/page",
+    maxBytes: 600_000,
+  },
+  {
+    name: "alerts",
+    manifest: ".next/server/app/alertes/page_client-reference-manifest.js",
+    routeKey: "/alertes/page",
+    entryKey: "[project]/src/app/alertes/page",
+    maxBytes: 650_000,
+  },
   {
     name: "home",
     manifest: ".next/server/app/page_client-reference-manifest.js",

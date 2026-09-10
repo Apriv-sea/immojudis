@@ -48,6 +48,12 @@ for (const cron of vercelConfig.crons ?? []) {
   }
 }
 
+const collectorPath = "services/licitor-collector/vercel.json";
+const collector = JSON.parse(await readFile(path.join(root, collectorPath), "utf8"));
+if (collector.crons?.length) {
+  failures.push(`${collectorPath}: collection must be initiated manually`);
+}
+
 const migrationDirectory = path.join(root, "supabase/migrations");
 for (const entry of await readdir(migrationDirectory, { withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.endsWith(".sql")) continue;

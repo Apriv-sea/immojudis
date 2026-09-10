@@ -201,3 +201,29 @@ function makeNotificationRow(overrides: Partial<NotificationRow>): NotificationR
     ...overrides,
   };
 }
+
+describe("Discovery notifications", () => {
+  it("never exposes premium content or queues email even when requested", () => {
+    const rows = buildAlertNotificationRows({
+      userId: "user-1",
+      matches: [
+        makeMatch({
+          saleTitle: "Private title",
+          marketDiscountPct: 45,
+          reasons: ["Private analysis"],
+        }),
+      ],
+      alerts: [{ id: "alert-1", alert_frequency: "daily" }],
+      includeEmail: true,
+      discovery: true,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].delivery_channel).toBe("in_app");
+    expect(rows[0].notification_snapshot).toMatchObject({
+      audience: "discovery",
+      sale: { title: "Vente immobilière" },
+      match: { marketDiscountPct: null, reasons: ["Critères publics correspondants"] },
+    });
+    expect(JSON.stringify(rows)).not.toContain("Private");
+  });
+});

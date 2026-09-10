@@ -328,8 +328,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   const csvExportLocked =
     isPreview || entitlementsData?.plan.features.salesCsvExport !== "included";
   const watchedZonesLocked =
-    isPreview || entitlementsData?.plan.features.watchedZones !== "included";
-  const alertsLocked = isPreview || entitlementsData?.plan.features.smartAlerts !== "included";
+    !user || !entitlementsData || entitlementsData.plan.features.watchedZones === "locked";
+  const alertsLocked =
+    !user || !entitlementsData || entitlementsData.plan.features.smartAlerts === "locked";
   const { data: salesStatisticsData, isFetching: salesStatisticsLoading } = useQuery({
     queryKey: ["sales-statistics", searchKeySignature],
     queryFn: () => fetchSalesStatistics({ search }),
@@ -433,6 +434,21 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
       return;
     }
 
+    if (
+      !entitlementsData?.plan.hasAnalysisAccess &&
+      (search.query ||
+        search.occupancy ||
+        search.minScore != null ||
+        search.minYield != null ||
+        search.minMarketDiscount != null ||
+        search.dpeClasses?.length ||
+        search.houseWithLand)
+    ) {
+      toast.error(
+        "L'alerte gratuite accepte les critères publics : zone, type de vente, type de bien, budget et surface.",
+      );
+      return;
+    }
     setSavingAlert(true);
     try {
       const watchedZoneInput = watchedZonesLocked

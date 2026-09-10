@@ -14,6 +14,7 @@ from src.outcome_ingestion.adapters import (
     dvf_adjudication_to_json_record,
     encheres_publiques_to_json_record,
     justice_open_data_to_json_record,
+    licitor_historical_to_json_record,
 )
 from src.outcome_ingestion.dvf_adjudication import DvfAdjudicationCandidate
 
@@ -108,6 +109,58 @@ def test_encheres_adapter_rejects_training_eligible_payload() -> None:
                 "source_url": "https://www.encheres-publiques.com/encheres/immobilier/test",
                 "source_dataset_url": ENCHERES_PUBLIQUES_DATASET_URL,
                 "training_eligible": True,
+            }
+        )
+
+
+def test_licitor_adapter_keeps_result_candidate_private_and_non_training() -> None:
+    source_page_url = (
+        "https://www.licitor.com/annonce/10/90/34/vente-aux-encheres/un-appartement/garches/hauts-de-seine/109034.html"
+    )
+    record = licitor_historical_to_json_record(
+        {
+            "source_name": "licitor",
+            "source_url": f"{source_page_url}#lot-1",
+            "source_page_url": source_page_url,
+            "external_id": "109034:lot:1",
+            "sale_date": "2026-07-09",
+            "starting_price_eur": "500000.00",
+            "adjudication_price_eur": "376000.00",
+            "candidate_grade": "C",
+            "evidence_grade": "C",
+            "quality_flags": [
+                "third_party_result_candidate",
+                "commercial_reuse_rights_pending",
+            ],
+            "training_eligible": False,
+        }
+    )
+
+    assert record.source_name == "licitor_public_results"
+    assert record.record_kind == "auction_result_candidate"
+    assert record.normalized_data["review_status"] == "pending"
+    assert record.normalized_data["training_eligible"] is False
+    assert record.requested_url == source_page_url
+    assert record.canonical_url == f"{source_page_url}#lot-1"
+    assert (record.capture_transport, record.http_status, record.request_method) == (
+        "http",
+        200,
+        "GET",
+    )
+
+
+def test_licitor_adapter_rejects_an_untrusted_source_origin() -> None:
+    with pytest.raises(SourceRecordAdapterError, match="unexpected origin"):
+        licitor_historical_to_json_record(
+            {
+                "source_name": "licitor",
+                "source_url": "https://example.test/109034.html#lot-1",
+                "source_page_url": "https://example.test/109034.html",
+                "external_id": "109034:lot:1",
+                "candidate_grade": "C",
+                "evidence_grade": "C",
+                "quality_flags": ["commercial_reuse_rights_pending"],
+                "training_eligible": False,
             }
         )
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildAlertMatchSnapshot, buildAlertMatchSummary } from "@/lib/alert-matches";
+import { isDiscoveryAlertCompatible } from "@/lib/discovery-alerts";
 import { EXAMPLE_SALE } from "@/lib/example-sale";
 import type { UserAlert } from "@/lib/types";
 
@@ -33,6 +34,55 @@ function makeAlert(overrides: Partial<UserAlert> = {}): UserAlert {
 }
 
 describe("alert match snapshots", () => {
+  it("rejects premium criteria after downgrade", () => {
+    expect(isDiscoveryAlertCompatible(makeAlert())).toBe(false);
+    const publicAlert = makeAlert({
+      min_investment_score: null,
+      min_yield_pct: null,
+      min_market_discount_pct: null,
+      dpe_classes: [],
+      require_house_with_land: false,
+    });
+    expect(isDiscoveryAlertCompatible(publicAlert)).toBe(true);
+    expect(isDiscoveryAlertCompatible({ ...publicAlert, alert_frequency: "instant" })).toBe(false);
+    expect(
+      isDiscoveryAlertCompatible({ ...publicAlert, advanced_criteria: { query: "secret" } }),
+    ).toBe(false);
+  });
+  it("projects a free snapshot without premium or source fields", () => {
+    const alert = makeAlert();
+    const summary = buildAlertMatchSummary({
+      alert,
+      sale: EXAMPLE_SALE,
+      reasons: [],
+      marketDiscountPct: 45,
+      matchedAt: "2026-09-09",
+    });
+    const snapshot = buildAlertMatchSnapshot({
+      alert,
+      sale: EXAMPLE_SALE,
+      summary,
+      discovery: true,
+    });
+    expect(snapshot).toEqual({
+      audience: "discovery",
+      alert: { id: alert.id, name: alert.name },
+      sale: {
+        id: EXAMPLE_SALE.id,
+        title: "Vente immobilière",
+        city: EXAMPLE_SALE.city,
+        department: EXAMPLE_SALE.department,
+        startingPriceEur: EXAMPLE_SALE.starting_price_eur,
+        saleDate: EXAMPLE_SALE.sale_date,
+      },
+      match: {
+        reasons: ["Critères publics correspondants"],
+        marketDiscountPct: null,
+        matchedAt: "2026-09-09",
+      },
+    });
+  });
+
   it("builds a stable smart-alert match summary and snapshot", () => {
     const sale = {
       ...EXAMPLE_SALE,

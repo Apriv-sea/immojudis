@@ -5,6 +5,7 @@ from src.outcome_ingestion.adapters import (
     dvf_adjudication_to_json_record,
     encheres_publiques_to_json_record,
     justice_open_data_to_json_record,
+    licitor_historical_to_json_record,
 )
 from src.outcome_ingestion.dvf_adjudication import (
     AuctionLotMatchContext,
@@ -23,5 +24,6 @@ __all__ = [
     "encheres_publiques_to_json_record",
     "iter_dvf_adjudication_candidates",
     "justice_open_data_to_json_record",
+    "licitor_historical_to_json_record",
     "match_dvf_adjudication",
 ]

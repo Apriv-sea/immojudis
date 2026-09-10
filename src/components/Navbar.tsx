@@ -1,20 +1,23 @@
 import type * as React from "react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { Link } from "@/lib/router-compat";
+import { Link, useLocation } from "@/lib/router-compat";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.js";
 import LogOut from "lucide-react/dist/esm/icons/log-out.js";
 import Menu from "lucide-react/dist/esm/icons/menu.js";
 import Search from "lucide-react/dist/esm/icons/search.js";
 import X from "lucide-react/dist/esm/icons/x.js";
-import { AlertNotificationCenter } from "@/components/AlertNotificationCenter";
+
 import { BrandMark } from "@/components/BrandLogo";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminAccount, isProfessionalAccount } from "@/lib/account";
 import { RESOURCES_PATH } from "@/lib/navigation";
 
+import { AlertNotificationCenter } from "@/components/AlertNotificationCenter";
+
 const AUTH_NAV_ITEMS = [
+  { to: "/favoris", label: "Mes favoris" },
+  { to: "/alertes", label: "Mes alertes" },
   { to: "/sales", label: "Annonces" },
   { to: "/tribunaux", label: "Tribunaux" },
   { to: "/avocats", label: "Avocats" },
@@ -23,6 +26,7 @@ const AUTH_NAV_ITEMS = [
 const PRO_NAV_ITEM = { to: "/publish", label: "Publier" } as const;
 const ADMIN_NAV_ITEM = { to: "/admin", label: "Admin" } as const;
 const HOME_NAV_ITEMS = [
+  { to: "/comment-ca-marche", label: "Comment ça marche" },
   { to: "/sales", label: "Rechercher un bien" },
   { to: "/avocats", label: "Trouver un avocat" },
   { to: "/annonce-exemple", label: "Annonce exemple" },
@@ -33,13 +37,14 @@ const HOME_NAV_ITEMS = [
 const NON_HOME_PUBLIC_NAV_ITEMS = HOME_NAV_ITEMS.filter((item) => item.to !== "/annonce-exemple");
 
 export function Navbar() {
-  const pathname = usePathname();
+  const location = useLocation();
   const { user, profile, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isHome = pathname === "/";
-  const isAdminArea = pathname === "/admin" || pathname.startsWith("/admin/");
-  const isSalesListing = pathname === "/sales" || pathname === "/sales/";
-  const isProductPage = pathname === "/annonce-exemple" || /^\/sales\/[^/]+/.test(pathname);
+  const isHome = location.pathname === "/";
+  const isAdminArea = location.pathname === "/admin" || location.pathname.startsWith("/admin/");
+  const isSalesListing = location.pathname === "/sales" || location.pathname === "/sales/";
+  const isProductPage =
+    location.pathname === "/annonce-exemple" || /^\/sales\/[^/]+/.test(location.pathname);
   const admin = isAdminAccount(user, profile);
   const navItems = user
     ? [
@@ -76,10 +81,10 @@ export function Navbar() {
           <div className="flex h-16 w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
             <Link
               to="/"
-              className="inline-flex shrink-0 items-center gap-2 font-display text-2xl font-semibold text-foreground"
+              className="inline-flex shrink-0 items-center gap-2 font-display text-[24px] font-semibold text-foreground sm:text-2xl"
               aria-label="ImmoJudis — accueil"
             >
-              <BrandMark variant="transparent" className="h-7 w-7" />
+              <BrandMark variant="transparent" className="h-[28px] w-[28px] sm:h-7 sm:w-7" />
               <span>
                 Immo<span className="text-[#8a5b24]">Judis</span>
               </span>
@@ -160,7 +165,7 @@ export function Navbar() {
               aria-controls="product-mobile-navigation"
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(true)}
-              className="ml-auto inline-grid h-10 w-10 place-items-center rounded-md border border-border bg-white md:hidden"
+              className="ml-auto inline-grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border bg-white md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -231,14 +236,16 @@ export function Navbar() {
 
   if (isHome) {
     return (
-      <header className="ij-site-header">
+      <header className="ij-site-header ij-cinematic-header">
         <div className="ij-site-header-inner">
           <HeaderLogo />
 
           <nav className="ij-home-nav" aria-label="Navigation principale">
-            {HOME_NAV_ITEMS.map((item) => (
+            {HOME_NAV_ITEMS.filter((item) =>
+              ["/sales", "/comment-ca-marche", "/a-propos"].includes(item.to),
+            ).map((item) => (
               <Link key={item.label} to={item.to}>
-                {item.label}
+                {item.to === "/sales" ? "Les ventes" : item.label}
                 {hasNavChevron(item) ? <ChevronDown aria-hidden className="h-4 w-4" /> : null}
               </Link>
             ))}

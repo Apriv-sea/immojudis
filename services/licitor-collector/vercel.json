@@ -1,0 +1,14 @@
+{
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "cdg1"
+  ],
+  "functions": {
+    "api/*.py": {
+      "maxDuration": 300
+    }
+  }
+}
