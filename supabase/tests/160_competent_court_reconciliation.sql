@@ -1,6 +1,6 @@
 begin;
 
-select plan(28);
+select plan(31);
 
 select has_table(
   'public',
@@ -419,5 +419,8 @@ select is(
   'a blocked court-dependent lineage remains unchanged'
 );
 
+select ok(not has_function_privilege('authenticated', 'public.reconcile_catalogue_competent_courts_batch(uuid,integer)', 'EXECUTE'), 'batch RPC is private');
+select throws_ok($$select * from public.reconcile_catalogue_competent_courts_batch(null, 0)$$, '22023', 'Batch limit must be between 1 and 100.', 'zero batch rejected');
+select ok((select scanned_count <= 1 and next_cursor is not null and has_more from public.reconcile_catalogue_competent_courts_batch(null, 1)), 'batch is bounded and provides continuation');
 select * from finish();
 rollback;

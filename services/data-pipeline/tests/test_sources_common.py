@@ -60,3 +60,20 @@ def test_polite_client_rejects_unconfigured_robots_redirect(monkeypatch) -> None
     )
 
     assert client._robots == common.RobotsRules()
+
+
+def test_agrasc_intermediate_does_not_disable_root_or_hostname_validation():
+    import hashlib
+    import ssl
+    from pathlib import Path
+
+    from src.sources import agrasc
+    from src.sources.agrasc import agrasc_tls_context
+
+    context = agrasc_tls_context()
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
+    assert not context.verify_flags & ssl.VERIFY_X509_PARTIAL_CHAIN
+    certificate = Path(agrasc.__file__).with_name("certificates") / "sectigo-qualified-r39.pem"
+    der = ssl.PEM_cert_to_DER_cert(certificate.read_text())
+    assert hashlib.sha256(der).hexdigest() == "ac8c7ef96eb4b535fbfb4e7521f130536198a60dff716312b22d4acc4afe9a7d"
