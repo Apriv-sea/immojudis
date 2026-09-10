@@ -200,7 +200,7 @@ export function buildUrbanPlanningAnalysis({
 
 export function isPrimaryUrbanPlanningSignal(signal: StructuredUrbanPlanningSignal): boolean {
   if (["llm", "score_factor"].includes(signal.sourceKind ?? "")) return false;
-  return !/(?:asset_normalization|score_factors|investment_summary|llm_display_description|about_description)(?:\b|\[)/i.test(
+  return !/(?:asset_normalization|score_factors|investment_analysis|investment_summary|llm_display_description|about_description)(?:\b|\[)/i.test(
     signal.excerpt ?? "",
   );
 }

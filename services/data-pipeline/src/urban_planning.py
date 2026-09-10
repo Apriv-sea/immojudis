@@ -375,7 +375,7 @@ def _primary_source_fields(value: object) -> list[dict[str, object]]:
     return [
         item for item in _flatten_key_values(value)
         if not re.search(
-            r"(?:^|\.)(?:asset_normalization|score_factors|investment_summary|"
+            r"(?:^|\.)(?:asset_normalization|score_factors|investment_analysis|investment_summary|"
             r"llm_display_description|about_description|sale_procedure|"
             r"related|similar|autres_annonces)(?:$|\.|\[)",
             str(item["path"]),
