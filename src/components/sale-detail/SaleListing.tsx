@@ -134,7 +134,7 @@ export function ListingOverview({
         </p>
       ) : null}
       {publicDemo ? (
-        <p className="mt-3 text-xs text-slate-500">Annonce exemple · données fictives</p>
+        <p className="mt-3 text-xs text-slate-600">Annonce exemple · données fictives</p>
       ) : null}
       <h1 className={styles.title}>
         {valuationConflict
