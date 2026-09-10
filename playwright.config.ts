@@ -19,10 +19,10 @@ export default defineConfig({
     { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
+    command: "npm run build && npm run start -- --hostname 127.0.0.1 --port 3100",
     url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 240_000,
     env: {
       ...process.env,
       NEXT_PUBLIC_SUPABASE_URL: "https://ci.supabase.co",
