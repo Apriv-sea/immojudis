@@ -4,7 +4,10 @@ from src.urban_planning import build_urban_planning_signal_rows
 
 def test_generated_questions_are_not_urban_planning_evidence() -> None:
     question = "L'occupation, les servitudes et les contraintes sont-elles maîtrisées ?"
-    generated = {"asset_normalization": {"score_factors": [{"question": question}]}}
+    generated = {
+        "asset_normalization": {"score_factors": [{"question": question}]},
+        "investment_analysis": {"axes": [{"question": question}]},
+    }
     sale = AuctionSale(
         source_name="licitor",
         source_url="https://example.test/vente-3",

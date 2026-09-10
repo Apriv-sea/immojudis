@@ -24,6 +24,8 @@ it("rejects stored generated urban-planning evidence while retaining primary exc
     "asset_normalization.score_factors[0].normalized_value.question: Les servitudes sont-elles maîtrisées ?",
     "observations[0].raw_payload.asset_normalization.score_factors[0].normalized_value.question: copropriété",
     "investment_summary: Usage commercial favorable",
+    "investment_analysis.axes[2].question: Les servitudes sont-elles maîtrisées ?",
+    "observations[0].raw_payload.investment_analysis.axes[2].question: copropriété",
   ])
     expect(isPrimaryUrbanPlanningSignal({ ...base, excerpt })).toBe(false);
 });
