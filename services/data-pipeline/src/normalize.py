@@ -597,7 +597,7 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
         title = clean_text(_source_block_lookup(raw_sale, "titre", "title"))
     property_type = normalize_sale_property_type(raw_sale)
     description = clean_text(_field_or_source_block(raw_sale, "description", "description", "detail_description"))
-    if description and re.fullmatch(r"\$[a-z][a-z0-9_]*", description, re.I):
+    if description and re.fullmatch(r"\$[a-z0-9][a-z0-9_]*", description, re.I):
         description = None
     address = clean_text(
         _field_or_source_block(raw_sale, "address", "adresse", "detail_adresse", "address", "localisation")

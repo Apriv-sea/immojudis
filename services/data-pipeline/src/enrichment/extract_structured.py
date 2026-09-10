@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -339,6 +340,8 @@ def enrich_sale_with_llm(
     source_description = extract_source_description(sale)
     if source_description:
         sale.raw_payload["source_description"] = source_description
+    else:
+        sale.raw_payload.pop("source_description", None)
 
     extraction_mode = str(settings.get("llm_extraction_mode") or "display_description")
     if extraction_mode == "display_description":
@@ -673,11 +676,30 @@ def build_source_page_context(sale: AuctionSale, max_chars: int = 5000) -> str |
 def extract_source_description(sale: AuctionSale) -> str | None:
     source_block_candidates: list[str] = []
     for payload in _source_payloads_for_sale(sale):
-        source_block_candidates.extend(_source_description_candidates_from_payload(payload))
+        source_url = payload.get("source_url") or (sale.source_url if payload is sale.raw_payload else None)
+        source_block_candidates.extend(
+            text for text in _source_description_candidates_from_payload(payload)
+            if _description_reference_matches(text, source_url)
+        )
     best_source_block = _best_source_description(source_block_candidates)
     if best_source_block:
         return best_source_block
-    return _best_source_description([value for value in (sale.description, sale.raw_text) if value])
+    return _best_source_description([
+        value for value in (sale.description, sale.raw_text)
+        if value and _description_reference_matches(value, sale.source_url)
+    ])
+
+
+def _description_reference_matches(text: str, source_url: Any) -> bool:
+    """Reject explicit cross-listing references; other publishers use their own IDs."""
+    if not isinstance(source_url, str):
+        return True
+    url = urlparse(source_url)
+    if url.hostname != "encheresimmobilieres.fr":
+        return True
+    expected = re.match(r"/ventes/(\d+)(?:-|$)", url.path)
+    actual = re.search(r"R[ée]f\.\s*annonce\s*:\s*(\d+)\b", text, re.I)
+    return not expected or not actual or expected[1] == actual[1]
 
 
 def _source_description_candidates_from_payload(payload: dict[str, Any]) -> list[str]:
