@@ -202,10 +202,15 @@ def _store_document_analysis_status(
         coverage_status = "rich"
         warning = "Les principales familles de documents sont disponibles pour l'analyse."
 
+    failed_documents = max(0, len(_select_documents_for_extraction(sale.documents, sale=sale)) - len(text_profiles))
+    checked_at = datetime.now(UTC).isoformat()
+    previous = sale.raw_payload.get("document_analysis") or {}
+    last_successful_check_at = checked_at if not failed_documents else previous.get("last_successful_check_at")
     sale.raw_payload["document_analysis"] = {
-        "checked_at": datetime.now(UTC).isoformat(),
+        "last_successful_check_at": last_successful_check_at,
+        "checked_at": checked_at,
         "input_fingerprint": document_fingerprint(sale.documents),
-        "failed_documents": max(0, len(_select_documents_for_extraction(sale.documents, sale=sale)) - len(text_profiles)),
+        "failed_documents": failed_documents,
         "coverage_status": coverage_status,
         "warning": warning,
         "documents_listed": len(sale.documents or []),

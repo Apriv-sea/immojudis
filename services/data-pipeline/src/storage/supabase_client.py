@@ -266,7 +266,10 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
         ], sort_keys=True).encode()).hexdigest()
         kinds = []
         if sale.documents and not documents_are_current(sale):
-            kinds.append(("pdf", revision + datetime.now(UTC).date().isoformat(), 30))
+            analysis = sale.raw_payload.get("document_analysis") or {}
+            # A failed document keeps the same retry budget across daily scans.
+            last_success = analysis.get("last_successful_check_at") or "initial"
+            kinds.append(("pdf", revision + str(last_success), 30))
         if not sale.raw_payload.get("llm_display_description") or sale.raw_payload.get("source_content_changed"):
             kinds.append(("display_description", revision, 20))
         analysis = sale.raw_payload.get("document_analysis") or {}

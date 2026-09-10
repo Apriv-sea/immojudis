@@ -81,7 +81,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    `Manual-only collection verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
+    `Authorized collection schedules verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
   );
 }
 

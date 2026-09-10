@@ -115,3 +115,16 @@ def test_missing_surface_queues_fact_extraction_after_documents(monkeypatch):
     sale.raw_payload["document_analysis"] = {"documents_extracted": 1}
     storage._enqueue_due_enrichment([sale], "url", "key")
     assert {row["job_type"] for row in rows} == {"fact_extraction", "display_description"}
+
+
+def test_failed_pdf_retains_same_retry_identity_across_scans(monkeypatch):
+    rows = []
+    monkeypatch.setattr(storage, "_postgrest_upsert", lambda url, key, table, payload, conflict: rows.extend(payload))
+    sale = normalize_sale({"source_name": "avoventes", "source_url": "https://example.test/retry", "sale_date": "2099-01-01", "documents": [{"url": "https://example.test/pv.pdf"}]})
+    sale.raw_payload["document_analysis"] = {"failed_documents": 1, "checked_at": "2026-09-01T00:00:00+00:00"}
+    storage._enqueue_due_enrichment([sale], "url", "key")
+    first = next(row["input_hash"] for row in rows if row["job_type"] == "pdf")
+    rows.clear()
+    sale.raw_payload["document_analysis"]["checked_at"] = "2026-09-02T00:00:00+00:00"
+    storage._enqueue_due_enrichment([sale], "url", "key")
+    assert next(row["input_hash"] for row in rows if row["job_type"] == "pdf") == first
