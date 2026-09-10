@@ -26,7 +26,7 @@ def _settings() -> dict[str, object]:
     }
 
 
-def _reconciliation_payload(count: int | str = 413) -> list[dict[str, object]]:
+def _reconciliation_payload(count: int | str = 13) -> list[dict[str, object]]:
     return [
         {
             "scanned_count": count,
@@ -34,6 +34,8 @@ def _reconciliation_payload(count: int | str = 413) -> list[dict[str, object]]:
             "already_correct_count": count,
             "blocked_count": 0,
             "complete": True,
+            "next_cursor": "00000000-0000-0000-0000-000000000013",
+            "has_more": False,
         }
     ]
 
@@ -48,10 +50,10 @@ def test_bridge_calls_the_service_role_rpc_without_serializing_sale_money() -> N
         return _response(
             [
                 {
-                    "scanned_count": 413,
-                    "created_count": 413,
+                    "scanned_count": 13,
+                    "created_count": 13,
                     "reused_count": 0,
-                    "linked_count": 413,
+                    "linked_count": 13,
                     "complete": True,
                 }
             ]
@@ -59,7 +61,7 @@ def test_bridge_calls_the_service_role_rpc_without_serializing_sale_money() -> N
 
     result = bridge_auction_sales_before_cleanup(_settings(), post=post)
 
-    assert result.scanned_count == 413
+    assert result.scanned_count == 13
     assert result.remaining_unlinked == 0
     assert len(calls) == 2
     assert calls[0]["url"] == (f"https://example.supabase.co/rest/v1/rpc/{BRIDGE_RPC_NAME}")
@@ -74,14 +76,14 @@ def test_bridge_calls_the_service_role_rpc_without_serializing_sale_money() -> N
 def test_bridge_accepts_an_idempotent_replay() -> None:
     def post(url: str, **_kwargs: object) -> httpx.Response:
         if url.endswith(f"/{COURT_RECONCILIATION_RPC_NAME}"):
-            return _response(_reconciliation_payload("413"))
+            return _response(_reconciliation_payload("13"))
         return _response(
             [
                 {
-                    "scanned_count": "413",
+                    "scanned_count": "13",
                     "created_count": "0",
-                    "reused_count": "413",
-                    "linked_count": "413",
+                    "reused_count": "13",
+                    "linked_count": "13",
                     "complete": True,
                 }
             ]
@@ -93,7 +95,7 @@ def test_bridge_accepts_an_idempotent_replay() -> None:
     )
 
     assert result.created_count == 0
-    assert result.reused_count == 413
+    assert result.reused_count == 13
 
 
 def test_bridge_blocks_cleanup_when_court_reconciliation_is_incomplete() -> None:
@@ -187,3 +189,40 @@ def test_bridge_fails_closed_on_http_error_without_echoing_response_body() -> No
         )
 
     assert "database details" not in str(error.value)
+
+
+@pytest.mark.parametrize("repeat_cursor", [False, True])
+def test_reconciliation_pages_and_rejects_repeated_cursor(repeat_cursor):
+    calls = []
+
+    def post(url, **kwargs):
+        if url.endswith(f"/{BRIDGE_RPC_NAME}"):
+            return _response([dict(scanned_count=26, created_count=0, reused_count=26, linked_count=26, complete=True)])
+        calls.append(kwargs["json"])
+        first = len(calls) == 1
+        cursor = (
+            "00000000-0000-0000-0000-000000000001" if first or repeat_cursor else "00000000-0000-0000-0000-000000000002"
+        )
+        return _response(
+            [
+                dict(
+                    scanned_count=25 if first else 1,
+                    corrected_count=0,
+                    already_correct_count=25 if first else 1,
+                    blocked_count=0,
+                    complete=True,
+                    next_cursor=cursor,
+                    has_more=first,
+                )
+            ]
+        )
+
+    if repeat_cursor:
+        with pytest.raises(OutcomeCatalogueBridgeError, match="cursor"):
+            bridge_auction_sales_before_cleanup(_settings(), post=post)
+    else:
+        assert bridge_auction_sales_before_cleanup(_settings(), post=post).scanned_count == 26
+    assert calls == [
+        dict(p_after_id=None, p_limit=25),
+        dict(p_after_id="00000000-0000-0000-0000-000000000001", p_limit=25),
+    ]

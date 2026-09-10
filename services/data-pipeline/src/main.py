@@ -212,11 +212,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     try:
         known_details: dict[str, dict[str, object]] = (
             fetch_known_sale_details()
-            if (
-                settings["incremental_enrichment"]
-                and options.upsert
-                and (options.heavy_enrichment or options.use_llm)
-            )
+            if (settings["incremental_enrichment"] and options.upsert and (options.heavy_enrichment or options.use_llm))
             else {}
         )
     except Exception as exc:
@@ -261,6 +257,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 "configured_page_limit": _configured_page_limit(name, settings),
             }
             raw_sales.extend(result.sales)
+    collection_failed = any(errors.get(name) for name in scrapers)
     timings["scrape_total_seconds"] = round(time.perf_counter() - scrape_overall_started, 2)
 
     # Les scrapers peuvent sauter une fiche détail inchangée. On garde quand
@@ -294,11 +291,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     # corrections de géocodage) arrivent jusqu'au read model.
     enriched_hashes: set[str] = set()
     current_llm_description_hashes: set[str] = set()
-    if (
-        settings["incremental_enrichment"]
-        and options.upsert
-        and (options.heavy_enrichment or options.use_llm)
-    ):
+    if settings["incremental_enrichment"] and options.upsert and (options.heavy_enrichment or options.use_llm):
         content_hashes = [sale.content_hash for sale in canonical_sales if sale.content_hash]
         if options.heavy_enrichment:
             enriched_hashes = fetch_enriched_content_hashes(
@@ -368,9 +361,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             LOGGER.exception("Early Supabase upsert failed: %s", exc)
             errors.setdefault("supabase", []).append(str(exc))
     early_publication_fingerprints = (
-        _sale_publication_fingerprints(app_ready)
-        if options.upsert and early_upserted > 0
-        else {}
+        _sale_publication_fingerprints(app_ready) if options.upsert and early_upserted > 0 else {}
     )
 
     cached_llm_display_refreshed = 0
@@ -449,10 +440,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     )
     if options.use_llm and llm_client is not None and llm_targets:
         with ThreadPoolExecutor(max_workers=llm_workers) as executor:
-            futures = {
-                executor.submit(enrich_sale_with_llm, sale, client=llm_client): sale
-                for sale in llm_targets
-            }
+            futures = {executor.submit(enrich_sale_with_llm, sale, client=llm_client): sale for sale in llm_targets}
             for future in as_completed(futures):
                 sale = futures[future]
                 try:
@@ -560,18 +548,24 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             observations_upserted = max(early_observations_upserted, final_observations_upserted)
             # Fail closed before every path below that can delete catalogue
             # rows. The database also rejects deletion of any unbridged sale.
+            if collection_failed:
+                raise RuntimeError("Collection incomplete; catalogue cleanup is disabled.")
             outcome_bridge = bridge_auction_sales_before_cleanup(settings)
             outcome_bridge_scanned = outcome_bridge.scanned_count
             outcome_bridge_created = outcome_bridge.created_count
             outcome_bridge_reused = outcome_bridge.reused_count
             supabase_deleted_secondary = delete_secondary_sales_in_supabase(app_ready)
-            if settings.get("dedupe_reconcile_enabled", True):
-                supabase_reconciled_duplicates = reconcile_duplicate_sales_in_supabase(
-                    limit=int(settings.get("dedupe_reconcile_max_rows") or 2000)
-                )
-            supabase_cleaned_past = mark_past_sales_in_supabase()
-            supabase_deleted_expired = delete_expired_sales_in_supabase()
-            supabase_deleted_vench_without_surface = delete_vench_sales_without_surface_in_supabase()
+            # A targeted/bounded refresh must not maintain unrelated sources.
+            if app_ready and options.source == "all" and options.limit is None:
+                if settings.get("dedupe_reconcile_enabled", True):
+                    supabase_reconciled_duplicates = reconcile_duplicate_sales_in_supabase(
+                        limit=int(settings.get("dedupe_reconcile_max_rows") or 2000)
+                    )
+                supabase_cleaned_past = mark_past_sales_in_supabase()
+                supabase_deleted_expired = delete_expired_sales_in_supabase()
+                supabase_deleted_vench_without_surface = delete_vench_sales_without_surface_in_supabase()
+            else:
+                summary["global_cleanup_skipped"] = "targeted_or_bounded_collection"
             timings["supabase_seconds"] = round(time.perf_counter() - started, 2)
             summary.update(
                 {
@@ -967,9 +961,7 @@ def _backfill_document_price_from_known(
     incoming_price = parse_price(sale.get("starting_price_eur"))
     status = extraction.get("status")
     rejected_price = parse_price(extraction.get("rejected_source_price_eur"))
-    source_matches_rejected = (
-        status == "resolved" and rejected_price is not None and incoming_price == rejected_price
-    )
+    source_matches_rejected = status == "resolved" and rejected_price is not None and incoming_price == rejected_price
     if incoming_price is not None and incoming_price != known_price and not source_matches_rejected:
         return 0
 
@@ -1150,7 +1142,13 @@ def _surface_reasoning_context_for_sale(sale: AuctionSale) -> str:
     payload = sale.raw_payload if isinstance(sale.raw_payload, dict) else {}
     source_blocks = payload.get("source_blocks")
     block_values = list(source_blocks.values()) if isinstance(source_blocks, dict) else []
-    values: list[object] = [sale.title, sale.description, sale.raw_text, payload.get("source_description"), *block_values]
+    values: list[object] = [
+        sale.title,
+        sale.description,
+        sale.raw_text,
+        payload.get("source_description"),
+        *block_values,
+    ]
     return clean_text("\n".join(str(value) for value in values if value)) or ""
 
 
@@ -1255,11 +1253,15 @@ def _pdf_target_priority_key(sale: AuctionSale) -> tuple[int, int, int, str, str
             "conditions_vente",
         }
     )
-    suspicious_price_rank = 0 if (
-        sale.starting_price_eur is not None
-        and sale.starting_price_eur < 1000
-        and "cahier_conditions_vente" in document_types
-    ) else 1
+    suspicious_price_rank = (
+        0
+        if (
+            sale.starting_price_eur is not None
+            and sale.starting_price_eur < 1000
+            and "cahier_conditions_vente" in document_types
+        )
+        else 1
+    )
     if not has_surface and has_official_document:
         document_rank = 0
     elif not has_surface and sale.documents:

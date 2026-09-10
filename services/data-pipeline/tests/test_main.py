@@ -17,6 +17,7 @@ except ModuleNotFoundError as exc:
     export_stub.export_sales = lambda sales: ("out.json", "out.csv")
     sys.modules["src.export"] = export_stub
     from src import main
+
     del sys.modules["src.export"]
 
 
@@ -189,7 +190,9 @@ def test_run_pipeline_upserts_light_sale_before_pdf_enrichment(monkeypatch) -> N
         return len(sales)
 
     monkeypatch.setattr(main, "upsert_sales_to_supabase", upsert_sales)
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     assert main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, upsert=True)) == 0
     assert calls.index("upsert") < calls.index("pdf")
@@ -226,18 +229,21 @@ def test_light_pipeline_geocodes_and_reupserts_when_heavy_enrichment_disabled(mo
         return len(sales)
 
     monkeypatch.setattr(main, "upsert_sales_to_supabase", upsert_sales)
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     assert (
-        main.run_pipeline(
-            main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
-        )
+        main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True))
         == 0
     )
     assert calls == ["upsert", "observations", "geocode", "upsert", "observations"]
 
 
-def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "source,limit,global_cleanup", [("all", None, True), ("avoventes", None, False), ("all", 10, False)]
+)
+def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch, source, limit, global_cleanup) -> None:
     summary_capture: dict[str, object] = {}
     calls: list[str] = []
 
@@ -262,8 +268,9 @@ def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch) 
     monkeypatch.setattr(
         main,
         "bridge_auction_sales_before_cleanup",
-        lambda settings: calls.append("bridge")
-        or types.SimpleNamespace(scanned_count=3, created_count=3, reused_count=0),
+        lambda settings: (
+            calls.append("bridge") or types.SimpleNamespace(scanned_count=3, created_count=3, reused_count=0)
+        ),
     )
     monkeypatch.setattr(
         main,
@@ -283,15 +290,17 @@ def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch) 
         lambda: calls.append("delete_vench") or 0,
     )
     monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: calls.append("upsert") or len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     assert (
         main.run_pipeline(
-            main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
+            main.PipelineOptions(source=source, limit=limit, use_llm=False, heavy_enrichment=False, upsert=True)
         )
         == 0
     )
-    assert calls[-6:] == [
+    expected_cleanup = [
         "bridge",
         "delete_secondary",
         "reconcile",
@@ -299,12 +308,17 @@ def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch) 
         "delete_expired",
         "delete_vench",
     ]
-    assert summary_capture["deleted_expired_sales"] == 3
+    if global_cleanup:
+        assert calls[-6:] == expected_cleanup
+    else:
+        assert calls[-2:] == ["bridge", "delete_secondary"]
+    assert summary_capture["deleted_expired_sales"] == (3 if global_cleanup else 0)
     assert summary_capture["deleted_secondary_sales"] == 1
     assert summary_capture["outcome_bridge_scanned"] == 3
 
 
-def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch) -> None:
+@pytest.mark.parametrize("collection_failed", [False, True])
+def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch, collection_failed) -> None:
     finish_calls: list[tuple[str, dict[str, list[str]]]] = []
     cleanup_calls: list[str] = []
 
@@ -320,7 +334,7 @@ def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch) -> 
     monkeypatch.setattr(
         main,
         "scrape_avoventes_aquitaine_result",
-        lambda known=None: ScrapeResult([_raw_sale()], []),
+        lambda known=None: ScrapeResult([_raw_sale()], ["source validation failed"] if collection_failed else []),
     )
     monkeypatch.setattr(main, "geocode_sale", lambda sale: sale)
     monkeypatch.setattr(main, "fill_tribunal", lambda sale: None)
@@ -370,7 +384,9 @@ def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch) -> 
     assert result == 1
     assert cleanup_calls == []
     assert finish_calls[-1][0] == "failed"
-    assert finish_calls[-1][1]["supabase"] == ["bridge incomplete"]
+    assert finish_calls[-1][1]["supabase"] == [
+        "Collection incomplete; catalogue cleanup is disabled." if collection_failed else "bridge incomplete"
+    ]
 
 
 def test_pipeline_returns_failure_when_final_supabase_publication_fails(monkeypatch) -> None:
@@ -479,7 +495,9 @@ def test_pipeline_skips_redundant_final_sale_upsert_when_unchanged(monkeypatch) 
     monkeypatch.setattr(main, "format_quality_report", lambda report: [])
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
-    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: calls.append(f"upsert:{len(sales)}") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_sales_to_supabase", lambda sales: calls.append(f"upsert:{len(sales)}") or len(sales)
+    )
     monkeypatch.setattr(
         main,
         "upsert_observations_to_supabase",
@@ -487,9 +505,7 @@ def test_pipeline_skips_redundant_final_sale_upsert_when_unchanged(monkeypatch) 
     )
 
     assert (
-        main.run_pipeline(
-            main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
-        )
+        main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True))
         == 0
     )
     assert calls == ["upsert:1", "observations:1", "geocode"]
@@ -524,7 +540,9 @@ def test_pipeline_enriches_cadastre_after_final_geocode(monkeypatch) -> None:
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: calls.append("upsert") or len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     def enrich_cadastre(sales, settings):
         calls.append("cadastre_enrich")
@@ -540,9 +558,7 @@ def test_pipeline_enriches_cadastre_after_final_geocode(monkeypatch) -> None:
     )
 
     assert (
-        main.run_pipeline(
-            main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
-        )
+        main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True))
         == 0
     )
     assert calls == [
@@ -585,7 +601,9 @@ def test_pipeline_enriches_dpe_after_final_geocode(monkeypatch) -> None:
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: calls.append("upsert") or len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     def enrich_dpe(sales, settings):
         calls.append("dpe_enrich")
@@ -601,9 +619,7 @@ def test_pipeline_enriches_dpe_after_final_geocode(monkeypatch) -> None:
     )
 
     assert (
-        main.run_pipeline(
-            main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
-        )
+        main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True))
         == 0
     )
     assert calls == [
@@ -640,7 +656,9 @@ def test_incremental_skip_only_skips_heavy_enrichment_not_publication(monkeypatc
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: calls.append("upsert") or len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales))
+    monkeypatch.setattr(
+        main, "upsert_observations_to_supabase", lambda sales: calls.append("observations") or len(sales)
+    )
 
     assert main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, upsert=True)) == 0
     assert "pdf" not in calls
