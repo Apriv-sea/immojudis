@@ -31,21 +31,11 @@ const failures = [];
 for (const relativePath of collectionWorkflows) {
   const source = await readFile(path.join(root, relativePath), "utf8");
   const triggers = topLevelWorkflowTriggers(source);
-  if (relativePath === ".github/workflows/data-pipeline.yml") {
-    const schedules = [...source.matchAll(/- cron: "([^"]+)"/g)].map((match) => match[1]);
-    if (JSON.stringify(schedules) !== JSON.stringify(["37 */2 * * *"])) {
-      failures.push(
-        `${relativePath}: collection must remain manual; only two-hour enrichment is authorized`,
-      );
-    }
-  }
   if (!triggers.has("workflow_dispatch")) {
     failures.push(`${relativePath}: workflow_dispatch is required`);
   }
   for (const trigger of triggers) {
-    const authorizedPipelineSchedule =
-      relativePath === ".github/workflows/data-pipeline.yml" && trigger === "schedule";
-    if (!allowedWorkflowTriggers.has(trigger) && !authorizedPipelineSchedule) {
+    if (!allowedWorkflowTriggers.has(trigger)) {
       failures.push(`${relativePath}: trigger '${trigger}' is not manual`);
     }
   }
@@ -84,7 +74,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    `Authorized collection schedules verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
+    `Manual collection and enrichment verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
   );
 }
 

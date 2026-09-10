@@ -1,8 +1,6 @@
 name: Immojudis Data Pipeline
 
 on:
-  schedule:
-    - cron: "37 */2 * * *"
   workflow_dispatch:
     inputs:
       run_id:
@@ -57,6 +55,7 @@ concurrency:
 
 jobs:
   run:
+    if: github.event_name == 'workflow_dispatch'
     name: Run data pipeline
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -162,7 +161,6 @@ jobs:
         env:
           REQUESTED_PUBLICATION_CHECK: ${{ github.event.inputs.publication_check }}
           REQUESTED_ENRICHMENT_ONLY: ${{ github.event.inputs.enrichment_only }}
-          SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_RUN_ID: ${{ github.event.inputs.run_id }}
           REQUESTED_SOURCE: ${{ github.event.inputs.source }}
           REQUESTED_LIMIT: ${{ github.event.inputs.limit }}
@@ -174,8 +172,7 @@ jobs:
             python -m src.verify_publication
             exit 0
           fi
-          # Every scheduled run may only enrich existing records.
-          if [ "$REQUESTED_ENRICHMENT_ONLY" = "true" ] || [ -n "$SCHEDULE" ]; then
+          if [ "$REQUESTED_ENRICHMENT_ONLY" = "true" ]; then
             python -m src.queued_runner --enrichment-only
             exit 0
           fi

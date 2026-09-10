@@ -3,11 +3,11 @@
 ## Exécution
 
 - Découverte multi-sources uniquement sur lancement manuel (`workflow_dispatch` ou admin).
-- File documentaire et IA toutes les deux heures, à la minute 37.
+- File documentaire et IA uniquement sur lancement manuel (`enrichment_only=true`).
 - `workflow_dispatch` conserve le scan manuel et ajoute `enrichment_only`.
 - Un seul workflow écrivain à la fois ; aucune annulation du run actif.
 - Scan : 10 biens documentaires et 20 synthèses maximum. Le reliquat est enregistré en base.
-- Worker : deux jobs réservés à la fois, budget de 40 minutes ; reprise au passage suivant.
+- Worker manuel : deux jobs réservés à la fois, budget de 40 minutes ; reprise au prochain lancement manuel.
 
 ## Fraîcheur
 
@@ -33,7 +33,7 @@ Les runs conservent leur statut compatible avec l'interface existante. `summary.
 
 ## Suivi et reprise
 
-Le dernier step du workflow exécute `python -m src.pipeline_health`. Son résumé expose couverture par source et backlog par type/statut. Les nouveaux jobs épuisant leurs tentatives ou restant en attente plus de 48 heures font échouer ce contrôle.
+Après un lancement manuel, le dernier step du workflow exécute `python -m src.pipeline_health`. Son résumé expose couverture par source et backlog par type/statut. Les nouveaux jobs épuisant leurs tentatives ou restant en attente plus de 48 heures font échouer ce contrôle.
 
 Les jobs suivent les délais et le nombre maximal de tentatives de `auction_enrichment_jobs`. Après correction d'un problème de source, relancer le scan pour réévaluer les données puis le workflow avec `enrichment_only=true`. Un document inaccessible reste signalé ; il n'est jamais marqué extrait par défaut.
 

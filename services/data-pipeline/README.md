@@ -135,7 +135,7 @@ python -m src.main --backfill-llm-descriptions
 python -m src.main --backfill-llm-descriptions --limit 20 --backfill-statuses active,upcoming
 ```
 
-Le backfill manuel reste disponible depuis l’admin ou `workflow_dispatch`. La file documentaire est consommée toutes les deux heures par un worker dédié, sans backfill idle.
+Le backfill manuel reste disponible depuis l’admin ou `workflow_dispatch`. La file documentaire est consommée uniquement sur lancement manuel, sans backfill idle.
 
 En CI, les backfills IA sont volontairement bornés par petits lots et les
 prédictions Replicate démarrent avec `REPLICATE_WAIT_SECONDS=1` pour éviter
@@ -356,7 +356,7 @@ python -m src.queued_runner
 ou `failed`.
 
 `python -m src.queued_runner` récupère le plus ancien run `queued` dans
-Supabase et lance le pipeline avec ses paramètres. La variante `--enrichment-only` est planifiée toutes les deux heures. La collecte nationale reste exclusivement manuelle, via `workflow_dispatch` ou l’admin.
+Supabase et lance le pipeline avec ses paramètres. La variante `--enrichment-only` doit être lancée manuellement. La collecte nationale reste exclusivement manuelle, via `workflow_dispatch` ou l’admin.
 
 Le pipeline :
 
@@ -457,7 +457,7 @@ PIPELINE_LLM_BACKFILL_MAX_TARGETS=20
 
 Les options `PIPELINE_IDLE_LLM_BACKFILL_ENABLED` et
 `PIPELINE_ENRICHMENT_QUEUE_ENABLED` ne sont pas configurées dans le workflow de
-production. Le worker planifié utilise explicitement `python -m src.queued_runner --enrichment-only`, sans passer par le backfill idle.
+production. Le worker manuel utilise explicitement `python -m src.queued_runner --enrichment-only`, sans passer par le backfill idle.
 
 Le provider Replicate appelle l'API HTTP officielle avec `Authorization: Bearer $REPLICATE_API_TOKEN` et l'endpoint `/v1/models/{owner}/{model}/predictions`.
 Pour Gemini via Replicate, le client envoie le prompt système dans `system_instruction` et limite la réponse à du JSON validé ensuite par Pydantic.
@@ -493,7 +493,7 @@ doivent être du JSON validé par Pydantic, puis sont sauvegardées dans
 
 Le mode `--backfill-llm-descriptions` traite les annonces déjà présentes dans
 Supabase qui n'ont pas encore de synthèse publique courante. Son volume est
-borné par `PIPELINE_LLM_BACKFILL_MAX_TARGETS` ou `--limit`. La file `auction_enrichment_jobs` est consommée automatiquement toutes les deux heures. Lors d'une collecte
+borné par `PIPELINE_LLM_BACKFILL_MAX_TARGETS` ou `--limit`. La file `auction_enrichment_jobs` est consommée uniquement sur lancement manuel. Lors d'une collecte
 manuelle, la synthèse Qwen reste produite directement dans le scan courant.
 
 Les migrations `20260819105011_add_structured_surface_reasoning_queue.sql` et
