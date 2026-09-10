@@ -5,7 +5,9 @@ import { runInNewContext } from "node:vm";
 const MAX_CLIENT_CHUNK_BYTES = 1_850_000;
 // The protected admin editor adds an isolated client route; keep a small global
 // allowance for it while enforcing a dedicated initial-load budget below.
-const MAX_TOTAL_CLIENT_JS_BYTES = 4_020_000;
+// Updated dependencies and isolated detail chunks add total bytes without
+// increasing the initial-load limits enforced for each route below.
+const MAX_TOTAL_CLIENT_JS_BYTES = 4_100_000;
 const MAX_LANDING_IMAGE_BYTES = 350_000;
 const MAX_PUBLIC_MEDIA_BYTES = 1_600_000;
 const MAX_BUSINESS_MODULE_LINES = 1_500;
