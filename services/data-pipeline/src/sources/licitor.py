@@ -325,6 +325,8 @@ def _collect_detail_urls(client: LicitorClient, max_pages: int, errors: list[str
             page_detail_urls, next_urls = parse_licitor_list_html(html, page_url)
             detail_urls.extend(page_detail_urls)
             pending.extend(url for url in next_urls if url not in visited and url not in pending)
+        if pending:
+            errors.append(f"Pagination incomplete at {start_url}: page limit {max_pages}")
     return _unique(detail_urls)
 
 

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.config import load_settings
+from src.freshness import document_fingerprint
 from src.models import AuctionSale
 from src.normalize import (
     clean_text,
@@ -184,7 +186,7 @@ def _store_document_analysis_status(
     extracted_types = set(extracted_type_counts)
     available_types = set(type_counts)
     missing_core_documents = [
-        group for group, aliases in required_groups.items() if not (aliases & (extracted_types or available_types))
+        group for group, aliases in required_groups.items() if not (aliases & extracted_types)
     ]
 
     if not documents and not sale.documents:
@@ -200,7 +202,15 @@ def _store_document_analysis_status(
         coverage_status = "rich"
         warning = "Les principales familles de documents sont disponibles pour l'analyse."
 
+    failed_documents = max(0, len(_select_documents_for_extraction(sale.documents, sale=sale)) - len(text_profiles))
+    checked_at = datetime.now(UTC).isoformat()
+    previous = sale.raw_payload.get("document_analysis") or {}
+    last_successful_check_at = checked_at if not failed_documents else previous.get("last_successful_check_at")
     sale.raw_payload["document_analysis"] = {
+        "last_successful_check_at": last_successful_check_at,
+        "checked_at": checked_at,
+        "input_fingerprint": document_fingerprint(sale.documents),
+        "failed_documents": failed_documents,
         "coverage_status": coverage_status,
         "warning": warning,
         "documents_listed": len(sale.documents or []),
@@ -251,6 +261,7 @@ def _extracted_document_profile(payload: dict[str, object]) -> dict[str, object]
         "document_type": document_type,
         "family": _document_family(document_type),
         "extraction_status": "extracted" if clean_text(payload.get("text")) else "empty",
+        "sha256": payload.get("sha256"),
         "text_chars": int(payload.get("text_chars") or len(str(payload.get("text") or ""))),
         "page_count": int(payload.get("page_count") or 0),
         "ocr_pages": int(payload.get("ocr_pages") or 0),

@@ -25,6 +25,7 @@ from src.enrichment.extract_structured import (
 from src.enrichment.llm_client import LLMClientUnavailable, create_llm_client
 from src.enrichment.surface_reasoning import extract_and_apply_deterministic_surface_reasoning
 from src.export import export_sales
+from src.freshness import detail_is_fresh, documents_are_current, record_source_checks
 from src.geocode import geocode_sale
 from src.lifecycle import mark_past_sales
 from src.models import AuctionSale
@@ -223,7 +224,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     known_signatures = {
         source_url: str(row["_signature"])
         for source_url, row in known_details.items()
-        if row.get("_signature") and row.get("score_version")
+        if row.get("_signature") and row.get("score_version") and detail_is_fresh(row, source_url)
     }
 
     # ── Scraping des sources en parallèle ────────────────────────────────────
@@ -258,6 +259,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             }
             raw_sales.extend(result.sales)
     collection_failed = any(errors.get(name) for name in scrapers)
+    coverage_incomplete = any(item.get("coverage_complete") is False for item in scrape_coverage.values())
     timings["scrape_total_seconds"] = round(time.perf_counter() - scrape_overall_started, 2)
 
     # Les scrapers peuvent sauter une fiche détail inchangée. On garde quand
@@ -267,6 +269,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     skipped_detail = _hydrate_known_unchanged_sales(raw_sales, known_details)
     preserved_enrichment = _preserve_known_enrichment_payloads(raw_sales, known_details)
     timings["known_enrichment_payloads_preserved"] = preserved_enrichment
+    record_source_checks([sale for sale in raw_sales if not errors.get(str(sale.get("source_name")))], known_details)
 
     if options.limit is not None:
         raw_sales = raw_sales[: options.limit]
@@ -408,7 +411,10 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             for future in as_completed(futures):
                 sale = futures[future]
                 try:
-                    _merge_pdf_stats(pdf_stats, future.result())
+                    item_stats = future.result()
+                    _merge_pdf_stats(pdf_stats, item_stats)
+                    if item_stats.errors:
+                        errors.setdefault("documents", []).append(f"{sale.source_url}: {item_stats.errors} document errors")
                 except Exception as exc:
                     LOGGER.exception("PDF enrichment failed for %s: %s", sale.source_url, exc)
                     errors.setdefault(str(sale.source_name or "unknown"), []).append(str(exc))
@@ -455,6 +461,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                     errors.setdefault(source_name, []).extend(sale_llm_stats.error_messages)
                     _mark_llm_description_failure(sale, sale_llm_stats, prompt_version=prompt_version)
                 elif not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
+                    sale.raw_payload.pop("source_content_changed", None)
                     _clear_llm_description_failure(sale)
     timings["llm_seconds"] = round(time.perf_counter() - started, 2)
 
@@ -522,6 +529,11 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
         "extraction_gap_report": extraction_gap_report,
         "timings": timings,
         "heavy_enrichment_enabled": options.heavy_enrichment,
+        "stage_status": {
+            "collection": "failed" if collection_failed else "partial" if coverage_incomplete else "unverified" if any(item.get("coverage_complete") is None for item in scrape_coverage.values()) else "complete",
+            "enrichment": "partial" if pdf_stats.errors or llm_stats.errors or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete",
+            "publication": "pending",
+        },
     }
     if options.upsert:
         try:
@@ -548,7 +560,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             observations_upserted = max(early_observations_upserted, final_observations_upserted)
             # Fail closed before every path below that can delete catalogue
             # rows. The database also rejects deletion of any unbridged sale.
-            if collection_failed:
+            if collection_failed or coverage_incomplete:
                 raise RuntimeError("Collection incomplete; catalogue cleanup is disabled.")
             outcome_bridge = bridge_auction_sales_before_cleanup(settings)
             outcome_bridge_scanned = outcome_bridge.scanned_count
@@ -588,10 +600,13 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                     "deleted_vench_without_surface": supabase_deleted_vench_without_surface,
                 }
             )
+            summary["completion_status"] = "partial_success" if any(errors.values()) or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete"
+            summary["stage_status"]["publication"] = "complete"
             finish_run_in_supabase(run_id, "succeeded", summary, errors)
         except Exception as exc:
             LOGGER.exception("Supabase upsert failed: %s", exc)
             errors.setdefault("supabase", []).append(str(exc))
+            summary["stage_status"]["publication"] = "partial_or_failed"
             finish_run_in_supabase(run_id, "failed", summary, errors)
             publication_failed = True
 
@@ -1166,7 +1181,7 @@ def _needs_heavy_enrichment(
 def _needs_structured_heavy_enrichment(sale: AuctionSale) -> bool:
     if not sale.documents and not sale.raw_text:
         return False
-    if sale.documents and sale.raw_payload.get("document_facts_version") != DOCUMENT_FACTS_VERSION:
+    if sale.documents and (sale.raw_payload.get("document_facts_version") != DOCUMENT_FACTS_VERSION or not documents_are_current(sale)):
         return True
     has_surface = any(
         (
@@ -1190,7 +1205,7 @@ def _heavy_enrichment_already_current(
     use_llm: bool = True,
     prompt_version: str | None = None,
 ) -> bool:
-    if sale.documents and sale.raw_payload.get("document_facts_version") != DOCUMENT_FACTS_VERSION:
+    if sale.documents and (sale.raw_payload.get("document_facts_version") != DOCUMENT_FACTS_VERSION or not documents_are_current(sale)):
         return False
     if not sale.content_hash or sale.content_hash not in enriched_hashes:
         return False
@@ -1203,7 +1218,7 @@ def _llm_description_already_current(
     sale: AuctionSale,
     current_llm_description_hashes: set[str],
 ) -> bool:
-    return bool(sale.content_hash and sale.content_hash in current_llm_description_hashes)
+    return bool(not sale.raw_payload.get("source_content_changed") and sale.content_hash and sale.content_hash in current_llm_description_hashes)
 
 
 def _limit_llm_targets(

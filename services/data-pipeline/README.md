@@ -1,5 +1,7 @@
 # Immojudis Data Pipeline
 
+Configuration de production mise à jour le 10 septembre 2026 : voir [le suivi et la reprise des collectes](../../docs/pipeline-reliability.md).
+
 Socle technique minimal pour collecter, normaliser, dédupliquer, exporter et insérer dans Supabase des annonces de ventes aux enchères immobilières judiciaires en France.
 
 La source prioritaire est Avoventes. Licitor est disponible comme source optionnelle de benchmark/croisement, pas comme source primaire de vérité.
@@ -133,8 +135,7 @@ python -m src.main --backfill-llm-descriptions
 python -m src.main --backfill-llm-descriptions --limit 20 --backfill-statuses active,upcoming
 ```
 
-Le backfill doit rester un run dédié lancé depuis l'admin ou
-`workflow_dispatch`. Aucun passage idle n'est planifié en production.
+Le backfill manuel reste disponible depuis l’admin ou `workflow_dispatch`. La file documentaire est consommée toutes les deux heures par un worker dédié, sans backfill idle.
 
 En CI, les backfills IA sont volontairement bornés par petits lots et les
 prédictions Replicate démarrent avec `REPLICATE_WAIT_SECONDS=1` pour éviter
@@ -355,9 +356,7 @@ python -m src.queued_runner
 ou `failed`.
 
 `python -m src.queued_runner` récupère le plus ancien run `queued` dans
-Supabase et lance le pipeline avec ses paramètres. Cette commande n'est jamais
-planifiée : elle doit être invoquée explicitement par un opérateur. Le workflow
-GitHub Actions de production accepte uniquement `workflow_dispatch`.
+Supabase et lance le pipeline avec ses paramètres. La variante `--enrichment-only` est planifiée toutes les deux heures. La collecte nationale est planifiée quotidiennement à 04:17 UTC ; `workflow_dispatch` reste disponible.
 
 Le pipeline :
 
@@ -458,8 +457,7 @@ PIPELINE_LLM_BACKFILL_MAX_TARGETS=20
 
 Les options `PIPELINE_IDLE_LLM_BACKFILL_ENABLED` et
 `PIPELINE_ENRICHMENT_QUEUE_ENABLED` ne sont pas configurées dans le workflow de
-production. Elles sont réservées au lancement local explicite de
-`python -m src.queued_runner` ; aucun worker de file n'est planifié.
+production. Le worker planifié utilise explicitement `python -m src.queued_runner --enrichment-only`, sans passer par le backfill idle.
 
 Le provider Replicate appelle l'API HTTP officielle avec `Authorization: Bearer $REPLICATE_API_TOKEN` et l'endpoint `/v1/models/{owner}/{model}/predictions`.
 Pour Gemini via Replicate, le client envoie le prompt système dans `system_instruction` et limite la réponse à du JSON validé ensuite par Pydantic.
@@ -495,9 +493,7 @@ doivent être du JSON validé par Pydantic, puis sont sauvegardées dans
 
 Le mode `--backfill-llm-descriptions` traite les annonces déjà présentes dans
 Supabase qui n'ont pas encore de synthèse publique courante. Son volume est
-borné par `PIPELINE_LLM_BACKFILL_MAX_TARGETS` ou `--limit`. La file
-`auction_enrichment_jobs` n'est jamais consommée en arrière-plan : les jobs
-restent en attente jusqu'au lancement manuel d'un worker. Lors d'une collecte
+borné par `PIPELINE_LLM_BACKFILL_MAX_TARGETS` ou `--limit`. La file `auction_enrichment_jobs` est consommée automatiquement toutes les deux heures. Lors d'une collecte
 manuelle, la synthèse Qwen reste produite directement dans le scan courant.
 
 Les migrations `20260819105011_add_structured_surface_reasoning_queue.sql` et

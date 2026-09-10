@@ -31,11 +31,19 @@ const failures = [];
 for (const relativePath of collectionWorkflows) {
   const source = await readFile(path.join(root, relativePath), "utf8");
   const triggers = topLevelWorkflowTriggers(source);
+  if (relativePath === ".github/workflows/data-pipeline.yml") {
+    const schedules = [...source.matchAll(/- cron: "([^"]+)"/g)].map((match) => match[1]);
+    if (JSON.stringify(schedules) !== JSON.stringify(["17 4 * * *", "37 */2 * * *"])) {
+      failures.push(`${relativePath}: only daily discovery and two-hour enrichment are authorized`);
+    }
+  }
   if (!triggers.has("workflow_dispatch")) {
     failures.push(`${relativePath}: workflow_dispatch is required`);
   }
   for (const trigger of triggers) {
-    if (!allowedWorkflowTriggers.has(trigger)) {
+    const authorizedPipelineSchedule =
+      relativePath === ".github/workflows/data-pipeline.yml" && trigger === "schedule";
+    if (!allowedWorkflowTriggers.has(trigger) && !authorizedPipelineSchedule) {
       failures.push(`${relativePath}: trigger '${trigger}' is not manual`);
     }
   }
@@ -74,7 +82,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    `Manual-only collection verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
+    `Authorized collection schedules verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
   );
 }
 

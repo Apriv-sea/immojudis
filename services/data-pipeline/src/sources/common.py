@@ -38,6 +38,30 @@ def _origin(parsed: Any) -> tuple[str, str, int] | None:
 
 
 @dataclass
+class PaginationCoverage:
+    pages_fetched: int = 0
+    exhausted: bool = False
+    repeated: bool = False
+    seen: set[str] = field(default_factory=set)
+
+    def accept(self, sales: list[dict[str, Any]]) -> bool:
+        self.pages_fetched += 1
+        urls = {str(sale.get("source_url")) for sale in sales if sale.get("source_url")}
+        if not urls:
+            self.exhausted = bool(self.seen)
+            return False
+        if urls <= self.seen:
+            self.repeated = True
+            return False
+        self.seen.update(urls)
+        return True
+
+    def metrics(self) -> dict[str, Any]:
+        return {"pages_fetched": self.pages_fetched, "coverage_complete": self.exhausted,
+                "stop_reason": "exhausted" if self.exhausted else "repeated_page" if self.repeated else "page_limit_or_empty_source"}
+
+
+@dataclass
 class ScrapeResult:
     sales: list[dict[str, Any]]
     errors: list[str]
