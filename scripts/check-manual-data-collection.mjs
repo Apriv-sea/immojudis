@@ -23,6 +23,8 @@ const allowedDatabaseCronJobs = new Set([
   "immojudis-operational-health",
   "immojudis-operational-history-retention",
   "immojudis-market-valuations",
+  // Existing production watchdog: resumes enabled queued work, never creates a run.
+  "immojudis-licitor-resume",
 ]);
 const failures = [];
 

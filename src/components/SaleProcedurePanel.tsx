@@ -20,10 +20,10 @@ import {
   saleProcedureIsConfirmed,
   saleVerificationLabel,
   saleVenueLabel,
-  saleVenueShortLabel,
   type SaleProcedurePresentation,
 } from "@/lib/sale-procedure";
 import type { AuctionSale, SaleVerificationStatus } from "@/lib/types";
+import listingStyles from "@/components/sale-detail/SaleListing.module.css";
 
 export function SaleProcedureBadge({ sale }: { sale: AuctionSale }) {
   const procedure = getSaleProcedure(sale);
@@ -38,15 +38,54 @@ export function SaleProcedureBadge({ sale }: { sale: AuctionSale }) {
             ? "border-red-200 bg-red-50/95 text-red-900"
             : "border-amber-200 bg-amber-50/95 text-amber-950"
       }`}
-      title={`${saleVenueLabel(procedure.venueType)} · ${lawyerRequirementLabel(procedure)}`}
+      title={`${saleVenueLabel(procedure.venueType)} · ${saleVerificationLabel(procedure.verificationStatus)}`}
     >
       {verified ? (
         <ShieldCheck className="h-3 w-3" aria-hidden />
       ) : (
         <CircleAlert className="h-3 w-3" aria-hidden />
       )}
-      {saleVenueShortLabel(procedure.venueType)}
+      {saleVenueLabel(procedure.venueType)}
     </span>
+  );
+}
+
+export function SaleProcedureSummary({
+  sale,
+  showBadge = true,
+}: {
+  sale: AuctionSale;
+  showBadge?: boolean;
+}) {
+  const procedure = getSaleProcedure(sale);
+  return (
+    <section aria-label="Cette vente en clair" className={listingStyles.section}>
+      <h2 className={listingStyles.heading}>Cette vente en clair</h2>
+      <div className={listingStyles.card}>
+        {showBadge ? (
+          <div className="mb-4">
+            <SaleProcedureBadge sale={sale} />
+          </div>
+        ) : null}
+        <dl className={listingStyles.rows}>
+          <div className={listingStyles.row}>
+            <dt>Cadre juridique</dt>
+            <dd>{saleLegalFrameworkLabel(procedure.legalFramework)}</dd>
+          </div>
+          <div className={listingStyles.row}>
+            <dt>Participation</dt>
+            <dd>{participationModeLabel(procedure.participationMode)}</dd>
+          </div>
+          <div className={listingStyles.row}>
+            <dt>Représentation</dt>
+            <dd>{lawyerRequirementLabel(procedure)}</dd>
+          </div>
+        </dl>
+        <a href="#participation" className={`${listingStyles.textLink} mt-3`}>
+          Voir les démarches et conditions de cette vente
+        </a>
+      </div>
+    </section>
   );
 }
 
@@ -58,10 +97,10 @@ export function SaleProcedurePanel({ sale }: { sale: AuctionSale }) {
   return (
     <section
       id="participation"
-      className="mt-6 scroll-mt-36 overflow-hidden rounded-lg border border-brand-navy/12 bg-white shadow-[0_18px_45px_rgba(72,104,132,0.1)]"
+      className="mt-8 scroll-mt-36 overflow-hidden rounded-[20px] border border-slate-200 bg-white"
       aria-labelledby="sale-procedure-title"
     >
-      <div className="border-b border-brand-navy/10 bg-[linear-gradient(135deg,#f8fbfe,#fffaf2)] px-5 py-6 sm:px-7 lg:px-8">
+      <div className="border-b border-slate-200 bg-slate-50/60 px-5 py-6 sm:px-7 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-brand-navy text-white">
@@ -77,7 +116,7 @@ export function SaleProcedurePanel({ sale }: { sale: AuctionSale }) {
               </p>
               <h2
                 id="sale-procedure-title"
-                className="mt-1 font-display text-3xl font-semibold leading-tight text-brand-navy sm:text-4xl"
+                className="mt-1 text-2xl font-semibold leading-tight text-brand-navy"
               >
                 {saleVenueLabel(procedure.venueType)}
               </h2>

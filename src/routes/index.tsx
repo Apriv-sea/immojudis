@@ -12,16 +12,17 @@ import Scale from "lucide-react/dist/esm/icons/scale.js";
 import Search from "lucide-react/dist/esm/icons/search.js";
 import { useEffect, useState, type ComponentType } from "react";
 import { BrandMark } from "@/components/BrandLogo";
+import { SaleTypesOverview } from "@/components/SaleTypesOverview";
 import { RESOURCES_PATH } from "@/lib/navigation";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ImmoJudis — L'immobilier judiciaire en toute clarté" },
+      { title: "Immojudis — Les enchères immobilières en toute clarté" },
       {
         name: "description",
         content:
-          "ImmoJudis transforme les ventes judiciaires immobilières en rapports d'opportunité : comparables DVF, décote, risques, frais, alertes et mise maximale avant audience.",
+          "Ventes au tribunal, enchères notariales et ventes domaniales référencées : comprenez les procédures et préparez votre achat immobilier avec Immojudis.",
       },
     ],
   }),
@@ -86,7 +87,7 @@ const workflowSteps = [
     number: "01",
     icon: Search,
     title: "Repérez",
-    text: "Filtrez les ventes par zone, tribunal, budget, type de bien et date d'audience.",
+    text: "Filtrez les annonces par type de vente, zone, budget, type de bien et date.",
   },
   {
     number: "02",
@@ -98,7 +99,7 @@ const workflowSteps = [
     number: "03",
     icon: Scale,
     title: "Décidez",
-    text: "Fixez une mise maximale avant l'audience et gardez la trace des points à valider.",
+    text: "Fixez une mise maximale avant la vente et gardez la trace des points à valider.",
   },
 ] satisfies Array<{ number: string; icon: IconComponent; title: string; text: string }>;
 
@@ -116,7 +117,7 @@ const reportOutcomes = [
   {
     icon: Calculator,
     title: "Fixer sa mise maximale",
-    text: "Budget, frais, travaux et marge de sécurité sont transformés en une limite claire avant l'audience.",
+    text: "Budget, frais, travaux et marge de sécurité sont transformés en une limite claire avant la vente.",
   },
 ] satisfies Array<{ icon: IconComponent; title: string; text: string }>;
 
@@ -133,7 +134,7 @@ const trustPoints = [
   },
   {
     icon: FileSearch,
-    title: "Documents judiciaires",
+    title: "Documents de la vente",
     text: "Les pièces disponibles sont regroupées par vente.",
   },
   {
@@ -164,7 +165,7 @@ const planPreviews = [
     audience: "Pour explorer les ventes et repérer les dossiers à approfondir.",
     cta: "Créer mon compte gratuit",
     features: [
-      "Recherche et filtres des ventes judiciaires",
+      "Recherche par lieu, budget et type de vente",
       "Informations essentielles de chaque bien",
       "Aperçu des analyses disponibles",
     ],
@@ -172,7 +173,7 @@ const planPreviews = [
   {
     name: "Analyse",
     price: "29 € / 30 jours",
-    audience: "Pour chiffrer une opportunité et préparer sa décision avant l'audience.",
+    audience: "Pour chiffrer une opportunité et préparer sa décision avant la vente.",
     cta: "Débloquer les analyses",
     features: [
       "Rapports, risques et comparables détaillés",
@@ -196,6 +197,7 @@ export function HomePage() {
   return (
     <main className="ij-page">
       <HeroSection />
+      <SaleFamiliesSection />
       <OpportunityReportSection />
       <AuctionCardsSection />
       <HomeProcessSection />
@@ -211,16 +213,16 @@ function HeroSection() {
       <div className="ij-sky" aria-hidden />
       <div className="ij-hero-inner">
         <div className="ij-hero-copy">
-          <p className="ij-badge ij-reveal">Plateforme d'analyse des ventes judiciaires</p>
+          <p className="ij-badge ij-reveal">Ventes judiciaires, notariales et domaniales</p>
 
           <h1 id="home-title" className="ij-title ij-reveal ij-reveal-2">
-            L'immobilier judiciaire,
+            Les enchères immobilières,
             <br /> en toute <em>clarté.</em>
           </h1>
 
           <p className="ij-lead ij-reveal ij-reveal-3">
-            ImmoJudis transforme chaque annonce en dossier de décision : valeur de marché,
-            comparables DVF, risques, frais, rentabilité et mise maximale avant audience.
+            Au tribunal, chez le notaire ou auprès de l’État : Immojudis réunit les annonces
+            référencées et vous aide à comprendre les règles de chaque vente avant de vous engager.
           </p>
 
           <SearchBar />
@@ -243,7 +245,7 @@ function HeroSection() {
         <div className="ij-candle-scene ij-reveal ij-reveal-6">
           <CandleAnimation />
           <article className="ij-candle-note">
-            <h2>Décider avant l'audience</h2>
+            <h2>Décider avant la vente</h2>
             <p>
               Une mise à prix basse ne suffit jamais : le rapport relie marché local, frais et
               risques pour cadrer l'enchère.
@@ -256,6 +258,36 @@ function HeroSection() {
 
         <CandleArrow />
       </div>
+    </section>
+  );
+}
+
+function SaleFamiliesSection() {
+  return (
+    <section
+      aria-labelledby="sale-families-title"
+      className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16"
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-soft">
+        Comprendre avant de choisir
+      </p>
+      <h2
+        id="sale-families-title"
+        className="mt-3 font-display text-3xl font-semibold text-brand-navy sm:text-4xl"
+      >
+        Un même projet immobilier, des règles différentes.
+      </h2>
+      <p className="mb-6 mt-3 max-w-3xl text-sm leading-relaxed text-brand-navy/75 sm:text-base">
+        Immojudis ne se limite pas aux ventes au tribunal. Commencez par identifier qui organise la
+        vente : cela change vos démarches, vos interlocuteurs et les conditions pour participer.
+      </p>
+      <SaleTypesOverview />
+      <Link
+        href="/ventes-immobilieres-judiciaires#differences"
+        className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-navy underline underline-offset-4"
+      >
+        Comprendre les types de ventes <ArrowRight className="h-4 w-4" aria-hidden />
+      </Link>
     </section>
   );
 }
@@ -473,10 +505,10 @@ function OpportunityReportSection() {
         <div className="ij-report-story">
           <div className="ij-report-head">
             <p className="ij-proof-kicker">Nouvelle offre ImmoJudis</p>
-            <h2 id="report-title">Un rapport d'opportunité pour décider avant l'audience.</h2>
+            <h2 id="report-title">Un rapport d'opportunité pour décider avant la vente.</h2>
             <p>
               Chaque vente est transformée en dossier de décision pour évaluer son potentiel,
-              identifier ses risques et cadrer l'enchère avant de mandater un avocat.
+              identifier ses risques et préparer les démarches adaptées à la vente.
             </p>
           </div>
 
@@ -658,7 +690,7 @@ function HomeProcessSection() {
           <h2 id="process-title">Du signal à la mise maximale</h2>
         </div>
         <p>
-          Trois étapes pour transformer l'information judiciaire en une décision chiffrée et
+          Trois étapes pour transformer les informations du dossier en une décision chiffrée et
           défendable.
         </p>
       </div>
@@ -711,7 +743,7 @@ function HomeFooter() {
             <strong>
               Immo<span>Judis</span>
             </strong>
-            <small>Ventes judiciaires immobilières</small>
+            <small>Ventes immobilières aux enchères</small>
           </span>
         </Link>
 

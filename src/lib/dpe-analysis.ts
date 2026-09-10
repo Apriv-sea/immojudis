@@ -1,6 +1,6 @@
 import {
   extractDpe,
-  normalizeDpeClass,
+  dpeClassFromText,
   type DpeClass,
   type DpeSource,
   type StructuredDpeDiagnostic,
@@ -13,6 +13,7 @@ export type DpeEvidence = {
   label: string;
   source: string;
   excerpt: string;
+  sourceField?: string;
 };
 
 export type DpeAnalysis = {
@@ -37,6 +38,8 @@ export type DpeAnalysis = {
 type TextCandidate = {
   text: string;
   source: string;
+  displayText?: string;
+  sourceField?: string;
 };
 
 const DPE_CONTEXT =
@@ -49,8 +52,7 @@ export function buildDpeAnalysis(
   const extracted = extractDpe(sale, diagnostics);
   const candidates = collectTextCandidates(sale);
   const evidence = collectEvidence({ extracted, candidates });
-  const riskClass =
-    candidates.map((candidate) => normalizeDpeClass(candidate.text)).find(Boolean) ?? null;
+  const riskClass = dpeClassFromText(candidates.map((candidate) => candidate.text).join("\n"));
   const dpeClass = extracted.class ?? riskClass;
   const source = extracted.source ?? (riskClass ? "risk_evidence" : null);
   const status = resolveStatus({ dpeClass, extractedSource: extracted.source, evidence });
@@ -233,11 +235,12 @@ function collectEvidence({
   }
   for (const candidate of candidates) {
     evidence.push({
-      label: normalizeDpeClass(candidate.text)
-        ? `DPE ${normalizeDpeClass(candidate.text)}`
+      label: dpeClassFromText(candidate.text)
+        ? `DPE ${dpeClassFromText(candidate.text)}`
         : "Indice diagnostic",
       source: candidate.source,
-      excerpt: excerpt(candidate.text),
+      excerpt: excerpt(candidate.displayText ?? candidate.text),
+      ...(candidate.sourceField ? { sourceField: candidate.sourceField } : {}),
     });
   }
   return dedupeEvidence(evidence).slice(0, 8);
@@ -248,7 +251,7 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
 
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     if (DPE_CONTEXT.test(item.path) || DPE_CONTEXT.test(cleanText(item.value) ?? "")) {
-      addCandidate(candidates, `${item.path}: ${cleanText(item.value)}`, "Données source");
+      addCandidate(candidates, `${item.path}: ${cleanText(item.value)}`, "Données source", item);
     }
   }
 
@@ -259,6 +262,7 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
           candidates,
           `${item.path}: ${cleanText(item.value)}`,
           `Données source ${sourceName}`,
+          item,
         );
       }
     }
@@ -292,9 +296,24 @@ function riskTexts(risk: SaleRisk): string[] {
   return texts.map(cleanText).filter((text): text is string => Boolean(text));
 }
 
-function addCandidate(candidates: TextCandidate[], value: unknown, source: string) {
+function addCandidate(
+  candidates: TextCandidate[],
+  value: unknown,
+  source: string,
+  field?: { path: string; value: unknown },
+) {
   const text = cleanText(value);
-  if (text) candidates.push({ text, source });
+  if (text)
+    candidates.push({
+      text,
+      source,
+      ...(field
+        ? {
+            displayText: cleanText(field.value) ?? "Valeur non renseignée",
+            sourceField: field.path,
+          }
+        : {}),
+    });
 }
 
 function dedupeEvidence(evidence: DpeEvidence[]): DpeEvidence[] {

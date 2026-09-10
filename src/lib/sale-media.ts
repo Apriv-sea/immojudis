@@ -1,7 +1,7 @@
 import type { AuctionSale, SaleMedia } from "./types";
 
 const STRONG_NON_PROPERTY_IMAGE_PATTERN =
-  /(^|[/_.-])(avatar|banner|banniere|brand|default|favicon|icon|icone|logo|logos|placeholder|profile|sprite|user)([/_.-]|$)/i;
+  /(^|[/_.-])(avatar|banner|banniere|brand|default|favicon|icon|icone|logo|logos|newsletter|prochainesventes|journaux_vae|departements|placeholder|profile|sprite|user)([/_.-]|$)/i;
 const NON_IMAGE_EXTENSION_PATTERN = /\.(pdf|docx?|svg)([?#].*)?$/i;
 const POSITIVE_PROPERTY_IMAGE_PATTERN =
   /(^|[/_.-])(annonce|bien|gallery|galerie|hd|house|image|immobilier|large|media|original|photo|property|upload)([/_.-]|$)/i;
@@ -19,8 +19,9 @@ export function propertyImages(media: AuctionSale["media"] | undefined): SaleMed
   return media
     .filter((item): item is SaleMedia => {
       const url = typeof item?.url === "string" ? item.url.trim() : "";
-      if (!isLikelyPropertyImageUrl(url) || seen.has(url)) return false;
-      seen.add(url);
+      const identity = propertyImageSource(url)?.href;
+      if (!identity || !isLikelyPropertyImageUrl(url) || seen.has(identity)) return false;
+      seen.add(identity);
       return true;
     })
     .map((item, index) => ({ item, index, score: propertyImageUrlScore(item.url) }))
@@ -32,16 +33,41 @@ export function isLikelyPropertyImageUrl(url: string | null | undefined): url is
   if (!url || !/^https?:\/\//i.test(url)) return false;
 
   try {
-    const parsed = new URL(url);
+    const parsed = propertyImageSource(url);
+    if (!parsed) return false;
     const path = decodeURIComponent(parsed.pathname);
     const searchable = `${parsed.hostname}${path}`.toLowerCase();
 
     if (NON_IMAGE_EXTENSION_PATTERN.test(path)) return false;
     if (STRONG_NON_PROPERTY_IMAGE_PATTERN.test(searchable)) return false;
+    // Navigation assets observed in real Licitor records linking to Info-enchères.
+    if (
+      /(^|\.)info-encheres\.com$/i.test(parsed.hostname) &&
+      /^\/pix\/(?:home|avocat|facebook|fiche(?:_precedente|_suivante)?|geoloc|google|photo|retour_selection|telec|twitter|www)\./i.test(
+        path,
+      )
+    )
+      return false;
 
     return true;
   } catch {
     return false;
+  }
+}
+
+// Next image optimizers can hide logos or editorial images in an encoded URL.
+// Inspect the source without fetching it, and use it to deduplicate variants.
+function propertyImageSource(url: string): URL | null {
+  try {
+    let parsed = new URL(url);
+    for (let depth = 0; depth < 4; depth++) {
+      if (!/^https?:$/.test(parsed.protocol)) return null;
+      if (parsed.pathname !== "/_next/image" || !parsed.searchParams.has("url")) return parsed;
+      parsed = new URL(parsed.searchParams.get("url")!, parsed.origin);
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

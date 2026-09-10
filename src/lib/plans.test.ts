@@ -16,19 +16,27 @@ describe("plan matrix", () => {
     expect(normalizePlanCode("unknown")).toBe("decouverte");
   });
 
-  it("keeps premium features locked while exposing lawyer discovery", () => {
+  it("keeps premium features locked while exposing lawyer discovery and one comparison", () => {
     const unexpectedlyUnlocked = Object.entries(PLAN_FEATURES.decouverte)
-      .filter((feature) => !["sales.filters", "lawyers.directory"].includes(feature[0]))
+      .filter(
+        (feature) =>
+          !["sales.filters", "sales.multiPropertyAnalysis", "lawyers.directory"].includes(
+            feature[0],
+          ),
+      )
       .filter(([, access]) => access !== "locked");
 
     expect(unexpectedlyUnlocked).toEqual([]);
     expect(featureIncluded("decouverte", "lawyers.directory")).toBe(true);
+    expect(PLAN_FEATURES.decouverte["sales.multiPropertyAnalysis"]).toBe("limited");
     expect(featureIncluded("decouverte", "lawyers.referrals")).toBe(false);
     expect(featureIncluded("decouverte", "property.outcomeGraph")).toBe(false);
     expect(featureIncluded("decouverte", "property.informationAgent")).toBe(false);
     expect(PLAN_LIMITS.decouverte.propertyReportsPerMonth).toBe(0);
     expect(PLAN_LIMITS.decouverte.pdfExportsPerMonth).toBe(0);
     expect(PLAN_LIMITS.decouverte.favoriteSales).toBe(0);
+    expect(PLAN_LIMITS.decouverte.saleAnalysisSets).toBe(1);
+    expect(PLAN_LIMITS.decouverte.saleAnalysisItems).toBe(3);
   });
 
   it("unlocks all analysis and collaboration capabilities for Analyse", () => {

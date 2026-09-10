@@ -5,6 +5,39 @@ import { buildNeighborhoodAnalysis } from "@/lib/neighborhood-analysis";
 import { buildStreetFacadeAnalysis } from "@/lib/street-facade-analysis";
 
 describe("neighborhood analysis", () => {
+  it("does not count coordinates and unmeasured services as documented dimensions", () => {
+    const sale = {
+      ...EXAMPLE_SALE,
+      description: null,
+      source_description: null,
+      llm_display_description: null,
+      about_description: null,
+      investment_summary: null,
+      risk_notes: null,
+      source_blocks: {},
+      source_blocks_by_source: {},
+      score_factors: [],
+      risks: [],
+    };
+    const input = {
+      sale,
+      nearbyServices: buildNearbyServicesAnalysis(sale),
+      streetFacade: buildStreetFacadeAnalysis(sale),
+      environmentalContext: null,
+    };
+    const withMarket = buildNeighborhoodAnalysis({
+      ...input,
+      marketEstimate: EXAMPLE_MARKET_ESTIMATE,
+    });
+    expect(withMarket.status).toBe("market_only");
+    expect(withMarket.dimensions).toEqual(["Marché DVF"]);
+    expect(withMarket.signals.find((signal) => signal.kind === "street")?.status).toBe("to_enrich");
+    const withoutMarket = buildNeighborhoodAnalysis({ ...input, marketEstimate: null });
+    expect(withoutMarket.status).toBe("location_only");
+    expect(withoutMarket.dimensions).toEqual([]);
+    expect(withoutMarket.summary).toContain("à qualifier");
+  });
+
   it("profiles a neighborhood from market, services, street-level map and source signals", () => {
     const nearbyServices = buildNearbyServicesAnalysis(EXAMPLE_SALE);
     const streetFacade = buildStreetFacadeAnalysis(EXAMPLE_SALE);
@@ -19,12 +52,12 @@ describe("neighborhood analysis", () => {
     expect(analysis).toMatchObject({
       available: true,
       status: "profiled",
-      confidence: "high",
+      confidence: "medium",
       marketPositionLabel: "forte · 12 vente(s) · 100 m",
       locationQualityLabel: "Coordonnées exploitables",
     });
     expect(analysis.dimensions).toEqual(
-      expect.arrayContaining(["Marché DVF", "Services", "Façade et rue", "Signaux source"]),
+      expect.arrayContaining(["Marché DVF", "Services mentionnés", "Signaux source"]),
     );
     expect(analysis.signals.some((signal) => signal.kind === "market")).toBe(true);
   });

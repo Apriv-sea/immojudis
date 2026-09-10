@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { listingPhotoRemotePatterns } from "./src/lib/listing-photo-source.ts";
 import { buildSecurityHeaders } from "./src/lib/security-headers.ts";
 
 const propertyDemoEnabled = process.env.ENABLE_PROPERTY_DEMO === "true";
@@ -11,6 +12,7 @@ const securityHeaders = buildSecurityHeaders({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
+    remotePatterns: listingPhotoRemotePatterns,
     formats: ["image/avif", "image/webp"],
   },
   turbopack: {

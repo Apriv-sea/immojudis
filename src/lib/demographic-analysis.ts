@@ -1,6 +1,6 @@
 import type { MarketEstimate } from "@/lib/market.functions";
 import type { NearbyServicesAnalysis } from "@/lib/nearby-services";
-import type { AuctionSale, SaleScoreFactor } from "@/lib/types";
+import type { AuctionSale } from "@/lib/types";
 
 export type DemographicSignalKind =
   | "population"
@@ -61,11 +61,8 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
       /\bhabitant(?:s)?\b/i,
       /\bdemograph/i,
       /\bdémograph/i,
-      /\bcroissance\b/i,
       /\bdensite\b/i,
       /\bdensité\b/i,
-      /\battractivite\b/i,
-      /\battractivité\b/i,
     ],
     impact: "Comparer croissance, vacance et liquidité avant de retenir un scénario de sortie.",
   },
@@ -77,7 +74,6 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
       /\bsalaire(?:s)?\b/i,
       /\bpouvoir d achat\b/i,
       /\bcsp\b/i,
-      /\bcadre(?:s)?\b/i,
       /\bprecarite\b/i,
       /\bprécarité\b/i,
     ],
@@ -93,7 +89,6 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
       /\bsenior(?:s)?\b/i,
       /\bfamille(?:s)?\b/i,
       /\benfant(?:s)?\b/i,
-      /\bactif(?:s)?\b/i,
     ],
     impact: "Adapter le scénario travaux, location ou revente au profil dominant du secteur.",
   },
@@ -114,14 +109,10 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
     kind: "tenure",
     label: "Locataires / propriétaires",
     patterns: [
-      /\blocataire(?:s)?\b/i,
-      /\bproprietaire(?:s)?\b/i,
-      /\bpropriétaire(?:s)?\b/i,
+      /\b(?:part|proportion|taux|majorite|pourcentage)\s+(?:de\s+|des\s+)?(?:locataires|proprietaires)\b/i,
+      /\b\d+(?:[.,]\d+)?\s*%\s+(?:de\s+|des\s+)?(?:locataires|proprietaires)\b/i,
       /\bparc locatif\b/i,
-      /\bresidence principale\b/i,
-      /\brésidence principale\b/i,
-      /\blogement vacant\b/i,
-      /\bvacance\b/i,
+      /\b(?:part|taux|nombre)\s+(?:de\s+|des\s+)?(?:residences principales|logements vacants|vacance)\b/i,
     ],
     impact: "Qualifier tension locative, risque de vacance et profondeur de revente.",
   },
@@ -143,16 +134,7 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
   {
     kind: "rental_demand",
     label: "Demande locative",
-    patterns: [
-      /\bdemande locative\b/i,
-      /\bdemande\b/i,
-      /\btension locative\b/i,
-      /\bloyer(?:s)?\b/i,
-      /\brendement\b/i,
-      /\blocation\b/i,
-      /\bmeuble\b/i,
-      /\bmeublé\b/i,
-    ],
+    patterns: [/\bdemande locative\b/i, /\btension locative\b/i],
     impact: "Recouper loyer, vacance et cible de locataire avant de fixer le plafond.",
   },
 ];
@@ -303,7 +285,7 @@ function resolveConfidence({
   sourceSignals: DemographicSignal[];
   proxySignals: DemographicSignal[];
 }): DemographicAnalysis["confidence"] {
-  if (sourceSignals.length >= 3 && proxySignals.length) return "high";
+  // Several mentions in one listing are not independent demographic corroboration.
   if (sourceSignals.length >= 2 || proxySignals.length >= 2) return "medium";
   if (status === "source_signals" || status === "market_proxy") return "medium";
   return "low";
@@ -341,8 +323,9 @@ function demandLabel({
   status: DemographicAnalysis["status"];
   signals: DemographicSignal[];
 }): string {
-  if (signals.some((signal) => signal.kind === "rental_demand")) {
-    return status === "source_signals"
+  const rentalSignals = signals.filter((signal) => signal.kind === "rental_demand");
+  if (rentalSignals.length) {
+    return rentalSignals.some((signal) => signal.status === "source_signal")
       ? "Demande locative signalée"
       : "Demande locative à tester par proxys";
   }
@@ -352,7 +335,9 @@ function demandLabel({
 }
 
 function missingDataFor(signals: DemographicSignal[]): string[] {
-  const kinds = new Set(signals.map((signal) => signal.kind));
+  const kinds = new Set(
+    signals.filter((signal) => signal.status === "source_signal").map((signal) => signal.kind),
+  );
   const missing: string[] = [];
   if (!kinds.has("population")) missing.push("Population, évolution et densité INSEE/commune");
   if (!kinds.has("income")) missing.push("Revenus médians et pouvoir d'achat local");
@@ -373,8 +358,12 @@ function summary({
   signals: DemographicSignal[];
 }): string {
   if (status === "source_signals") {
-    const labels = [...new Set(signals.map((signal) => signal.label))].slice(0, 4);
-    return `Signaux démographiques repérés : ${labels.join(", ")}.`;
+    const labels = [
+      ...new Set(
+        signals.filter((signal) => signal.status === "source_signal").map((signal) => signal.label),
+      ),
+    ].slice(0, 4);
+    return `Signaux démographiques repérés : ${labels.join(", ")}.${signals.some((signal) => signal.status === "proxy") ? " Indices indirects de marché et de services à vérifier séparément." : ""}`;
   }
   if (status === "market_proxy") {
     const labels = [...new Set(signals.map((signal) => signal.label))].slice(0, 3);
@@ -388,7 +377,7 @@ function summary({
 
 function decisionImpact(status: DemographicAnalysis["status"]): string {
   if (status === "source_signals") {
-    return "Utiliser ces signaux pour ajuster cible locative, travaux, prix de sortie et plafond.";
+    return "Vérifier ces mentions avec des données locales datées avant d’ajuster la cible locative ou le plafond.";
   }
   if (status === "market_proxy") {
     return "Traiter les proxys comme indices faibles avant de valider loyer, vacance et revente.";
@@ -424,17 +413,7 @@ function nextActions({
 
 function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   const candidates: TextCandidate[] = [];
-  addCandidate(candidates, sale.description, "Description annonce");
-  addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
-  addCandidate(candidates, sale.risk_notes, "Notes de risques");
-
-  for (const factor of sale.score_factors ?? []) {
-    for (const text of scoreFactorTexts(factor))
-      addCandidate(candidates, text, "Facteurs de score");
-  }
+  addCandidate(candidates, sale.source_description ?? sale.description, "Description source");
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     addCandidate(candidates, `${item.path}: ${cleanText(item.value)}`, "Données source");
   }
@@ -451,18 +430,6 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   return candidates.filter((candidate) =>
     SIGNAL_DEFINITIONS.some((definition) => matches(definition, candidate.text)),
   );
-}
-
-function scoreFactorTexts(factor: SaleScoreFactor): string[] {
-  const texts: unknown[] = [
-    factor.factor_key,
-    factor.label,
-    factor.reason,
-    factor.evidence,
-    factor.raw_value,
-    factor.normalized_value,
-  ];
-  return texts.map(cleanText).filter((text): text is string => Boolean(text));
 }
 
 function matches(definition: SignalDefinition, text: string): boolean {

@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export class TribunalCourtUnresolvedError extends Error {
+  constructor(message = "Le rattachement exact au tribunal reste à confirmer.") {
+    super(message);
+    this.name = "TribunalCourtUnresolvedError";
+  }
+}
+
 export const TRIBUNAL_JUDICIAL_ACTIVITY_BUILDER_VERSION = "tribunal_judicial_activity_v1" as const;
 export const TRIBUNAL_JUDICIAL_ACTIVITY_MIN_SAMPLE = 5;
 

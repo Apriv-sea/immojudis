@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
@@ -93,6 +92,8 @@ import {
 import type { MapViewportChange } from "./MapPanel";
 import { SearchPagination } from "./SearchPagination";
 import { SearchDraft } from "./search-page-state";
+import { SaleTypeFilter } from "./SaleTypeFilter";
+import { saleTypeFilterLabel } from "@/lib/sale-types";
 export function SearchHeader({
   search,
   draft,
@@ -155,9 +156,9 @@ export function SearchHeader({
               </div>
               <div className="hidden h-8 w-px bg-white/20 sm:block" aria-hidden />
               <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold text-white">Ventes judiciaires</h1>
+                <h1 className="text-base font-semibold text-white">Ventes immobilières</h1>
                 <p className="mt-0.5 hidden text-xs font-medium text-white/62 sm:block">
-                  Carte, audiences et dossiers vérifiés
+                  Tribunal, notaire et ventes domaniales
                 </p>
               </div>
             </div>
@@ -181,6 +182,18 @@ export function SearchHeader({
       </div>
 
       <div className="border-t border-[#132238]/10 bg-white/96 px-3 py-2.5 backdrop-blur-xl sm:px-5 lg:px-6">
+        <div className="mb-3 border-b border-[#132238]/10 pb-3">
+          <SaleTypeFilter
+            value={draft.saleType}
+            onChange={(saleType) =>
+              setDraft((current) => ({
+                ...current,
+                saleType,
+                tribunal: !saleType || saleType === "tribunal" ? current.tribunal : "",
+              }))
+            }
+          />
+        </div>
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <FilterBar
             draft={draft}
@@ -297,13 +310,15 @@ export function FilterBar({
         placeholder="Bordeaux"
         onChange={(value) => setDraft((current) => ({ ...current, city: value }))}
       />
-      <InlineTextFilter
-        label="Tribunal"
-        icon={Landmark}
-        value={draft.tribunal}
-        placeholder="TJ Bordeaux"
-        onChange={(value) => setDraft((current) => ({ ...current, tribunal: value }))}
-      />
+      {!draft.saleType || draft.saleType === "tribunal" ? (
+        <InlineTextFilter
+          label="Tribunal"
+          icon={Landmark}
+          value={draft.tribunal}
+          placeholder="TJ Bordeaux"
+          onChange={(value) => setDraft((current) => ({ ...current, tribunal: value }))}
+        />
+      ) : null}
       <PriceFilter draft={draft} setDraft={setDraft} />
       <BedsBathsFilter draft={draft} setDraft={setDraft} />
       <HomeTypeFilter draft={draft} setDraft={setDraft} />
@@ -599,7 +614,7 @@ export function ResultsSummary({
                 ? "zone visible sur la carte"
                 : hasLocalFilters
                   ? `${location} · filtres locaux actifs`
-                  : `${location} · ventes immobilières judiciaires`}
+                  : `${location} · ${search.saleType ? saleTypeFilterLabel(search.saleType).toLowerCase() : "tous types de ventes"}`}
             </span>
             <span aria-hidden>·</span>
             <span>tri {sortLabel.toLowerCase()}</span>

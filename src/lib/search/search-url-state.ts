@@ -1,4 +1,5 @@
 import { asFiniteNumber } from "@/lib/types";
+import { parseSaleType, type SaleTypeFilter } from "@/lib/sale-types";
 
 export type ViewportBounds = {
   north: number;
@@ -23,6 +24,7 @@ export const TRANSACTION_TYPES = ["for_sale", "for_rent", "sold"] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 export type SalesSearchParams = {
+  saleType?: SaleTypeFilter;
   city?: string;
   department?: string;
   tribunal?: string;
@@ -160,6 +162,7 @@ function parseTransactionType(value: unknown): TransactionType | undefined {
 
 export function validateSalesSearch(search: Record<string, unknown>): SalesSearchParams {
   return {
+    saleType: parseSaleType(search.saleType),
     city: stringValue(search.city),
     department: stringValue(search.department),
     tribunal: stringValue(search.tribunal ?? search.tribunal_code),
@@ -196,6 +199,7 @@ export function validateSalesSearch(search: Record<string, unknown>): SalesSearc
 
 export function salesSearchToUrlRecord(search: SalesSearchParams): SalesSearchUrlRecord {
   return {
+    saleType: search.saleType,
     city: search.city,
     department: search.department,
     tribunal: search.tribunal,

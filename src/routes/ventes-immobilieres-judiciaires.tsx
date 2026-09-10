@@ -3,6 +3,7 @@
 import { createFileRoute, Link } from "@/lib/router-compat";
 import ArrowRight from "lucide-react/dist/esm/icons/arrow-right.js";
 import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2.js";
+import { SaleTypesOverview } from "@/components/SaleTypesOverview";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link.js";
 
 const RESOURCES_CANONICAL = "https://immojudis-dezt.vercel.app/ventes-immobilieres-judiciaires";
@@ -13,12 +14,20 @@ const DESCRIPTION =
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
-    q: "Qui peut acheter un bien en vente immobilière judiciaire ?",
-    a: "Toute personne juridiquement capable peut acheter un bien aux enchères judiciaires, sous réserve de respecter les formalités, de disposer des garanties financières nécessaires et d'être représentée par un avocat.",
+    q: "Immojudis référence-t-il uniquement des ventes au tribunal ?",
+    a: "Non. Immojudis réunit les ventes au tribunal et les enchères notariales référencées, ainsi que les ventes domaniales selon les sources disponibles. Le catalogue n’est pas exhaustif. Le type, le cadre juridique et le mode de participation sont distingués sur chaque dossier.",
   },
   {
-    q: "Peut-on enchérir sans avocat ?",
-    a: "Non. Pour une vente judiciaire immobilière, les enchères doivent être portées par un avocat inscrit au barreau compétent.",
+    q: "Une vente en ligne est-elle un type de vente à part ?",
+    a: "Non. En ligne décrit la façon de participer, pas le cadre juridique. Il faut toujours identifier l’organisateur et lire les conditions de la vente.",
+  },
+  {
+    q: "Qui peut acheter un bien aux enchères au tribunal ?",
+    a: "Toute personne juridiquement capable peut acheter un bien aux enchères au tribunal, sous réserve de respecter les formalités, de disposer des garanties financières nécessaires et d'être représentée par un avocat.",
+  },
+  {
+    q: "Un avocat est-il toujours obligatoire ?",
+    a: "Pour une vente judiciaire à la barre du tribunal, oui : un avocat est obligatoire. Pour une vente notariale ou domaniale, consultez les conditions du dossier. Au tribunal, les enchères doivent être portées par un avocat inscrit au barreau compétent.",
   },
   {
     q: "Peut-on obtenir un prêt bancaire ?",
@@ -51,6 +60,7 @@ const FAQ: Array<{ q: string; a: string }> = [
 ];
 
 const TOC: Array<{ href: string; label: string }> = [
+  { href: "#differences", label: "Tribunal, notaire ou État : quelle différence ?" },
   { href: "#definition", label: "Qu'est-ce qu'une vente immobilière judiciaire ?" },
   { href: "#origine", label: "Pourquoi un bien est-il vendu aux enchères ?" },
   { href: "#immojudis", label: "Immojudis : décider avant d'enchérir" },
@@ -60,7 +70,6 @@ const TOC: Array<{ href: string; label: string }> = [
   { href: "#avantages", label: "Quels sont les avantages ?" },
   { href: "#risques", label: "Quels sont les risques ?" },
   { href: "#methode", label: "La méthode Immojudis" },
-  { href: "#differences", label: "Judiciaire, notariale ou domaniale ?" },
   { href: "#lexique", label: "Lexique" },
   { href: "#liens-institutionnels", label: "Liens institutionnels utiles" },
   { href: "#faq", label: "Questions fréquentes" },
@@ -265,11 +274,62 @@ export function ResourcesPage() {
 
         {/* ── Corps ────────────────────────────────────────────────────── */}
         <div className="mt-10 space-y-2">
+          <Section id="differences" title="Tribunal, notaire ou État : quelle différence ?">
+            <P>
+              Immojudis ne se limite pas aux ventes au tribunal. Le catalogue rassemble les ventes
+              judiciaires et les enchères notariales référencées ; les ventes domaniales disposent
+              aussi de leur catégorie, selon les annonces disponibles.
+            </P>
+            <SaleTypesOverview detailed />
+            <div className="mt-5 rounded-md border border-brand-navy/15 bg-white p-5">
+              <h3 className="font-semibold text-brand-navy">
+                Trois informations à ne pas confondre
+              </h3>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-brand-navy/80">
+                <li>
+                  <strong>L’organisateur :</strong> tribunal, office notarial ou organisme de
+                  l’État.
+                </li>
+                <li>
+                  <strong>Le cadre juridique :</strong> saisie, partage judiciaire, liquidation ou
+                  vente volontaire, selon le dossier.
+                </li>
+                <li>
+                  <strong>La participation :</strong> sur place, en ligne ou les deux. « En ligne »
+                  n’est pas un type de vente.
+                </li>
+              </ul>
+            </div>
+            <P>
+              Toutes les enchères ne sont donc pas judiciaires. Inversement, une vente organisée par
+              un notaire peut avoir une origine judiciaire. Les règles de représentation, de
+              garantie, de financement et de paiement doivent être vérifiées dans les conditions
+              propres à la vente.
+            </P>
+            <P>
+              Sources officielles :{" "}
+              <Ext href="https://www.justice.fr/fiche/saisie-immobiliere">
+                Justice.fr — saisie immobilière
+              </Ext>
+              ,{" "}
+              <Ext href="https://www.immobilier.notaires.fr/fr/articles/conseils-et-actualites/achat-vente/les-ventes-aux-encheres-notariales">
+                Notaires de France — enchères notariales
+              </Ext>{" "}
+              et{" "}
+              <Ext href="https://www.economie.gouv.fr/particuliers/mes-droits-conso/bien-consommer/ventes-aux-encheres-publiques-vous-pouvez-y-participer">
+                Ministère de l’Économie — ventes publiques
+              </Ext>
+              .
+            </P>
+            <P>La suite de ce guide détaille les ventes judiciaires à la barre du tribunal.</P>
+          </Section>
+
           <Section id="definition" title="Qu'est-ce qu'une vente immobilière judiciaire ?">
             <P>
               Une vente immobilière judiciaire est une vente aux enchères d'un bien immobilier
-              organisée dans un cadre judiciaire. Elle se déroule devant le tribunal judiciaire,
-              généralement à la barre du tribunal, sous le contrôle du juge.
+              organisée dans un cadre judiciaire. Ce guide traite des ventes à la barre du tribunal,
+              sous le contrôle du juge ; certaines ventes d’origine judiciaire sont organisées par
+              un notaire.
             </P>
             <P>
               Le bien est attribué au plus offrant. Cette attribution s'appelle l'adjudication.
@@ -669,34 +729,6 @@ export function ResourcesPage() {
             </div>
             <P className="mt-6">
               C'est le cœur de l'approche Immojudis : analyser, décider, enchérir — dans cet ordre.
-            </P>
-          </Section>
-
-          <Section
-            id="differences"
-            title="Différence entre vente judiciaire, vente notariale et vente domaniale"
-          >
-            <P>Toutes les ventes aux enchères immobilières ne sont pas des ventes judiciaires.</P>
-            <P>
-              La vente judiciaire est organisée dans un cadre judiciaire, souvent à la suite d'une
-              saisie, d'une liquidation ou d'une décision de justice.
-            </P>
-            <P>
-              La vente notariale est une vente aux enchères organisée par un notaire, généralement
-              dans un cadre amiable. Pour plus d'informations sur ce type de vente, vous pouvez
-              consulter les Notaires de France :{" "}
-              <Ext href="https://www.notaires.fr/fr/immobilier-fiscalite/vente-rapide/les-ventes-aux-encheres-immobilieres-notariales">
-                Les ventes aux enchères immobilières notariales
-              </Ext>
-              .
-            </P>
-            <P>
-              La vente domaniale concerne des biens vendus par l'État ou certaines personnes
-              publiques.
-            </P>
-            <P>
-              Ces procédures ne répondent pas exactement aux mêmes règles. Avant d'enchérir, il faut
-              donc identifier la nature de la vente.
             </P>
           </Section>
 

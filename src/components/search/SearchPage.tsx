@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import entryMotion from "@/components/ui/entry-motion.module.css";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
+import { useSaleComparison } from "@/hooks/use-sale-comparison";
 import { useViewedSales } from "@/hooks/use-viewed-sales";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useLocation, useNavigate } from "@/lib/router-compat";
@@ -97,6 +98,7 @@ import { SearchPagination } from "./SearchPagination";
 import { Footer, MapPanelSkeleton, MobileMapToggle, MoreFiltersModal } from "./SearchFilters";
 import { ResultsSummary, SearchHeader } from "./SearchHeader";
 import { SearchResultsList, SearchStatisticsPanel } from "./SearchResults";
+import { SaleComparisonBar } from "./SaleComparisonBar";
 import {
   SearchDraft,
   buildAlertName,
@@ -121,7 +123,6 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   const currentLocation = useLocation();
   const { user, loading: authLoading } = useAuth();
   const isPreview = !user;
-  const reduceMotion = useReducedMotion();
   const searchRef = useRef(search);
   const viewportTimerRef = useRef<number | null>(null);
   const [hoveredSaleId, setHoveredSaleId] = useState<string | null>(null);
@@ -226,6 +227,10 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   });
   const isDiscovery = Boolean(user) && entitlementsData?.plan.hasAnalysisAccess !== true;
   const catalogReady = !authLoading && (isPreview || !entitlementsLoading);
+  const comparisonScope = catalogReady
+    ? `${user?.id ?? "anonymous"}:${isPreview ? "preview" : isDiscovery ? "discovery" : "analysis"}`
+    : null;
+  const comparison = useSaleComparison(comparisonScope);
 
   const {
     data: rawSales = [],
@@ -247,7 +252,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   });
 
   const { data: rawMapSales = [], isLoading: isMapLoading } = useQuery({
-    queryKey: ["sales-search-map", mapSearchKeySignature, isDiscovery],
+    queryKey: ["sales-search-map", mapSearchKeySignature, isPreview, isDiscovery],
     queryFn: () => fetchSearchMapResults(search, { discovery: isDiscovery }),
     enabled: catalogReady && !isPreview,
     staleTime: 60_000,
@@ -267,14 +272,17 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
 
   const mapSales = useMemo(
     () =>
-      sortClientSearchResults(
-        applyClientSearchFilters(rawMapSales.length ? rawMapSales : rawSales, search, center),
-        search,
-        center,
+      (isPreview
+        ? rawSales
+        : sortClientSearchResults(
+            applyClientSearchFilters(rawMapSales.length ? rawMapSales : rawSales, search, center),
+            search,
+            center,
+          )
       )
         .filter(hasCoordinates)
         .slice(0, 300),
-    [center, rawMapSales, rawSales, search],
+    [center, isPreview, rawMapSales, rawSales, search],
   );
 
   const mapViewportResults = useMemo(
@@ -282,14 +290,16 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
     [deferredMapViewport, mapSales],
   );
 
-  const mapListFollowsViewport = shouldMapListFollowViewport({
-    isDesktop,
-    mobileMapOpen,
-    viewport: deferredMapViewport,
-    mapSalesCount: mapSales.length,
-  });
+  const mapListFollowsViewport =
+    !isPreview &&
+    shouldMapListFollowViewport({
+      isDesktop,
+      mobileMapOpen,
+      viewport: deferredMapViewport,
+      mapSalesCount: mapSales.length,
+    });
   const displayedSales = mapListFollowsViewport ? mapViewportResults.sales : filteredSales;
-  const hasLocalFilters = hasClientOnlyFilters(search);
+  const hasLocalFilters = !isPreview && hasClientOnlyFilters(search);
   const isInitialLoading = authLoading || entitlementsLoading || isLoading;
   const activeFiltersCount = countActiveSearchFilters(search);
   const searchDisplayCount = hasLocalFilters
@@ -399,13 +409,13 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         current && areMapViewportsClose(current, viewport) ? current : viewport,
       );
 
-      if (!searchRef.current.searchAsMove) return;
+      if (isPreview || !searchRef.current.searchAsMove) return;
       if (viewportTimerRef.current != null) window.clearTimeout(viewportTimerRef.current);
       viewportTimerRef.current = window.setTimeout(() => {
         updateSearch({ viewport: viewport.bounds });
       }, 520);
     },
-    [updateSearch],
+    [isPreview, updateSearch],
   );
 
   async function saveSearch() {
@@ -449,6 +459,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         watched_zone_id: watchedZoneResponse?.zone.id ?? null,
         advanced_criteria: {
           source: "sales_search",
+          sale_type: search.saleType ?? null,
           query: search.query ?? null,
           around_address: search.aroundAddress ?? null,
           around_radius_km: search.aroundRadius ?? null,
@@ -560,6 +571,16 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
             }}
           />
 
+          <SaleComparisonBar
+            key={comparisonScope ?? "loading"}
+            items={comparison.items}
+            returnTo={currentLocation.href}
+            userId={user?.id ?? null}
+            onRemove={comparison.remove}
+            onClear={comparison.clear}
+            onRestore={comparison.replace}
+          />
+
           <SearchResultsList
             sales={displayedSales}
             returnTo={currentLocation.href}
@@ -569,9 +590,11 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
             error={error}
             selectedSaleId={selectedSaleId}
             hoveredSaleId={hoveredSaleId}
-            reduceMotion={Boolean(reduceMotion)}
             onHover={setHoveredSaleId}
             onSelect={setSelectedSaleId}
+            comparedSaleIds={comparison.items.map((item) => item.id)}
+            comparisonDisabled={!catalogReady}
+            onToggleComparison={comparison.toggle}
           />
 
           <SearchPagination
@@ -598,7 +621,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
                 hoveredSaleId={hoveredSaleId}
                 selectedSaleId={selectedSaleId}
                 isLoading={isInitialLoading || isMapLoading}
-                searchAsMove={Boolean(search.searchAsMove)}
+                searchAsMove={!isPreview && Boolean(search.searchAsMove)}
+                preview={isPreview}
+                showDpeLegend={!dpeLocked}
                 onHover={setHoveredSaleId}
                 onSelect={handleMapSelect}
                 onViewportChange={handleViewportChange}
@@ -629,14 +654,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         onOpenMap={() => updateSearch({ map: true })}
       />
 
-      <AnimatePresence>
+      <>
         {mobileMapOpen ? (
-          <motion.div
-            className="fixed inset-0 z-50 bg-[#e7f4ef] lg:hidden"
-            initial={reduceMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reduceMotion ? undefined : { opacity: 0 }}
-          >
+          <div className={`${entryMotion.fadeIn} fixed inset-0 z-50 bg-[#e7f4ef] lg:hidden`}>
             <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between border-b border-[#132238]/10 bg-white/95 px-3 backdrop-blur">
               <button
                 type="button"
@@ -656,7 +676,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
                 hoveredSaleId={hoveredSaleId}
                 selectedSaleId={selectedSaleId}
                 isLoading={isInitialLoading || isMapLoading}
-                searchAsMove={Boolean(search.searchAsMove)}
+                searchAsMove={!isPreview && Boolean(search.searchAsMove)}
+                preview={isPreview}
+                showDpeLegend={!dpeLocked}
                 onHover={setHoveredSaleId}
                 onSelect={handleMapSelect}
                 onViewportChange={handleViewportChange}
@@ -668,9 +690,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
                 }
               />
             </div>
-          </motion.div>
+          </div>
         ) : null}
-      </AnimatePresence>
+      </>
     </main>
   );
 }

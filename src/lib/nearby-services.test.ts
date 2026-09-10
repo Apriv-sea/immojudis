@@ -3,10 +3,33 @@ import { EXAMPLE_SALE } from "@/lib/example-sale";
 import { buildNearbyServicesAnalysis } from "@/lib/nearby-services";
 
 describe("nearby services analysis", () => {
+  it("does not turn woodwork, legal venues or website navigation into nearby services", () => {
+    const analysis = buildNearbyServicesAnalysis({
+      ...EXAMPLE_SALE,
+      source_description: "Audience au tribunal. Porte en bois. Appartement loué.",
+      source_blocks: {
+        page_text: "Marché immobilier. Santé et diagnostics. Jardin.",
+        sale_procedure: { venue_type: "tribunal" },
+      },
+      source_blocks_by_source: {},
+      llm_display_description: "Proche commerces et pharmacie.",
+      risks: [
+        {
+          risk_type: "works",
+          risk_label: "Boiseries",
+          evidence: "Porte en bois proche du cellier.",
+          severity: 1,
+        },
+      ],
+    });
+    expect(analysis.mentionedCategories).toEqual([]);
+    expect(analysis.status).toBe("geocoded_to_measure");
+  });
+
   it("detects proximity signals from collected source text", () => {
     const analysis = buildNearbyServicesAnalysis({
       ...EXAMPLE_SALE,
-      description:
+      source_description:
         "Appartement proche tram, commerces, école et pharmacie, avec accès rapide au centre-ville.",
       source_blocks: {
         quartier: "À deux pas du jardin public et du tribunal",
@@ -16,7 +39,7 @@ describe("nearby services analysis", () => {
     expect(analysis).toMatchObject({
       available: true,
       status: "source_signals",
-      confidence: "high",
+      confidence: "medium",
       locationQuality: "coordinates",
     });
     expect(analysis.mentionedCategories).toEqual(

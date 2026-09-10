@@ -21,6 +21,7 @@ import {
   type ProfessionalRole,
 } from "@/lib/account";
 import { loginPageMode, type LoginPageMode } from "@/lib/navigation";
+import { postAuthDestination } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): LoginSearch => {
@@ -60,7 +61,7 @@ const modeCopy: Record<
     eyebrow: "Compte Découverte",
     title: "Explorer gratuitement",
     description:
-      "Créez votre compte pour consulter les annonces et visualiser tous les aperçus d'analyse floutés.",
+      "Créez votre compte pour consulter les fiches et préparer votre première recherche, sans carte bancaire.",
     submit: "Créer mon compte gratuit",
   },
   professional: {
@@ -87,8 +88,9 @@ export function LoginPage() {
   const isSignup = mode !== "login";
   const accountType: AccountType = mode === "professional" ? "b2b" : "b2c";
   const postAuthTarget = useMemo(
-    () => redirect ?? (isProfessionalAccount(user, profile) ? "/publish" : "/sales"),
-    [profile, redirect, user],
+    () =>
+      postAuthDestination({ mode, redirect, professional: isProfessionalAccount(user, profile) }),
+    [mode, profile, redirect, user],
   );
 
   useEffect(() => {
@@ -116,7 +118,11 @@ export function LoginPage() {
         return;
       }
 
-      const redirectPath = redirect ?? (accountType === "b2b" ? "/publish" : "/sales");
+      const redirectPath = postAuthDestination({
+        mode,
+        redirect,
+        professional: accountType === "b2b",
+      });
       const origin = typeof window !== "undefined" ? window.location.origin : undefined;
       const { error } = await supabase.auth.signUp({
         email,
@@ -128,7 +134,8 @@ export function LoginPage() {
             full_name: fullName.trim() || null,
             organization_name: accountType === "b2b" ? organizationName.trim() : null,
             professional_role: accountType === "b2b" ? professionalRole : null,
-            onboarding_version: "2026-06-split-investor-pro",
+            onboarding_version:
+              accountType === "b2b" ? "2026-06-split-investor-pro" : "2026-08-first-search",
           },
         },
       });

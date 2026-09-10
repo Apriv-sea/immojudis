@@ -83,8 +83,8 @@ const routeBudgets = [
 ];
 
 const requiredHtml = [
-  [".next/server/app/index.html", "L'immobilier judiciaire"],
-  [".next/server/app/sales.html", "Ventes immobilières judiciaires"],
+  [".next/server/app/index.html", "Les enchères immobilières"],
+  [".next/server/app/sales.html", "Ventes immobilières aux enchères"],
   [".next/server/app/annonce-exemple.html", "Exemple de rapport"],
 ];
 

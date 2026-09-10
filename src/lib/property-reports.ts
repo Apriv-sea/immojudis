@@ -85,7 +85,11 @@ import {
   featureUnlocked,
   sanitizeReportSnapshotForPlan,
 } from "./property-report/entitlements";
-import { reportToPdfLines } from "./property-report/pdf";
+import { reportToPdfLines, REPORT_PDF_HEADINGS } from "./property-report/pdf";
+import {
+  assertReportSourceCurrent,
+  reportSourceFingerprint,
+} from "./property-report/source-integrity";
 import {
   getActiveComparableSales,
   getCadastralParcels,
@@ -126,12 +130,16 @@ export type ActiveComparableSales = {
   sales: AuctionSale[];
 };
 
+import { computeReportSimulation, reportSimulationSchema } from "./report-simulation";
+import { listingValuationConflict } from "./listing-evidence";
+
 export const propertyReportRequestSchema = z.object({
   saleId: z.string().uuid(),
   reportKind: z.enum(["opportunity", "market", "bid_ceiling"]).default("opportunity"),
   title: z.string().trim().min(3).max(140).optional(),
   userNotes: z.string().trim().max(2500).optional(),
   includeEnvironment: z.boolean().default(false),
+  simulation: reportSimulationSchema.optional(),
 });
 
 export const propertyReportUpdateSchema = z.object({
@@ -300,6 +308,8 @@ export async function savePropertyReport({
   if (!existingReportId) await assertReportCreationAvailable(auth, plan);
 
   const sale = await getSale(auth.supabase, input.saleId);
+  const valuationConflict = listingValuationConflict(sale);
+  if (valuationConflict) throw new Error(valuationConflict);
   const marketEstimatePromise = buildMarketSnapshot(sale);
   const environmentalContextPromise =
     input.includeEnvironment && featureUnlocked(plan.features.neighborhoodAnalysis)
@@ -338,18 +348,31 @@ export async function savePropertyReport({
     valuationBacktestPromise,
   ]);
   const ceilingSnapshot = buildCeilingSnapshot(sale, marketEstimate);
-  const reportSnapshot = buildReportSnapshot({
-    sale,
-    marketEstimate,
-    environmentalContext: environmentalContext?.context ?? null,
-    activeComparables,
-    cadastreParcels,
-    dpeDiagnostics,
-    urbanPlanningSignals,
-    valuationBacktest,
-    ceilingSnapshot,
-    plan,
-  });
+  if (input.simulation) {
+    const personal = computeReportSimulation(sale, marketEstimate, input.simulation);
+    Object.assign(ceilingSnapshot, personal, {
+      personalSimulation: input.simulation,
+      acquisition: personal.simulated,
+      refreshWorksBudget: input.simulation.works,
+      maxBidWithoutWorks: null,
+      maxBidWithRefreshWorks: null,
+    });
+  }
+  const reportSnapshot = {
+    ...buildReportSnapshot({
+      sale,
+      marketEstimate,
+      environmentalContext: environmentalContext?.context ?? null,
+      activeComparables,
+      cadastreParcels,
+      dpeDiagnostics,
+      urbanPlanningSignals,
+      valuationBacktest,
+      ceilingSnapshot,
+      plan,
+    }),
+    sourceFingerprint: reportSourceFingerprint(sale),
+  };
   const title = input.title?.trim() || defaultReportTitle(sale);
 
   const { data, error } = await supabaseAdmin
@@ -455,12 +478,14 @@ export async function exportPropertyReportPdf({
   assertEntitlementIncluded(plan, "property.pdfExport", "Export PDF réservé au plan Analyse.");
   await assertPdfExportAvailable(auth, plan);
   const report = await getReport(auth.supabase, auth.userId, reportId);
+  assertReportSourceCurrent(report.report_snapshot, await getSale(auth.supabase, report.sale_id));
   const lines = reportToPdfLines(report, plan);
   const bytes = createTextPdf({
     title: report.title,
     lines,
+    headings: REPORT_PDF_HEADINGS,
     footer:
-      "ImmoJudis - rapport indicatif. Verifiez les pieces officielles et votre conseil avant toute enchere.",
+      "ImmoJudis - rapport indicatif. Vérifiez les pièces officielles et votre conseil avant toute enchère.",
     watermark: pdfWatermarkForPlan(plan),
   });
 
@@ -487,6 +512,7 @@ export async function enablePropertyReportShare({
   const plan = await resolvePlanEntitlements(auth);
   assertEntitlementIncluded(plan, "property.savedReports", "Partage réservé au plan Analyse.");
   const report = await getReport(auth.supabase, auth.userId, reportId);
+  assertReportSourceCurrent(report.report_snapshot, await getSale(auth.supabase, report.sale_id));
   const shareToken = createShareToken();
   const shareExpiresAt = normalizeShareExpiresAt(expiresAt);
   const now = new Date().toISOString();
@@ -559,7 +585,7 @@ export async function getSharedPropertyReport({
   const { data, error } = await supabaseAdmin
     .from("saved_property_reports")
     .select(
-      "id,title,report_kind,report_snapshot,market_snapshot,environmental_snapshot,ceiling_snapshot,share_enabled,share_token,shared_at,share_expires_at,share_view_count,updated_at",
+      "id,sale_id,title,report_kind,report_snapshot,market_snapshot,environmental_snapshot,ceiling_snapshot,share_enabled,share_token,shared_at,share_expires_at,share_view_count,updated_at",
     )
     .eq("share_token", normalized)
     .eq("share_enabled", true)
@@ -569,6 +595,8 @@ export async function getSharedPropertyReport({
   if (!data || shareIsExpired(data.share_expires_at)) {
     throw new Error("Rapport partagé introuvable ou expiré.");
   }
+
+  assertReportSourceCurrent(data.report_snapshot, await getSale(supabaseAdmin, data.sale_id));
 
   if (countView) {
     const nextViewCount = data.share_view_count + 1;

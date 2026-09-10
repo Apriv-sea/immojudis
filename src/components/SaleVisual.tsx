@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ImageOff from "lucide-react/dist/esm/icons/image-off.js";
 import LockKeyhole from "lucide-react/dist/esm/icons/lock-keyhole.js";
 import type { AuctionSale } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { mapboxSatelliteImageUrl, mapboxStaticImageUrl } from "@/lib/mapbox";
 import { propertyImages, shouldRejectRenderedPropertyImage } from "@/lib/sale-media";
 
@@ -13,6 +14,7 @@ type SaleVisualProps = {
   eager?: boolean;
   mapWidth?: number;
   mapHeight?: number;
+  preferPhoto?: boolean;
 };
 
 type VisualCandidate = {
@@ -36,6 +38,7 @@ export function SaleVisual({
   eager = false,
   mapWidth = 896,
   mapHeight = 672,
+  preferPhoto = false,
 }: SaleVisualProps) {
   const photos = locked ? [] : propertyImages(sale.media);
   const hasCoordinates = sale.latitude != null && sale.longitude != null;
@@ -60,18 +63,20 @@ export function SaleVisual({
           height: mapHeight,
         })
       : "";
+  const photoCandidates: VisualCandidate[] = photos.map((photo) => ({
+    kind: "photo",
+    url: photo.url,
+    label: "Photo du bien",
+  }));
   const candidates: VisualCandidate[] = [
+    ...(preferPhoto ? photoCandidates : []),
     ...(satelliteUrl
       ? [{ kind: "satellite" as const, url: satelliteUrl, label: "Vue aérienne Mapbox" }]
       : []),
     ...(sectorMapUrl
       ? [{ kind: "map" as const, url: sectorMapUrl, label: "Carte du secteur Mapbox" }]
       : []),
-    ...photos.map((photo) => ({
-      kind: "photo" as const,
-      url: photo.url,
-      label: "Photo du bien",
-    })),
+    ...(preferPhoto ? [] : photoCandidates),
   ];
   const imageRef = useRef<HTMLImageElement>(null);
   const [selection, setSelection] = useState<VisualSelection>({
@@ -140,10 +145,13 @@ export function SaleVisual({
   if (!candidate) {
     return (
       <div
-        className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[linear-gradient(145deg,#e5f1fb,#fffaf2)] ${className}`}
+        className={cn(
+          "relative flex h-full w-full items-center justify-center overflow-hidden bg-[linear-gradient(145deg,#e5f1fb,#fffaf2)]",
+          className,
+        )}
       >
         <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(circle_at_22%_18%,rgba(15,118,110,0.22),transparent_28%),linear-gradient(135deg,transparent_45%,rgba(201,141,69,0.16)_46%,transparent_47%)]" />
-        <div className="relative px-4 text-center text-brand-navy/65">
+        <div className="relative px-4 text-center text-brand-navy/75">
           {locked ? (
             <LockKeyhole className="mx-auto h-7 w-7" aria-hidden />
           ) : (
@@ -159,7 +167,7 @@ export function SaleVisual({
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden bg-muted ${className}`}
+      className={cn("relative h-full w-full overflow-hidden bg-muted", className)}
       aria-busy={!candidateIsReady}
     >
       {!candidateIsReady ? (

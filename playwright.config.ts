@@ -7,7 +7,9 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: "https://127.0.0.1:3100",
+    // The local test server uses a disposable self-signed loopback certificate.
+    ignoreHTTPSErrors: true,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -19,10 +21,11 @@ export default defineConfig({
     { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    command: "npm run build && node scripts/start-e2e-server.mjs",
+    url: "https://127.0.0.1:3100",
+    ignoreHTTPSErrors: true,
+    reuseExistingServer: false,
+    timeout: 240_000,
     env: {
       ...process.env,
       NEXT_PUBLIC_SUPABASE_URL: "https://ci.supabase.co",

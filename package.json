@@ -33,7 +33,8 @@
     "ops:smoke": "node scripts/check-production-smoke.mjs",
     "valuation:publish": "node scripts/publish-valuation-models.mjs",
     "release:prepare": "npm run env:check:prod && npm run db:migrate && npm run ops:health-scheduler:configure && npm run check:schema-drift -- --remote && npm run valuation:publish",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -47,7 +48,6 @@
     "@vercel/speed-insights": "^2.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.42.2",
     "h3-js": "^4.5.0",
     "htmlparser2": "8.0.2",
     "lucide-react": "^0.575.0",
@@ -95,7 +95,8 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^7.3.1",
-    "vitest": "^4.1.9",
+    "vitest": "4.1.11",
     "vitest-axe": "0.1.0"
-  }
+  },
+  "license": "UNLICENSED"
 }

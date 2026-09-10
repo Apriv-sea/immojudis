@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from src.models import AuctionSale
 
 DETECTOR = "urban_planning_regex"
-DETECTOR_VERSION = "urban_planning_v1"
+DETECTOR_VERSION = "urban_planning_v2"
 MAX_SIGNALS_PER_SALE = 80
 MAX_CANDIDATES_PER_DEFINITION = 8
 
@@ -216,7 +216,6 @@ def _collect_text_candidates(
     _add_candidate(candidates, sale.description, "Description annonce", "sale_text", confidence=0.55)
     _add_candidate(candidates, sale.raw_text, "Texte source", "sale_text", confidence=0.55)
     _add_candidate(candidates, sale.risk_notes, "Notes de risques", "risk", confidence=0.64)
-    _add_candidate(candidates, sale.investment_summary, "Synthèse investissement", "llm", confidence=0.6)
 
     for document in sale.documents:
         if not isinstance(document, dict):
@@ -235,20 +234,10 @@ def _collect_text_candidates(
             confidence=0.72,
         )
 
-    for factor in sale.score_factors:
-        if isinstance(factor, dict):
-            _add_candidate(
-                candidates,
-                _flatten_to_text(factor),
-                "Facteurs de score",
-                "score_factor",
-                confidence=0.62,
-            )
-
-    for item in _flatten_key_values(sale.raw_payload):
+    for item in _primary_source_fields(sale.raw_payload):
         _add_candidate(
             candidates,
-            f"{item['path']}: {_clean_text(item['value'])}",
+            _clean_text(item["value"]),
             "Données source",
             "source_payload",
             confidence=0.56,
@@ -256,13 +245,14 @@ def _collect_text_candidates(
 
     for observation in sale.observations:
         if isinstance(observation, dict):
-            _add_candidate(
-                candidates,
-                _flatten_to_text(observation),
-                "Observation source",
-                "source_payload",
-                confidence=0.56,
-            )
+            for item in _primary_source_fields(observation):
+                _add_candidate(
+                    candidates,
+                    _clean_text(item["value"]),
+                    "Observation source",
+                    "source_payload",
+                    confidence=0.56,
+                )
 
     for item in pdf_texts:
         _add_pdf_candidates(candidates, item)
@@ -379,6 +369,19 @@ def _signal_sort_key(row: dict[str, object]) -> tuple[int, int, float, str]:
     confidence = row.get("confidence")
     confidence_rank = -float(confidence) if isinstance(confidence, (int, float)) else 0.0
     return (priority_rank, status_rank, confidence_rank, str(row.get("signal_key") or ""))
+
+
+def _primary_source_fields(value: object) -> list[dict[str, object]]:
+    return [
+        item for item in _flatten_key_values(value)
+        if not re.search(
+            r"(?:^|\.)(?:asset_normalization|score_factors|investment_summary|"
+            r"llm_display_description|about_description|sale_procedure|"
+            r"related|similar|autres_annonces)(?:$|\.|\[)",
+            str(item["path"]),
+            re.IGNORECASE,
+        )
+    ]
 
 
 def _flatten_key_values(value: object, path: str = "") -> list[dict[str, object]]:

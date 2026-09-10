@@ -29,7 +29,7 @@ export const Route = createFileRoute("/accompagnement")({
 
 const discoveryFeatures = [
   "Photos du bien",
-  "Mise à prix et date d'audience",
+  "Mise à prix et date de vente",
   "Surface et localisation",
   "Montant global estimé des travaux",
   "Annuaire des avocats par barreau",
@@ -40,7 +40,7 @@ const analysisFeatures = [
   "Estimation du bien et ventes comparables",
   "Détail des frais, travaux, risques et pièces",
   "3 enquêtes IA supervisées par période de 30 jours",
-  "Mise en relation avec un avocat depuis le dossier",
+  "Contact avocat pour les ventes au tribunal",
 ] as const;
 
 export function AccompagnementPage() {
@@ -129,7 +129,7 @@ export function AccompagnementPage() {
             <OfferProof
               icon={<Target className="h-5 w-5" />}
               title="Un chiffre à ne pas dépasser"
-              text="La mise plafond transforme une analyse longue en limite de décision claire avant l'audience."
+              text="La mise plafond transforme une analyse longue en limite de décision claire avant la vente."
             />
             <OfferProof
               icon={<Wrench className="h-5 w-5" />}
@@ -212,7 +212,7 @@ function DecisionEquation() {
       </div>
       <div className="mt-7 border-t border-gold pt-6 text-center">
         <p className="text-sm font-medium leading-relaxed text-brand-navy sm:text-base">
-          Parce qu'un bien vendu aux enchères judiciaires est rarement en état neuf.
+          Parce qu'un bien vendu aux enchères est rarement en état neuf.
         </p>
       </div>
     </div>

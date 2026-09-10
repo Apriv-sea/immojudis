@@ -4,6 +4,28 @@ import { buildUrbanPlanningAnalysis } from "@/lib/urban-planning-analysis";
 import type { SaleDocumentRich, SaleRisk } from "@/lib/types";
 
 describe("urban planning analysis", () => {
+  it("does not treat generated instructions or unrelated page content as planning evidence", () => {
+    const result = buildUrbanPlanningAnalysis({
+      sale: {
+        ...EXAMPLE_SALE,
+        source_description: "Appartement avec balcon.",
+        llm_display_description: "Servitudes et permis à vérifier.",
+        about_description: "Zonage PLU à vérifier.",
+        investment_summary: "Urbanisme à vérifier.",
+        source_blocks: {
+          page_text: "Autre annonce : servitude de passage",
+          sale_procedure: { note: "Vérifier les permis" },
+        },
+        source_blocks_by_source: null,
+      },
+      documents: [],
+      risks: [],
+    });
+    expect(result.status).toBe("missing");
+    expect(result.items).toEqual([]);
+    expect(result.confidence).toBe("low");
+  });
+
   it("detects zoning and permit signals from source data and dossier documents", () => {
     const documents: SaleDocumentRich[] = [
       {
@@ -30,15 +52,15 @@ describe("urban planning analysis", () => {
 
     expect(analysis).toMatchObject({
       available: true,
-      status: "documented",
-      confidence: "high",
+      status: "source_signals",
+      confidence: "low",
     });
     expect(analysis.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "zoning", label: "Urbanisme / PLU" }),
         expect.objectContaining({
           kind: "permit",
-          status: "documented",
+          status: "to_verify",
           source: "Pièces du dossier",
         }),
       ]),

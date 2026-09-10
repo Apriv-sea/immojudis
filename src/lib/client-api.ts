@@ -94,6 +94,7 @@ import type {
   SaleAnalysisSetListResponse,
   SaleAnalysisSetResponse,
   SaleAnalysisSetUpdateInput,
+  SaleComparisonShareResponse,
 } from "@/lib/sale-analysis-sets";
 import { salesSearchToUrlRecord, type SalesSearchParams } from "@/lib/search/search-url-state";
 import type { PlanUsageSummary } from "@/lib/usage";
@@ -414,6 +415,13 @@ export async function disablePropertyReportShare(args: {
   });
 
   return readJson<PropertyReportShareResponse>(response);
+}
+
+export async function fetchAccessPlan(): Promise<{ plan: PlanEntitlements }> {
+  const response = await fetch("/api/feature-entitlements?scope=plan", {
+    headers: await authHeaders(),
+  });
+  return readJson<{ plan: PlanEntitlements }>(response);
 }
 
 export async function fetchFeatureEntitlements(): Promise<{
@@ -838,6 +846,28 @@ export async function deleteSaleAnalysisSet(args: { setId: string }): Promise<{ 
   });
 
   return readJson<{ ok: true }>(response);
+}
+
+export async function enableSaleComparisonShare(args: {
+  setId: string;
+}): Promise<SaleComparisonShareResponse> {
+  const response = await fetch(`/api/sale-analysis-sets/${args.setId}/share`, {
+    method: "POST",
+    headers: await authHeaders(),
+  });
+
+  return readJson<SaleComparisonShareResponse>(response);
+}
+
+export async function disableSaleComparisonShare(args: {
+  setId: string;
+}): Promise<SaleComparisonShareResponse> {
+  const response = await fetch(`/api/sale-analysis-sets/${args.setId}/share`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+
+  return readJson<SaleComparisonShareResponse>(response);
 }
 
 export async function fetchSaleHistory(args: {

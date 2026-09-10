@@ -5,6 +5,47 @@ import { EXAMPLE_SALE } from "@/lib/example-sale";
 const now = new Date("2026-07-06T12:00:00.000Z");
 
 describe("active comparables analysis", () => {
+  it("does not recommend or increase confidence for several rejected candidates", () => {
+    const analysis = buildActiveComparablesAnalysis({
+      sale: EXAMPLE_SALE,
+      candidates: ["one", "two", "three"].map((id) => ({
+        ...EXAMPLE_SALE,
+        id,
+        property_type: "house",
+        investment_score: 95,
+      })),
+      scopeLabel: "Même ville",
+      now,
+    });
+    expect(analysis.status).toBe("candidates_only");
+    expect(analysis.confidence).toBe("low");
+    expect(analysis.items.every((item) => item.matchScore < 70)).toBe(true);
+    expect(analysis.summary).toContain("Aucun bien retenu");
+    expect(analysis.summary).not.toContain("Meilleur candidat");
+    expect(analysis.nextActions.join(" ")).not.toContain("meilleurs matches");
+    expect(analysis.nextActions.join(" ")).toContain("Ne pas utiliser");
+  });
+
+  it("does not promote a distant same-type listing to a local comparable", () => {
+    const analysis = buildActiveComparablesAnalysis({
+      sale: { ...EXAMPLE_SALE, city: "VALRAS-PLAGE", department: "34" },
+      candidates: [
+        {
+          ...EXAMPLE_SALE,
+          id: "saint-fons",
+          city: "Saint-Fons",
+          department: "69",
+          investment_score: 95,
+        },
+      ],
+      scopeLabel: "Même type de bien",
+      now,
+    });
+    expect(analysis.status).toBe("candidates_only");
+    expect(analysis.items[0].matchScore).toBeLessThan(70);
+    expect(analysis.items[0].reasons[0]).toContain("Hors du secteur");
+    expect(analysis.summary).not.toContain("proche(s)");
+  });
   it("ranks active sales by type, location, surface, price and upcoming audience", () => {
     const analysis = buildActiveComparablesAnalysis({
       sale: EXAMPLE_SALE,

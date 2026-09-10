@@ -17,7 +17,9 @@ export function parseDocs(raw: unknown): SaleDocument[] {
           typeof (document as { url: unknown }).url === "string"
         ) {
           const url = safeDocumentUrl((document as { url: string }).url);
-          return url ? ({ ...(document as SaleDocument), url } as SaleDocument) : null;
+          const entry = document as SaleDocument & { label?: unknown };
+          const name = entry.name || (typeof entry.label === "string" ? entry.label : undefined);
+          return url ? { ...entry, url, ...(name ? { name } : {}) } : null;
         }
         return null;
       })

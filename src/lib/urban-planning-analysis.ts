@@ -1,4 +1,4 @@
-import type { AuctionSale, SaleDocumentRich, SaleRisk, SaleScoreFactor } from "@/lib/types";
+import type { AuctionSale, SaleDocumentRich, SaleRisk } from "@/lib/types";
 
 export type UrbanPlanningSignalKind =
   | "zoning"
@@ -154,7 +154,6 @@ const SIGNAL_DEFINITIONS: SignalDefinition[] = [
       /\bgeoportail\b/i,
       /\bgéoportail\b/i,
       /\bregistre\b/i,
-      /\bpublic\b/i,
     ],
     action: "Recouper les pièces publiques avec le cahier des conditions et le cadastre.",
   },
@@ -180,13 +179,13 @@ export function buildUrbanPlanningAnalysis({
   const items = dedupeItems([...structuredItems, ...detectedItems, ...documentItems]).slice(0, 12);
   const missingChecks = missingChecksForItems(items);
   const status = resolveStatus(items);
-  const confidence = resolveConfidence({ status, items });
+  const confidence = resolveConfidence(status);
 
   return {
     available: items.length > 0,
     status,
     confidence,
-    confidenceLabel: confidenceLabel({ status, confidence }),
+    confidenceLabel: confidenceLabel(status),
     items,
     missingChecks,
     summary: summary({ items, missingChecks }),
@@ -199,8 +198,15 @@ export function buildUrbanPlanningAnalysis({
   };
 }
 
+export function isPrimaryUrbanPlanningSignal(signal: StructuredUrbanPlanningSignal): boolean {
+  if (["llm", "score_factor"].includes(signal.sourceKind ?? "")) return false;
+  return !/(?:asset_normalization|score_factors|investment_summary|llm_display_description|about_description)(?:\b|\[)/i.test(
+    signal.excerpt ?? "",
+  );
+}
+
 function structuredSignalItems(signals: StructuredUrbanPlanningSignal[]): UrbanPlanningItem[] {
-  return signals.map((signal): UrbanPlanningItem => {
+  return signals.filter(isPrimaryUrbanPlanningSignal).map((signal): UrbanPlanningItem => {
     const definition = SIGNAL_DEFINITIONS.find((item) => item.kind === signal.signalKind);
     const source =
       cleanText(signal.sourceName) ?? cleanText(signal.documentLabel) ?? "Signal structuré";
@@ -256,7 +262,7 @@ function documentEvidenceItems(documents: SaleDocumentRich[]): UrbanPlanningItem
         kind: definition.kind,
         label: definition.label,
         priority: definition.priority,
-        status: "documented",
+        status: "to_verify",
         source: "Pièces du dossier",
         detail: document.label ?? document.type ?? definition.label,
         action: definition.action,
@@ -276,28 +282,15 @@ function resolveStatus(items: UrbanPlanningItem[]): UrbanPlanningAnalysis["statu
   return "missing";
 }
 
-function resolveConfidence({
-  status,
-  items,
-}: {
-  status: UrbanPlanningAnalysis["status"];
-  items: UrbanPlanningItem[];
-}): UrbanPlanningAnalysis["confidence"] {
-  if (status === "documented" && new Set(items.map((item) => item.kind)).size >= 2) return "high";
-  if (status === "documented" || items.length >= 2) return "medium";
+function resolveConfidence(
+  status: UrbanPlanningAnalysis["status"],
+): UrbanPlanningAnalysis["confidence"] {
+  // A number of mentions is not independent corroboration.
+  if (status === "documented") return "medium";
   return "low";
 }
 
-function confidenceLabel({
-  status,
-  confidence,
-}: {
-  status: UrbanPlanningAnalysis["status"];
-  confidence: UrbanPlanningAnalysis["confidence"];
-}): string {
-  if (status === "documented" && confidence === "high") {
-    return "Pièces et signaux urbanisme recoupés";
-  }
+function confidenceLabel(status: UrbanPlanningAnalysis["status"]): string {
   if (status === "documented") return "Pièce urbanisme ou contrainte repérée";
   if (status === "source_signals") return "Signaux urbanisme à confirmer";
   return "Urbanisme, permis et servitudes non qualifiés";
@@ -364,22 +357,13 @@ function collectTextCandidates({
   risks: SaleRisk[];
 }): TextCandidate[] {
   const candidates: TextCandidate[] = [];
-  addCandidate(candidates, sale.description, "Description annonce");
-  addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
-  addCandidate(candidates, sale.risk_notes, "Notes de risques");
+  addCandidate(candidates, sale.source_description ?? sale.description, "Description source");
 
-  for (const factor of sale.score_factors ?? []) {
-    for (const text of scoreFactorTexts(factor))
-      addCandidate(candidates, text, "Facteurs de score");
-  }
-  for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
+  for (const item of dedicatedSourceFields(sale.source_blocks ?? {})) {
     addCandidate(candidates, `${item.path}: ${cleanText(item.value)}`, "Données source");
   }
   for (const [sourceName, blocks] of Object.entries(sale.source_blocks_by_source ?? {})) {
-    for (const item of flattenKeyValues(blocks)) {
+    for (const item of dedicatedSourceFields(blocks)) {
       addCandidate(
         candidates,
         `${item.path}: ${cleanText(item.value)}`,
@@ -403,16 +387,16 @@ function collectTextCandidates({
   );
 }
 
-function scoreFactorTexts(factor: SaleScoreFactor): string[] {
-  const texts: unknown[] = [
-    factor.factor_key,
-    factor.label,
-    factor.reason,
-    factor.evidence,
-    factor.raw_value,
-    factor.normalized_value,
-  ];
-  return texts.map(cleanText).filter((text): text is string => Boolean(text));
+function dedicatedSourceFields(blocks: Record<string, unknown>) {
+  return flattenKeyValues(blocks).filter(
+    ({ path }) =>
+      !/(?:^|\.)(?:page_text|description|sale_procedure|related|similar|autres_annonces)(?:$|\.|\[)/i.test(
+        path,
+      ) &&
+      /plu|urbanisme|zoning|zonage|permit|permis|servitude|coownership|copropriete|copropriété|usage|cadastre/i.test(
+        path,
+      ),
+  );
 }
 
 function riskTexts(risk: SaleRisk): string[] {
@@ -420,7 +404,7 @@ function riskTexts(risk: SaleRisk): string[] {
   const evidence = risk.evidence_json;
   if (evidence && typeof evidence === "object") {
     const record = evidence as Record<string, unknown>;
-    texts.push(record.excerpt, record.reasoning, record.why_it_matters, record.next_action);
+    texts.push(record.excerpt);
   }
   for (const occurrence of risk.occurrences ?? []) {
     texts.push(occurrence.document_label, occurrence.document_type, occurrence.excerpt);

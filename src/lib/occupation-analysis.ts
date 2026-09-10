@@ -1,4 +1,5 @@
 import { occupancyLabel } from "@/lib/format";
+import { listingOccupation } from "@/lib/listing-evidence";
 import type { AuctionSale, SaleRisk } from "@/lib/types";
 
 export type OccupancyStatusKind = "free" | "occupied" | "rented" | "to_confirm" | "conflicting";
@@ -54,7 +55,7 @@ const RENTED_PATTERNS = [
 
 const OCCUPIED_PATTERNS = [
   /\boccup(?:e|ee|ant|ante|ants|é|ée)\b/i,
-  /\bpresence\b/i,
+  /\bpresence\s+(?:d\s+|de\s+|des\s+)(?:un\s+|une\s+)?(?:occupants?|locataires?|habitants?|personnes?)\b/i,
   /\bhabite\b/i,
   /\bse\s+declarant\s+occupant\b/i,
 ];
@@ -79,8 +80,21 @@ export function buildOccupancyAnalysis(sale: AuctionSale): OccupancyAnalysis {
   const candidates = collectTextCandidates(sale);
   const fieldEvidence = evidenceFromOccupancyStatus(sale.occupancy_status);
   const textEvidence = collectTextEvidence(candidates);
-  const evidence = dedupeEvidence([...fieldEvidence, ...textEvidence]).slice(0, 8);
-  const status = resolveStatus(evidence);
+  const allEvidence = dedupeEvidence([...fieldEvidence, ...textEvidence]);
+  // Keep each distinct status visible, including contradictions found after the display cap.
+  const seenStatuses = new Set<OccupancyEvidence["status"]>();
+  const firstByStatus = allEvidence.filter((item) => {
+    if (seenStatuses.has(item.status)) return false;
+    seenStatuses.add(item.status);
+    return true;
+  });
+  const evidence = [
+    ...firstByStatus,
+    ...allEvidence.filter((item) => !firstByStatus.includes(item)),
+  ].slice(0, 8);
+  const atConstat = listingOccupation(sale) === "Inoccupé au constat";
+  const resolvedStatus = resolveStatus(allEvidence);
+  const status = atConstat && resolvedStatus === "free" ? "to_confirm" : resolvedStatus;
   const sources = [...new Set(evidence.map((item) => item.source))].slice(0, 8);
   const hasLeaseSignal =
     evidence.some((item) => item.status === "rented") || hasPattern(candidates, RENTED_PATTERNS);
@@ -90,14 +104,17 @@ export function buildOccupancyAnalysis(sale: AuctionSale): OccupancyAnalysis {
   return {
     available: status !== "to_confirm" || evidence.length > 0,
     status,
-    label: statusLabel(status),
+    label: atConstat && status === "to_confirm" ? "Inoccupé au constat" : statusLabel(status),
     confidence,
     confidenceLabel: confidenceLabel({ status, confidence }),
     hasLeaseSignal,
     hasEvictionSignal,
     evidence,
     sources,
-    summary: summary({ status, evidence, hasLeaseSignal, hasEvictionSignal }),
+    summary:
+      atConstat && status === "to_confirm"
+        ? "Inoccupé au constat. La disponibilité actuelle reste à confirmer."
+        : summary({ status, evidence, hasLeaseSignal, hasEvictionSignal }),
     decisionImpact: decisionImpact({ status, hasLeaseSignal, hasEvictionSignal }),
     nextActions: nextActions({ status, hasLeaseSignal, hasEvictionSignal }),
     limitations: limitations(status),
@@ -155,7 +172,8 @@ function resolveStatus(evidence: OccupancyEvidence[]): OccupancyStatusKind {
   const statuses = new Set(
     evidence.map((item) => item.status).filter((status) => status !== "to_confirm"),
   );
-  if (statuses.size > 1) return "conflicting";
+  if (statuses.has("free") && (statuses.has("rented") || statuses.has("occupied")))
+    return "conflicting";
   if (statuses.has("rented")) return "rented";
   if (statuses.has("occupied")) return "occupied";
   if (statuses.has("free")) return "free";
@@ -176,7 +194,7 @@ function resolveConfidence({
   const corroboratingSources = new Set(
     evidence.filter((item) => item.status === status).map((item) => item.source),
   );
-  if (fieldStatus === status && corroboratingSources.size >= 2) return "high";
+  // Field labels do not establish independent provenance: several fields may come from one publication.
   if (fieldStatus === status || corroboratingSources.size >= 2) return "medium";
   return "low";
 }
@@ -190,7 +208,7 @@ function confidenceLabel({
 }): string {
   if (status === "conflicting") return "Signaux contradictoires à arbitrer";
   if (status === "to_confirm") return "Occupation à confirmer dans les pièces";
-  if (confidence === "high") return "Statut recoupé par plusieurs sources";
+  if (confidence === "high") return "Indices concordants, occupation à confirmer";
   if (confidence === "medium") return "Statut repéré, à confirmer";
   return "Indice faible";
 }
@@ -289,16 +307,9 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
 
   addCandidate(candidates, sale.description, "Description annonce");
   addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
   addCandidate(candidates, sale.risk_notes, "Notes de risques");
 
-  for (const factor of sale.score_factors ?? []) {
-    addCandidate(candidates, factor.label, "Facteurs de score");
-    addCandidate(candidates, factor.reason, "Facteurs de score");
-    addCandidate(candidates, factor.evidence, "Facteurs de score");
-  }
+  // Generated scores and summaries are not independent evidence about the property.
 
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     if (OCCUPANCY_KEY.test(item.path) || hasOccupancyText(item.value)) {

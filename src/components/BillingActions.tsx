@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CreditCard from "lucide-react/dist/esm/icons/credit-card.js";
 import Settings from "lucide-react/dist/esm/icons/settings.js";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export function BillingActions({
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const checkoutTriggerRef = useRef<HTMLButtonElement>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [immediatePerformanceAccepted, setImmediatePerformanceAccepted] = useState(false);
 
@@ -136,6 +137,7 @@ export function BillingActions({
         <button
           type="button"
           onClick={openCheckoutReview}
+          ref={checkoutTriggerRef}
           disabled={loading || Boolean(busy)}
           className="ij-signup-button inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -160,7 +162,13 @@ export function BillingActions({
       </div>
 
       <Dialog open={checkoutOpen} onOpenChange={(open) => !busy && setCheckoutOpen(open)}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+        <DialogContent
+          className="max-h-[92vh] overflow-y-auto sm:max-w-xl"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            checkoutTriggerRef.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Récapitulatif avant paiement</DialogTitle>
             <DialogDescription>

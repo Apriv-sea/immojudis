@@ -88,7 +88,13 @@ export default async function Page({ params }: PageProps) {
         />
       ) : null}
       <Suspense fallback={<SaleDetailFallback sale={visibleSale} />}>
-        <SaleDetailPage id={id} initialData={data} />
+        <SaleDetailPage
+          id={id}
+          initialData={data}
+          adjudicationStatisticsEnabled={
+            process.env.ADJUDICATION_PRICE_STATISTICS_ENABLED === "true"
+          }
+        />
       </Suspense>
     </>
   );

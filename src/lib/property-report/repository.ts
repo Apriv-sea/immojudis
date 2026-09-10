@@ -1,3 +1,4 @@
+import { isActiveComparableSale } from "@/lib/sale-window";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { SupabaseAuthContext } from "@/integrations/supabase/auth-middleware";
@@ -380,10 +381,11 @@ export async function queryActiveComparableSales({
     .from("v_auction_sales_app")
     .select("*")
     .not("id", "is", null)
-    .not("sale_date", "is", null)
-    .gte("sale_date", nowIso)
+    .or(
+      `sale_date.gte.${nowIso.slice(0, 10)},sale_procedure->sale_window.not.is.null,sale_procedure->sale_session.not.is.null`,
+    )
     .order("sale_date", { ascending: true })
-    .limit(limit);
+    .order("id", { ascending: true });
 
   if (sale.id) query = query.neq("id", sale.id);
   if (scope.city) query = query.eq("city", scope.city);
@@ -391,9 +393,19 @@ export async function queryActiveComparableSales({
   if (scope.tribunalCode) query = query.eq("tribunal_code", scope.tribunalCode);
   if (scope.propertyType) query = query.eq("property_type", scope.propertyType);
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as unknown as AppSaleRow[];
+  const matches: AppSaleRow[] = [];
+  const batchSize = 64;
+  const now = new Date(nowIso);
+  for (let offset = 0; matches.length < limit; offset += batchSize) {
+    const { data, error } = await query.range(offset, offset + batchSize - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as AppSaleRow[];
+    matches.push(
+      ...rows.filter((row) => isActiveComparableSale(appSaleRowToAuctionSale(row), now)),
+    );
+    if (rows.length < batchSize) break;
+  }
+  return matches.slice(0, limit);
 }
 
 export function uniqueActiveComparableScopes(

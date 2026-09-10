@@ -47,7 +47,9 @@ export function buildValuationAudit({
     warningsCheckpoint(marketEstimate),
   ];
   const score = scoreFromCheckpoints(checkpoints);
-  const status = statusFromScore(score);
+  const scoredStatus = statusFromScore(score);
+  const status =
+    scoredStatus === "robust" && marketEstimate.sampleSize < 8 ? "usable" : scoredStatus;
   const riskFlags = checkpoints
     .filter((checkpoint) => checkpoint.status === "risk" || checkpoint.status === "missing")
     .map((checkpoint) => checkpoint.label);

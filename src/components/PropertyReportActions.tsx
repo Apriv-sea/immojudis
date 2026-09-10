@@ -17,6 +17,7 @@ import {
   updatePropertyReport,
 } from "@/lib/client-api";
 import type { SavedPropertyReport } from "@/lib/property-reports";
+import type { ReportSimulation } from "@/lib/report-simulation";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Dialog,
@@ -32,21 +33,54 @@ import { cn } from "@/lib/utils";
 export function PropertyReportActions({
   saleId,
   compact = false,
+  simulation,
+  requireSimulation = false,
 }: {
   saleId: string;
   compact?: boolean;
+  simulation?: ReportSimulation;
+  requireSimulation?: boolean;
 }) {
   const { user, loading } = useAuth();
+  return (
+    <PropertyReportWorkspace
+      key={`${user?.id ?? "anonymous"}:${saleId}`}
+      saleId={saleId}
+      compact={compact}
+      user={user}
+      loading={loading}
+      simulation={simulation}
+      requireSimulation={requireSimulation}
+    />
+  );
+}
+
+function PropertyReportWorkspace({
+  saleId,
+  compact,
+  user,
+  loading,
+  simulation,
+  requireSimulation,
+}: {
+  saleId: string;
+  compact: boolean;
+  user: ReturnType<typeof useAuth>["user"];
+  loading: boolean;
+  simulation?: ReportSimulation;
+  requireSimulation: boolean;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const reportQueryKey = ["property-reports", user?.id ?? "anonymous", saleId] as const;
 
   const reportsQuery = useQuery({
-    queryKey: ["property-reports", saleId],
+    queryKey: reportQueryKey,
     queryFn: () => fetchPropertyReports({ saleId }),
-    enabled: Boolean(user),
+    enabled: Boolean(user) && !loading,
     staleTime: 60_000,
   });
 
@@ -66,10 +100,11 @@ export function PropertyReportActions({
           reportKind: "opportunity",
           title: title || undefined,
           userNotes: notes || undefined,
+          ...(simulation ? { simulation } : {}),
         },
       }),
     onSuccess: (response) => {
-      queryClient.setQueryData(["property-reports", saleId], {
+      queryClient.setQueryData(reportQueryKey, {
         reports: [response.report],
         plan: response.plan,
       });
@@ -88,7 +123,7 @@ export function PropertyReportActions({
         },
       }),
     onSuccess: (response) => {
-      queryClient.setQueryData(["property-reports", saleId], {
+      queryClient.setQueryData(reportQueryKey, {
         reports: [response.report],
         plan: response.plan,
       });
@@ -100,11 +135,12 @@ export function PropertyReportActions({
 
   const shareMutation = useMutation({
     mutationFn: async () => {
-      const currentReport = report ?? (await saveMutation.mutateAsync()).report;
+      const currentReport =
+        simulation || !report ? (await saveMutation.mutateAsync()).report : report;
       return enablePropertyReportShare({ reportId: currentReport.id });
     },
     onSuccess: async (response) => {
-      queryClient.setQueryData(["property-reports", saleId], {
+      queryClient.setQueryData(reportQueryKey, {
         reports: [response.report],
         plan: response.plan,
       });
@@ -122,7 +158,7 @@ export function PropertyReportActions({
     mutationFn: (current: SavedPropertyReport) =>
       disablePropertyReportShare({ reportId: current.id }),
     onSuccess: (response) => {
-      queryClient.setQueryData(["property-reports", saleId], {
+      queryClient.setQueryData(reportQueryKey, {
         reports: [response.report],
         plan: response.plan,
       });
@@ -134,12 +170,13 @@ export function PropertyReportActions({
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const currentReport = report ?? (await saveMutation.mutateAsync()).report;
+      const currentReport =
+        simulation || !report ? (await saveMutation.mutateAsync()).report : report;
       return exportPropertyReportPdf({ reportId: currentReport.id });
     },
     onSuccess: ({ blob, filename }) => {
       downloadBlob(blob, filename);
-      void queryClient.invalidateQueries({ queryKey: ["property-reports", saleId] });
+      void queryClient.invalidateQueries({ queryKey: reportQueryKey });
       toast.success("PDF exporté.");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Export impossible"),
@@ -156,10 +193,14 @@ export function PropertyReportActions({
     return false;
   };
 
-  const saving = saveMutation.isPending || updateMutation.isPending;
-  const exporting = exportMutation.isPending || saveMutation.isPending;
-  const sharing = shareMutation.isPending || saveMutation.isPending;
-  const unsharing = unshareMutation.isPending;
+  const awaitingSimulation = requireSimulation && !simulation;
+  const saving =
+    loading || awaitingSimulation || saveMutation.isPending || updateMutation.isPending;
+  const exporting =
+    loading || awaitingSimulation || exportMutation.isPending || saveMutation.isPending;
+  const sharing =
+    loading || awaitingSimulation || shareMutation.isPending || saveMutation.isPending;
+  const unsharing = loading || unshareMutation.isPending;
   const pdfLabel =
     plan?.limits.pdfExportsPerMonth == null
       ? "Export PDF"
@@ -168,6 +209,11 @@ export function PropertyReportActions({
   if (compact) {
     return (
       <div className="mt-3 grid gap-2 border-t border-border pt-3">
+        {awaitingSimulation && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Complétez le simulateur pour obtenir un scénario exportable.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -188,8 +234,33 @@ export function PropertyReportActions({
           className="flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 py-2 text-xs font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" />
-          {exporting ? "Export..." : "Export PDF"}
+          {exportMutation.isPending ? "Export..." : "Export PDF"}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (requireUser()) shareMutation.mutate();
+          }}
+          disabled={sharing}
+          className="flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-white px-3 py-2 text-xs font-semibold text-foreground disabled:opacity-50"
+        >
+          <Share2 className="h-3.5 w-3.5" aria-hidden />
+          {sharing
+            ? "Création du lien…"
+            : report?.share_enabled
+              ? "Copier le lien du rapport"
+              : "Partager le rapport"}
+        </button>
+        {report?.share_enabled ? (
+          <button
+            type="button"
+            onClick={() => unshareMutation.mutate(report)}
+            disabled={unsharing}
+            className="min-h-10 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground underline underline-offset-4 disabled:opacity-50"
+          >
+            Désactiver le lien du rapport
+          </button>
+        ) : null}
       </div>
     );
   }

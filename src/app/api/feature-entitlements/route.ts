@@ -10,6 +10,9 @@ export async function GET(request: Request) {
   try {
     const auth = await requireSupabaseAuthContext(bearerTokenFromRequest(request));
     const plan = await resolvePlanEntitlements(auth);
+    if (new URL(request.url).searchParams.get("scope") === "plan") {
+      return NextResponse.json({ plan });
+    }
     const usage = await getPlanUsageSummary({ auth, plan });
     return NextResponse.json({ plan, usage });
   } catch (error) {

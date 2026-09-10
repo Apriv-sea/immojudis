@@ -3,6 +3,18 @@ import { EXAMPLE_MARKET_ESTIMATE } from "@/lib/example-sale";
 import { buildMarketComparablesAnalysis } from "@/lib/market-comparables-analysis";
 
 describe("market comparables analysis", () => {
+  it.each([6, 7])(
+    "keeps a short sample of %s comparables cautious despite high quality score",
+    (sampleSize) => {
+      const analysis = buildMarketComparablesAnalysis({
+        ...EXAMPLE_MARKET_ESTIMATE,
+        sampleSize,
+        qualityScore: 95,
+      });
+      expect(analysis.confidence).toBe("medium");
+      expect(analysis.confidenceLabel).toBe("Échantillon DVF exploitable avec prudence");
+    },
+  );
   it("summarizes detailed DVF comparables and quality signals", () => {
     const analysis = buildMarketComparablesAnalysis(EXAMPLE_MARKET_ESTIMATE);
 

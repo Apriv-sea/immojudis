@@ -24,11 +24,12 @@ function SalesCatalogFallback() {
           Catalogue ImmoJudis
         </p>
         <h1 className="mt-3 font-display text-4xl leading-tight sm:text-5xl">
-          Ventes immobilières judiciaires
+          Ventes immobilières aux enchères
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#526170]">
-          Recherchez les audiences, mises à prix, tribunaux et localisations disponibles. Les
-          filtres interactifs et la carte se chargent ensuite sans masquer ce contenu essentiel.
+          Recherchez les ventes au tribunal, notariales et domaniales référencées, par lieu et
+          budget. Les filtres interactifs et la carte se chargent ensuite sans masquer ce contenu
+          essentiel.
         </p>
         <form action="/sales" method="get" className="mt-7 flex max-w-2xl gap-2">
           <label htmlFor="catalog-search-fallback" className="sr-only">

@@ -45,9 +45,8 @@ jobs:
         run: npm run test:security-invariants
       - name: Production build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://ci.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-publishable-key' }}
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://ci.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-publishable-key' }}
         run: npm run build
       - name: SSR, bundle and media budgets
         run: npm run build:budgets
@@ -106,6 +105,12 @@ jobs:
         run: npm run test:db-concurrency
       - name: Run database tests
         run: npx --yes supabase@2.110.0 test db
+      - name: Check public catalogue over HTTP
+        run: |
+          status_path="$(mktemp)"
+          trap 'rm -f "$status_path"' EXIT
+          npx --yes supabase@2.110.0 status --output json > "$status_path"
+          node scripts/check-local-catalogue.mjs "$status_path"
       - name: Stop local Supabase
         if: always()
         run: npx --yes supabase@2.110.0 stop --no-backup

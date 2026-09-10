@@ -1,4 +1,6 @@
+import { collectSaleDocuments } from "@/lib/sale-documents";
 import { randomBytes } from "node:crypto";
+import { saleSession, saleWindow } from "@/lib/sale-window";
 import { z } from "zod";
 import type { SupabaseAuthContext } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -80,8 +82,8 @@ import {
   lockedUrbanPlanningAnalysis,
 } from "./entitlements";
 import { ActiveComparableSales, PlanEntitlements } from "../property-reports";
+import { listingAddress } from "../sale-listing";
 import {
-  deriveOpportunityScore,
   dpeFromSourceBlocks,
   normalizeRisks,
   normalizeScoreFactors,
@@ -152,8 +154,20 @@ export function buildOpportunityAnalysis({
   const p75PricePerM2 = positiveNumber(marketEstimate?.p75PricePerM2);
   const estimatedMarketValue =
     surface && medianPricePerM2 ? Math.round(surface * medianPricePerM2) : null;
-  const estimatedMarketLow = surface && p25PricePerM2 ? Math.round(surface * p25PricePerM2) : null;
-  const estimatedMarketHigh = surface && p75PricePerM2 ? Math.round(surface * p75PricePerM2) : null;
+  const valuationLow = positiveNumber(marketEstimate?.estimatedValueLowEur);
+  const valuationHigh = positiveNumber(marketEstimate?.estimatedValueHighEur);
+  const hasValuationRange =
+    valuationLow != null && valuationHigh != null && valuationLow <= valuationHigh;
+  const estimatedMarketLow = hasValuationRange
+    ? valuationLow
+    : surface && p25PricePerM2
+      ? Math.round(surface * p25PricePerM2)
+      : null;
+  const estimatedMarketHigh = hasValuationRange
+    ? valuationHigh
+    : surface && p75PricePerM2
+      ? Math.round(surface * p75PricePerM2)
+      : null;
   const apparentDiscountPct =
     startingPrice && estimatedMarketValue
       ? roundPercent(((estimatedMarketValue - startingPrice) / estimatedMarketValue) * 100)
@@ -161,23 +175,18 @@ export function buildOpportunityAnalysis({
   const grossYieldPct = roundPercent(
     estimateGrossYieldPct(startingPrice, surface, sale.department),
   );
-  const score =
-    roundedNumber(sale.investment_score) ??
-    deriveOpportunityScore({
-      apparentDiscountPct,
-      grossYieldPct,
-      ceilingSnapshot,
-    });
+  // A missing or withdrawn documentary score must remain unavailable.
+  const score = roundedNumber(sale.investment_score);
   const scoreConfidence = roundPercent(
-    typeof sale.score_confidence === "number" ? sale.score_confidence * 100 : null,
+    score != null && typeof sale.score_confidence === "number" ? sale.score_confidence * 100 : null,
   );
   const acquisition = ceilingSnapshot.acquisition;
   const totalCostPerM2 = surface ? roundedNumber(acquisition.totalCost / surface) : null;
   const rentabilityScore = computeRentabilityScore({
     surface,
-    price: Math.max(0, sale.starting_price_eur ?? 0),
-    works: DEFAULTS.works,
-    fpt: DEFAULTS.fpt,
+    price: acquisition.price,
+    works: acquisition.works,
+    fpt: acquisition.fpt,
     department: sale.department,
     marketMarginPerM2: ceilingSnapshot.available ? ceilingSnapshot.marginPerM2 : null,
   });
@@ -196,10 +205,14 @@ export function buildOpportunityAnalysis({
     estimatedMarketValue,
     estimatedMarketLow,
     estimatedMarketHigh,
+    estimatedMarketRangeLabel: hasValuationRange
+      ? "Fourchette de valeur estimée"
+      : "Repère P25-P75 des comparables appliqué à la surface",
     apparentDiscountPct,
     grossYieldPct,
     rentabilityScore,
     acquisitionCosts: {
+      price: acquisition.price,
       acquisitionFeesTotal: Math.round(acquisition.acquisitionFeesTotal),
       acquisitionFeesPct: roundPercent(acquisition.acquisitionFeesPct),
       totalCost: Math.round(acquisition.totalCost),
@@ -244,7 +257,8 @@ export function buildReportSnapshot({
   const generatedAt = new Date().toISOString();
   const surface = getSaleSurface(sale);
   const risks = normalizeRisks(sale.risks).slice(0, 8);
-  const documents = Array.isArray(sale.documents_rich) ? sale.documents_rich : [];
+  const documents = collectSaleDocuments(sale);
+  sale = { ...sale, documents_rich: documents };
   const marketComparablesAnalysis = gateMarketComparablesAnalysis(
     buildMarketComparablesAnalysis(marketEstimate),
     plan,
@@ -340,13 +354,16 @@ export function buildReportSnapshot({
       city: sale.city,
       department: sale.department,
       address: sale.address,
+      displayAddress: listingAddress(sale),
       propertyType: propertyTypeLabel(sale.property_type),
       startingPrice: sale.starting_price_eur,
       saleDate: sale.sale_date,
+      saleWindow: saleWindow(sale),
+      saleSession: saleSession(sale),
       tribunal: sale.tribunal ?? sale.tribunal_name,
       surface: surface.value,
       surfaceLabel: surface.label,
-      occupancy: occupancyLabel(sale.occupancy_status),
+      occupancy: occupancyAnalysis.label,
     },
     analysis: {
       valueEstimate: marketEstimate?.medianPricePerM2

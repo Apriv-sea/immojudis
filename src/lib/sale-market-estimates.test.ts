@@ -34,6 +34,29 @@ describe("sale market estimates", () => {
     expect(changed).not.toBe(first);
   });
 
+  it("withholds a cached commercial valuation after its provisional surface is removed", () => {
+    const oldInput = {
+      ...input,
+      propertyType: "commercial",
+      surfaceM2: 56,
+      surfaceEstimated: true,
+    };
+    const currentInput = { ...oldInput, surfaceM2: null, surfaceEstimated: false };
+    const row = storedRow({
+      computed_at: "2026-07-14T10:00:00.000Z",
+      input_fingerprint: saleValuationFingerprint(oldInput),
+      estimate: { source: "DVF", sampleSize: 7, qualityScore: 40, estimatedValueEur: 119784 },
+    });
+    expect(marketContextFromStoredRow(row, saleValuationFingerprint(currentInput))).toMatchObject({
+      estimate: null,
+      status: "queued",
+      ok: false,
+    });
+    expect(
+      marketContextFromStoredRow(row, saleValuationFingerprint(oldInput)).estimate,
+    ).not.toBeNull();
+  });
+
   it("keeps serving the previous estimate while a refresh is processing", () => {
     const estimate = {
       source: "DVF normalisé",
@@ -60,7 +83,9 @@ describe("sale market estimates", () => {
       addressHistory: [],
       recentTransactions: [],
     } satisfies MarketEstimate;
-    const context = marketContextFromStoredRow(storedRow({ status: "processing", estimate }));
+    const context = marketContextFromStoredRow(
+      storedRow({ status: "processing", estimate, computed_at: "2026-07-13T11:00:00Z" }),
+    );
 
     expect(context).toMatchObject({
       ok: true,
@@ -77,6 +102,31 @@ describe("sale market estimates", () => {
     expect(context.ok).toBe(false);
     expect(context.estimate).toBeNull();
     expect(context.error).toContain("préparation");
+  });
+
+  it.each(["pending", "processing", "failed", "ready"])(
+    "withholds an estimate predating corrected source data (%s)",
+    (status) => {
+      const context = marketContextFromStoredRow(
+        storedRow({
+          status,
+          estimate: { source: "DVF", sampleSize: 12, qualityScore: 80, estimatedValueEur: 931140 },
+          computed_at: "2026-07-12T10:00:00Z",
+        }),
+      );
+      expect(context).toMatchObject({ ok: false, estimate: null, status: "queued" });
+      expect(context.error).toContain("recalculer");
+    },
+  );
+
+  it("does not publish a cached valuation without a computation date", () => {
+    expect(
+      marketContextFromStoredRow(
+        storedRow({
+          estimate: { source: "DVF", sampleSize: 12, qualityScore: 80, estimatedValueEur: 931140 },
+        }),
+      ).estimate,
+    ).toBeNull();
   });
 });
 

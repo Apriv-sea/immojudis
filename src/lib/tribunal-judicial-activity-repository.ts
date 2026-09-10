@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   buildTribunalJudicialActivity,
   judicialActivityPeriod,
+  TribunalCourtUnresolvedError,
   type TribunalJudicialActivityHistoryMonths,
   type TribunalJudicialActivityQuery,
   type TribunalJudicialActivityResponse,
@@ -135,7 +136,7 @@ export async function getTribunalJudicialActivity(
     );
   }
   if (!courtResult.data) {
-    throw new TribunalJudicialActivityUnavailableError(
+    throw new TribunalCourtUnresolvedError(
       "No active exact official court reference is available.",
     );
   }
@@ -176,7 +177,7 @@ export async function getTribunalJudicialActivityDirectory(
   });
 }
 
-async function resolveCourtCodeFromSale(saleId: string): Promise<string> {
+export async function resolveCourtCodeFromSale(saleId: string): Promise<string> {
   const result = await activityAdmin
     .from("auction_sales")
     .select("tribunal_code,tribunal,sale_venue_type,sale_verification_status")
@@ -259,7 +260,7 @@ async function resolveCourtCodeFromSale(saleId: string): Promise<string> {
     }
   }
 
-  throw new TribunalJudicialActivityUnavailableError(
+  throw new TribunalCourtUnresolvedError(
     "The sale has no verified exact judicial court assignment.",
   );
 }

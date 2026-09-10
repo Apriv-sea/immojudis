@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { dpeMatches, extractDpe, normalizeDpeClass } from "@/lib/dpe";
+import { dpeClassFromText, dpeMatches, extractDpe, normalizeDpeClass } from "@/lib/dpe";
 
 describe("DPE helpers", () => {
+  it.each([
+    "Appartement à Toulouse, bâtiment A. Diagnostics techniques disponibles.",
+    "DPE à confirmer",
+    "DPE a confirmer",
+    "DPE A CONFIRMER",
+    "Diagnostic électrique : anomalie B.",
+  ])("does not invent a rating from %s", (text) => {
+    expect(normalizeDpeClass(text)).toBeNull();
+    expect(dpeClassFromText(text)).toBeNull();
+  });
+  it("extracts explicit prose ratings and refuses conflicting ratings", () => {
+    expect(dpeClassFromText("Appartement : DPE F, GES C.")).toBe("F");
+    expect(dpeClassFromText("Classe énergétique : E. Diagnostic disponible.")).toBe("E");
+    expect(dpeClassFromText("DPE F. Autre diagnostic : DPE C.")).toBeNull();
+  });
   it("normalizes valid energy classes", () => {
     expect(normalizeDpeClass("a")).toBe("A");
     expect(normalizeDpeClass("DPE C")).toBe("C");

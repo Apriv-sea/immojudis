@@ -5,11 +5,10 @@ const isBrowser = typeof window !== "undefined";
 const firstFilledEnv = (...values: Array<string | undefined>) =>
   values.find((value) => typeof value === "string" && value.trim().length > 0)?.trim();
 
-const url = firstFilledEnv(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.VITE_SUPABASE_URL);
+const url = firstFilledEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const anon = firstFilledEnv(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 );
 
 export const isSupabaseConfigured = Boolean(url && anon);

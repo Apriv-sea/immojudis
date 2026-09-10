@@ -1,6 +1,9 @@
-import { motion } from "framer-motion";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { PropsWithChildren } from "react";
 import { cn } from "@/lib/utils";
+import entryMotion from "@/components/ui/entry-motion.module.css";
 
 type AnimatedSectionProps = PropsWithChildren<{
   id: string;
@@ -14,17 +17,37 @@ export function AnimatedSection({
   children,
   "aria-labelledby": ariaLabelledBy,
 }: AnimatedSectionProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setEntered(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.18 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <motion.section
+    <section
+      ref={sectionRef}
       id={id}
       aria-labelledby={ariaLabelledBy}
-      className={cn("scroll-mt-28", className)}
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.18 }}
-      transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        "scroll-mt-28 [--entry-distance:18px] [--entry-duration:380ms]",
+        entered && entryMotion.riseIn,
+        className,
+      )}
     >
       {children}
-    </motion.section>
+    </section>
   );
 }

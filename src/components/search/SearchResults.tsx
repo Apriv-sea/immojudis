@@ -1,7 +1,9 @@
 import dynamic from "next/dynamic";
+import { SaleProcedureBadge } from "@/components/SaleProcedurePanel";
+import { getSaleProcedure, saleEventLabel } from "@/lib/sale-procedure";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import entryMotion from "@/components/ui/entry-motion.module.css";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
@@ -58,6 +60,7 @@ import { cleanSaleTitle, saleDisplayTitle } from "@/lib/sale-title";
 import { getDisplaySurface, getSaleSurface } from "@/lib/surface";
 import { isNew } from "@/lib/dates";
 import type { AuctionSale } from "@/lib/types";
+import { MAX_COMPARED_SALES } from "@/lib/search/sale-comparison";
 import type { WatchedZoneInput } from "@/lib/watched-zones";
 import type { SalesStatisticsResponse } from "@/lib/sales-statistics";
 import {
@@ -114,29 +117,45 @@ export function SearchStatisticsPanel({
   dpeExplorerRequested: boolean;
   onLoadDpeExplorer: () => void;
 }) {
+  if (locked) {
+    return (
+      <div className="border-b border-[#132238]/10 bg-white px-4 py-4 sm:px-5">
+        <h2 className="text-sm font-bold text-[#132238]">
+          Repérez un bien, puis préparez votre analyse
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-[#667482]">
+          Le compte gratuit ouvre la fiche et la localisation complète. Analyse ajoute les
+          comparables, les risques et le calcul de votre mise plafond.
+        </p>
+        <Link
+          to="/annonce-exemple"
+          className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-[#0f766e] underline underline-offset-4"
+        >
+          Essayer une analyse complète sans compte
+        </Link>
+      </div>
+    );
+  }
+
   const items = [
     {
       label: "Prix médian",
       value: formatPrice(statistics.medianPrice),
-      preview: "148 000 €",
       icon: <Building2 className="h-4 w-4" />,
     },
     {
       label: "Prix médian / m²",
       value: formatPricePerM2(statistics.medianPricePerM2),
-      preview: "2 780 €/m²",
       icon: <Ruler className="h-4 w-4" />,
     },
     {
       label: "Score moyen",
       value: statistics.averageScore == null ? "—" : `${Math.round(statistics.averageScore)}/100`,
-      preview: "76/100",
       icon: <ShieldCheck className="h-4 w-4" />,
     },
     {
       label: "DPE repérés",
       value: statistics.dpeKnownCount.toLocaleString("fr-FR"),
-      preview: "38",
       icon: <CalendarDays className="h-4 w-4" />,
       locked: dpeLocked,
     },
@@ -147,7 +166,7 @@ export function SearchStatisticsPanel({
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#132238]">
           <BarChart3 className="h-4 w-4" />
-          Workbench
+          Repères sur votre recherche
         </div>
         {locked ? (
           <span className="inline-flex items-center gap-1 rounded-md border border-[#ead8c5] bg-[#fffaf2] px-2 py-1 text-[10px] font-bold text-[#8a5b24]">
@@ -166,23 +185,12 @@ export function SearchStatisticsPanel({
               <span className="text-[#0f766e]">{item.icon}</span>
               {item.label}
             </dt>
-            <dd
-              aria-hidden={locked || item.locked ? "true" : undefined}
-              className={`mt-0.5 text-sm font-extrabold tabular-nums text-[#132238] ${
-                locked || item.locked ? "select-none blur-[3px]" : ""
-              }`}
-            >
-              {loading ? "…" : locked || item.locked ? item.preview : item.value}
+            <dd className="mt-0.5 text-sm font-extrabold tabular-nums text-[#132238]">
+              {loading ? "…" : item.locked ? "Réservé à Analyse" : item.value}
             </dd>
           </div>
         ))}
       </dl>
-      {locked && !loading ? (
-        <p className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-[#8a5b24]">
-          <LockKeyhole className="h-3 w-3" aria-hidden />
-          Valeurs de démonstration — données réelles réservées à Analyse
-        </p>
-      ) : null}
       {!dpeLocked && !loading ? (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -285,9 +293,11 @@ export function SearchResultsList({
   error,
   selectedSaleId,
   hoveredSaleId,
-  reduceMotion,
   onHover,
   onSelect,
+  comparedSaleIds,
+  comparisonDisabled,
+  onToggleComparison,
 }: {
   sales: AuctionSale[];
   returnTo: string;
@@ -297,9 +307,11 @@ export function SearchResultsList({
   error: Error | null;
   selectedSaleId: string | null;
   hoveredSaleId: string | null;
-  reduceMotion: boolean;
   onHover: (saleId: string | null) => void;
   onSelect: (saleId: string | null) => void;
+  comparedSaleIds: string[];
+  comparisonDisabled: boolean;
+  onToggleComparison: (sale: AuctionSale) => void;
 }) {
   return (
     <div className="px-3 pb-24 pt-3 sm:px-5 lg:pb-6">
@@ -319,9 +331,15 @@ export function SearchResultsList({
                 analysisLocked={analysisLocked}
                 active={selectedSaleId === sale.id || hoveredSaleId === sale.id}
                 index={index}
-                reduceMotion={reduceMotion}
                 onHover={onHover}
                 onSelect={onSelect}
+                comparisonSelected={comparedSaleIds.includes(sale.id)}
+                comparisonDisabled={
+                  comparisonDisabled ||
+                  (comparedSaleIds.length >= MAX_COMPARED_SALES &&
+                    !comparedSaleIds.includes(sale.id))
+                }
+                onToggleComparison={onToggleComparison}
               />
             ))}
       </div>
@@ -336,9 +354,11 @@ export function ListingCard({
   analysisLocked,
   active,
   index,
-  reduceMotion,
   onHover,
   onSelect,
+  comparisonSelected = false,
+  comparisonDisabled = false,
+  onToggleComparison,
 }: {
   sale: AuctionSale;
   returnTo: string;
@@ -346,9 +366,11 @@ export function ListingCard({
   analysisLocked: boolean;
   active: boolean;
   index: number;
-  reduceMotion: boolean;
   onHover: (saleId: string | null) => void;
   onSelect: (saleId: string | null) => void;
+  comparisonSelected?: boolean;
+  comparisonDisabled?: boolean;
+  onToggleComparison?: (sale: AuctionSale) => void;
 }) {
   const displaySurface = getDisplaySurface(sale);
   const surface = getSaleSurface(sale).value;
@@ -356,9 +378,11 @@ export function ListingCard({
   const premiumLocked = locked || analysisLocked;
   const viewed = !locked && isViewed(sale.id);
   const fresh = !locked && isNew(sale.created_at);
-  const title = locked ? "Détail réservé aux membres" : saleDisplayTitle(sale);
+  const title = locked
+    ? `${propertyTypeLabel(sale.property_type)}${sale.city ? ` à ${sale.city}` : ""}`
+    : saleDisplayTitle(sale);
   const location = locked
-    ? "Localisation réservée"
+    ? [sale.city, sale.department].filter(Boolean).join(" · ")
     : [sale.address, sale.city, sale.department ? `(${sale.department})` : null]
         .filter(Boolean)
         .join(", ");
@@ -368,19 +392,20 @@ export function ListingCard({
   const ppm = premiumLocked ? null : pricePerM2(sale.starting_price_eur, surface);
   const dpe = premiumLocked ? null : extractDpe(sale);
   const dpeTheme = dpeColor(dpe?.class);
-  const tribunalLabel = locked
-    ? "Tribunal réservé"
-    : sale.tribunal_city
+  const procedure = getSaleProcedure(sale);
+  const organizerLabel = locked
+    ? "Fiche complète avec un compte gratuit"
+    : procedure.venueType === "tribunal" && sale.tribunal_city
       ? `TJ ${sale.tribunal_city}`
-      : (sale.tribunal_name ?? sale.tribunal ?? "Tribunal à confirmer");
+      : (procedure.venueName ?? procedure.organizerName ?? "Organisateur à confirmer");
   const score = premiumLocked ? null : sale.investment_score;
   const scoreLabel = premiumLocked
-    ? "78/100"
+    ? "Analyse"
     : score == null
       ? "À auditer"
       : `${Math.round(score)}`;
   const riskLabel = premiumLocked
-    ? "3 alertes"
+    ? "Analyse"
     : riskCount > 1
       ? `${riskCount} alertes`
       : riskCount === 1
@@ -394,15 +419,13 @@ export function ListingCard({
         : "text-[#0f766e]";
 
   return (
-    <motion.article
+    <article
       onMouseEnter={() => onHover(sale.id)}
       onMouseLeave={() => onHover(null)}
       onFocusCapture={() => onHover(sale.id)}
       onBlurCapture={() => onHover(null)}
-      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay: Math.min(index * 0.025, 0.18) }}
-      className={`group relative grid h-full overflow-hidden rounded-md border bg-white shadow-[0_2px_8px_rgba(19,34,56,0.08)] transition duration-200 sm:grid-cols-[9.5rem_1fr] xl:grid-cols-[10.5rem_1fr] ${
+      style={{ "--entry-delay": `${Math.min(index * 25, 180)}ms` } as React.CSSProperties}
+      className={`${entryMotion.riseIn} group relative grid h-full overflow-hidden rounded-md border bg-white shadow-[0_2px_8px_rgba(19,34,56,0.08)] transition duration-200 sm:grid-cols-[9.5rem_1fr] xl:grid-cols-[10.5rem_1fr] ${
         active
           ? "border-[#c98d45] shadow-[0_0_0_2px_rgba(201,141,69,0.22),0_14px_36px_rgba(19,34,56,0.14)]"
           : "border-[#d8e0e7] hover:border-[#c98d45] hover:shadow-md"
@@ -418,11 +441,11 @@ export function ListingCard({
         aria-label={`Voir ${title}`}
       />
       <div className="relative aspect-[1.35] overflow-hidden bg-[#edf2f5] sm:aspect-auto sm:min-h-[12.25rem]">
-        <ListingImage sale={sale} locked={locked} title={title} />
+        <ListingImage sale={sale} locked={false} title={title} />
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           {locked ? (
             <ListingBadge tone="navy" icon={LockKeyhole}>
-              Aperçu limité
+              Aperçu gratuit
             </ListingBadge>
           ) : analysisLocked ? (
             <ListingBadge tone="cream" icon={LockKeyhole}>
@@ -430,10 +453,8 @@ export function ListingCard({
             </ListingBadge>
           ) : fresh ? (
             <ListingBadge tone="teal">Nouveau</ListingBadge>
-          ) : (
-            <ListingBadge tone="navy">Judiciaire</ListingBadge>
-          )}
-          {!locked && sale.sale_date ? (
+          ) : null}
+          {sale.sale_date ? (
             <ListingBadge tone="cream">{formatDate(sale.sale_date)}</ListingBadge>
           ) : null}
         </div>
@@ -455,7 +476,7 @@ export function ListingCard({
             </div>
             <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm font-bold text-[#132238]">
               <MapPin className="h-4 w-4 shrink-0 text-[#0f766e]" />
-              <span className="truncate">{location || "Adresse à confirmer"}</span>
+              <span className="truncate">{location || "Localisation à préciser"}</span>
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
@@ -465,16 +486,23 @@ export function ListingCard({
         </div>
 
         <div className="mt-2 min-w-0">
+          <div className="mb-2">
+            <SaleProcedureBadge sale={sale} />
+          </div>
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-[#3d4b57]">
             {title}
           </h3>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-[#3d4b57]">
-          <Metric icon={Landmark} label={tribunalLabel} />
+          <Metric icon={Landmark} label={organizerLabel} />
           <Metric
             icon={CalendarDays}
-            label={locked ? "Audience réservée" : `Audience ${formatDate(sale.sale_date)}`}
+            label={
+              locked
+                ? formatDate(sale.sale_date)
+                : `${saleEventLabel(procedure.venueType)} ${formatDate(sale.sale_date)}`
+            }
           />
           <Metric
             icon={Ruler}
@@ -490,39 +518,23 @@ export function ListingCard({
         >
           <ListingSignal
             label="Dossier"
-            value={premiumLocked ? "8 pièces" : "Vérifié"}
-            tone={premiumLocked ? "text-[#8a5b24] blur-[3px]" : "text-[#0f766e]"}
+            value={premiumLocked ? "Analyse" : "Vérifié"}
+            tone={premiumLocked ? "text-[#8a5b24]" : "text-[#0f766e]"}
           />
-          <ListingSignal
-            label="Score"
-            value={scoreLabel}
-            tone={`text-[#0f766e] ${premiumLocked ? "blur-[3px]" : ""}`}
-          />
-          <ListingSignal
-            label="Risque"
-            value={riskLabel}
-            tone={`${riskTone} ${premiumLocked ? "blur-[3px]" : ""}`}
-          />
-          {analysisLocked ? (
-            <span className="pointer-events-none absolute inset-0 grid place-items-center bg-white/35 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#132238]">
-              Plan Analyse
-            </span>
-          ) : null}
+          <ListingSignal label="Score" value={scoreLabel} tone="text-[#0f766e]" />
+          <ListingSignal label="Risque" value={riskLabel} tone={riskTone} />
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#667482]">
           {locked ? (
-            <span>Analyse, pièces et localisation complète après connexion</span>
+            <span>Compte gratuit : fiche et adresse · Analyse : calculs et pièces</span>
           ) : analysisLocked ? (
             <>
               <span className="rounded-md bg-[#f0f5f8] px-2 py-1">
                 {propertyTypeLabel(sale.property_type)}
               </span>
-              <span className="rounded-md border border-dashed border-[#c98d45] bg-[#fffaf2] px-2 py-1 text-[#8a5b24] blur-[2px]">
-                Occupation analysée
-              </span>
-              <span className="rounded-md border border-dashed border-[#c98d45] bg-[#fffaf2] px-2 py-1 text-[#8a5b24] blur-[2px]">
-                Prix/m² calculé
+              <span className="rounded-md border border-dashed border-[#c98d45] bg-[#fffaf2] px-2 py-1 text-[#8a5b24]">
+                Analyse détaillée avec l’offre Analyse
               </span>
             </>
           ) : (
@@ -554,7 +566,7 @@ export function ListingCard({
           )}
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
           <span className="line-clamp-1 text-[11px] font-bold text-[#8b949e]">
             {locked
               ? "Immojudis"
@@ -564,12 +576,35 @@ export function ListingCard({
                     sale.tribunal_city ? ` · ${sale.tribunal_city}` : ""
                   }`}
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#f4f7f9] px-2 py-1 text-[11px] font-extrabold text-[#132238]">
-            Voir le détail
-          </span>
+          <div className="flex items-center gap-2">
+            {onToggleComparison ? (
+              <button
+                type="button"
+                aria-label={`Comparer ${title}`}
+                aria-pressed={comparisonSelected}
+                disabled={comparisonDisabled}
+                title={
+                  comparisonDisabled
+                    ? "Retirez un bien de la sélection pour en ajouter un autre."
+                    : undefined
+                }
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onToggleComparison(sale);
+                }}
+                className={`relative z-20 min-h-11 rounded-md border px-3 text-xs font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f766e] disabled:cursor-not-allowed disabled:opacity-50 ${comparisonSelected ? "border-[#0f766e] bg-[#e1f1ec] text-[#0f766e]" : "border-[#cbd5df] bg-white text-[#132238] hover:bg-[#f4faf8]"}`}
+              >
+                {comparisonSelected ? "Sélectionné ✓" : "Comparer"}
+              </button>
+            ) : null}
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#f4f7f9] px-2 py-1 text-[11px] font-extrabold text-[#132238]">
+              Voir le détail
+            </span>
+          </div>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 
@@ -582,7 +617,16 @@ export function ListingImage({
   locked: boolean;
   title: string;
 }) {
-  return <SaleVisual sale={sale} title={title} locked={locked} mapWidth={512} mapHeight={384} />;
+  return (
+    <SaleVisual
+      sale={sale}
+      title={title}
+      locked={locked}
+      preferPhoto
+      mapWidth={512}
+      mapHeight={384}
+    />
+  );
 }
 
 export function ListingBadge({

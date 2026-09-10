@@ -48,6 +48,62 @@ function marketEstimate(overrides: Partial<MarketEstimate> = {}): MarketEstimate
 }
 
 describe("demographic analysis", () => {
+  it("does not extrapolate a property's occupant to the local population", () => {
+    const analysis = buildDemographicAnalysis({
+      sale: {
+        ...EXAMPLE_SALE,
+        source_description:
+          "Le propriétaire occupe sa résidence principale. Un locataire dispose du garage.",
+        source_blocks: {},
+        source_blocks_by_source: {},
+      },
+      marketEstimate: null,
+      nearbyServices: EMPTY_NEARBY,
+    });
+    expect(analysis.signals).toEqual([]);
+    expect(analysis.status).toBe("location_only");
+  });
+
+  it("keeps rental proxies separate from an unrelated sourced population signal", () => {
+    const analysis = buildDemographicAnalysis({
+      sale: {
+        ...EXAMPLE_SALE,
+        source_description: "Population communale en croissance.",
+        source_blocks: {},
+        source_blocks_by_source: {},
+      },
+      marketEstimate: null,
+      nearbyServices: { ...EMPTY_NEARBY, mentionedCategories: ["Commerces"] },
+    });
+    expect(analysis.status).toBe("source_signals");
+    expect(analysis.demandLabel).toBe("Demande locative à tester par proxys");
+    expect(analysis.summary).not.toContain("Mobilité et demande locative");
+  });
+
+  it("does not infer population or rental demand from property scores and a request for documents", () => {
+    const analysis = buildDemographicAnalysis({
+      sale: {
+        ...EXAMPLE_SALE,
+        description: "Appartement, garage et jardin. Demande de pièces auprès de l’avocat.",
+        source_description: "Actif immobilier. Meuble de cuisine. Loyer du bail : 600 euros.",
+        llm_display_description: "Population en croissance et forte demande locative.",
+        source_blocks: {},
+        source_blocks_by_source: {},
+        score_factors: [
+          {
+            factor_key: "financial_attractiveness",
+            label: "Attractivité",
+            reason: "Surface exploitable et actif mixte",
+            delta: 1,
+          },
+        ],
+      },
+      marketEstimate: null,
+      nearbyServices: EMPTY_NEARBY,
+    });
+    expect(analysis.signals).toEqual([]);
+    expect(analysis.status).toBe("location_only");
+  });
   it("turns sourced demographic data into actionable signals", () => {
     const sale = {
       ...EXAMPLE_SALE,
@@ -68,7 +124,7 @@ describe("demographic analysis", () => {
     expect(analysis).toMatchObject({
       available: true,
       status: "source_signals",
-      confidence: "high",
+      confidence: "medium",
       profileLabel: "Étudiants / jeunes actifs à tester",
     });
     expect(analysis.signals).toEqual(

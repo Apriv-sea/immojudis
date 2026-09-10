@@ -1,3 +1,4 @@
+import { ListingPhoto } from "@/components/ListingPhoto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import Camera from "lucide-react/dist/esm/icons/camera.js";
@@ -61,10 +62,34 @@ export function PhotoCarouselDialog({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        const dialog = dialogRef.current;
+        const buttons = dialog?.querySelectorAll<HTMLButtonElement>("button:not([disabled])");
+        const first = buttons?.[0];
+        const last = buttons?.[buttons.length - 1];
+        const active = document.activeElement;
+        if (
+          first &&
+          last &&
+          (!dialog?.contains(active) ||
+            active === dialog ||
+            (event.shiftKey ? active === first : active === last))
+        ) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+        return;
+      }
       if (event.key === "Escape") onClose();
       if (count <= 1) return;
-      if (event.key === "ArrowRight") goNext();
-      if (event.key === "ArrowLeft") goPrevious();
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goNext();
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goPrevious();
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -134,7 +159,7 @@ export function PhotoCarouselDialog({
           onTouchEnd={handleTouchEnd}
         >
           <div className="relative flex h-full min-h-0 w-full items-center justify-center px-0 py-2 sm:px-4 sm:py-4">
-            <img
+            <ListingPhoto
               src={current.url}
               alt={current.alt}
               className="block max-h-full max-w-full select-none object-contain"
@@ -191,9 +216,10 @@ export function PhotoCarouselDialog({
                     : "border-white/12 opacity-72 hover:opacity-100",
                 )}
               >
-                <img
+                <ListingPhoto
                   src={image.url}
                   alt=""
+                  compactFallback
                   className="h-full w-full object-cover"
                   loading={thumbnailIndex < 6 ? "eager" : "lazy"}
                   decoding="async"

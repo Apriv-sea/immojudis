@@ -82,6 +82,7 @@ export type SaleLegalFramework =
 export type SaleVerificationStatus = "verified" | "cross_checked" | "pending" | "conflict";
 
 export type SaleFilters = {
+  sale_venue_type?: Exclude<SaleVenueType, "online">;
   department?: string;
   departments?: string[];
   city?: string;

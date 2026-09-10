@@ -131,10 +131,30 @@ export function dpeMatches(value: DpeClass | null, accepted: string[] | undefine
 export function normalizeDpeClass(value: unknown): DpeClass | null {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const text = String(value).trim().toUpperCase();
-  const normalized = /^[A-G]\b/.test(text)
-    ? text.slice(0, 1)
-    : (text.match(/\b([A-G])\b/)?.[1] ?? "");
+  const normalized =
+    text.match(
+      /^(?:(?:DPE|GES|CLASSE(?: ÉNERGIE| ENERGIE| ÉNERGÉTIQUE| ENERGETIQUE)?)\s*[:=-]?\s*)?([A-G])$/,
+    )?.[1] ?? "";
   return DPE_CLASSES.includes(normalized as DpeClass) ? (normalized as DpeClass) : null;
+}
+
+/** A letter in prose is evidence only when explicitly attached to an energy rating. */
+export function dpeClassFromText(value: string): DpeClass | null {
+  const classes = new Set<DpeClass>();
+  const pattern =
+    /\b(?:DPE|classe\s+(?:énergie|energie|énergétique|energetique))\s*[:=-]?\s*(?:classe\s+)?([A-G])(?=$|[\s,;.()])/giu;
+  for (const match of value.matchAll(pattern)) {
+    // Lowercase "a" in "DPE a confirmer" is not a rating.
+    if (match[1] !== match[1].toUpperCase()) continue;
+    if (
+      /^\s+(?:confirmer|vérifier|verifier|rechercher|lire)\b/i.test(
+        value.slice(match.index + match[0].length),
+      )
+    )
+      continue;
+    classes.add(match[1] as DpeClass);
+  }
+  return classes.size === 1 ? [...classes][0] : null;
 }
 
 function dpeFromSourceBlocks(blocks: AuctionSale["source_blocks"]): DpeClass | null {
