@@ -59,6 +59,22 @@ describe("getMarketValuationSurfaces", () => {
     });
   });
 
+  it.each(["commercial", "building", "mixed"])(
+    "does not invent a built area for a %s lot from rooms or a default",
+    (property_type) => {
+      for (const rooms_count of [2, null]) {
+        expect(getMarketValuationSurfaces({ property_type, rooms_count })).toMatchObject({
+          builtSurfaceM2: null,
+          builtSurfaceEstimated: false,
+          builtSurfaceAssumption: null,
+        });
+      }
+      expect(
+        getMarketValuationSurfaces({ property_type, rooms_count: 2, app_surface_m2: 83 }),
+      ).toMatchObject({ builtSurfaceM2: 83, builtSurfaceEstimated: false });
+    },
+  );
+
   it("estimates a missing apartment surface from the room count", () => {
     expect(
       getMarketValuationSurfaces({

@@ -116,6 +116,19 @@ export function buildMarketComparablesAnalysis(
   };
 }
 
+export function marketReferenceConfidence(estimate: MarketEstimate | null) {
+  if (!estimate)
+    return {
+      confidence: "low" as const,
+      confidenceLabel: "Référence DVF non disponible",
+    };
+  const confidence = resolveConfidence(estimate);
+  return {
+    confidence,
+    confidenceLabel: confidenceLabel({ estimate, confidence, status: resolveStatus(estimate) }),
+  };
+}
+
 function resolveStatus(estimate: MarketEstimate): MarketComparablesAnalysis["status"] {
   if (estimate.comparableMode === "address_history" && estimate.addressHistory.length >= 2) {
     return "address_history";
@@ -126,7 +139,7 @@ function resolveStatus(estimate: MarketEstimate): MarketComparablesAnalysis["sta
 }
 
 function resolveConfidence(estimate: MarketEstimate): MarketComparablesAnalysis["confidence"] {
-  if (estimate.qualityScore >= 78 && estimate.sampleSize >= 6) return "high";
+  if (estimate.qualityScore >= 78 && estimate.sampleSize >= 8) return "high";
   if (estimate.qualityScore >= 58 && estimate.sampleSize >= 3) return "medium";
   return "low";
 }

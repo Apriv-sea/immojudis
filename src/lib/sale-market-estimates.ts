@@ -102,8 +102,30 @@ export function saleValuationFingerprint(input: SaleValuationInput): string {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
 
-export function marketContextFromStoredRow(row: StoredEstimateRow | null): MarketContext {
+export function marketContextFromStoredRow(
+  row: StoredEstimateRow | null,
+  expectedFingerprint?: string,
+): MarketContext {
   const estimate = storedEstimate(row?.estimate ?? null);
+  const computedAt = Date.parse(row?.computed_at ?? "");
+  const sourceUpdatedAt = Date.parse(row?.source_updated_at ?? "");
+  if (
+    estimate &&
+    (!Number.isFinite(computedAt) ||
+      sourceUpdatedAt > computedAt ||
+      (expectedFingerprint != null && row?.input_fingerprint !== expectedFingerprint))
+  ) {
+    return {
+      ok: false,
+      error:
+        "Les caractéristiques ou hypothèses du bien ont changé, ou la date du calcul manque. Estimation à recalculer.",
+      estimate: null,
+      status: "queued",
+      code: null,
+      retryAfterSeconds: row ? retryAfterSeconds(row.next_refresh_at) : null,
+      computedAt: row?.computed_at ?? null,
+    };
+  }
   if (estimate) {
     const refreshing = row?.status === "pending" || row?.status === "processing";
     return {
@@ -155,7 +177,19 @@ export async function getStoredSaleMarketContext(saleId: string): Promise<Market
     .maybeSingle();
 
   if (error) throw error;
-  return marketContextFromStoredRow(data);
+  if (!data?.estimate) return marketContextFromStoredRow(data);
+
+  const { data: sale, error: saleError } = await supabaseAdmin
+    .from("auction_sales")
+    .select(SALE_INPUT_COLUMNS.join(","))
+    .eq("id", saleId)
+    .maybeSingle();
+  if (saleError) throw saleError;
+  if (!sale) throw new Error("Vente source introuvable.");
+  const fingerprint = saleValuationFingerprint(
+    buildSaleValuationInput(sale as unknown as SaleValuationSource),
+  );
+  return marketContextFromStoredRow(data, fingerprint);
 }
 
 export async function getPrecomputedMarketEstimate(saleId: string): Promise<MarketEstimate | null> {
@@ -263,11 +297,14 @@ async function processClaimedValuations(
       .update({
         input_fingerprint: fingerprint,
         source_updated_at: sale.updated_at,
+        // Never attach the new input fingerprint to an estimate computed from old inputs.
+        ...(row.input_fingerprint !== fingerprint ? { estimate: null, computed_at: null } : {}),
       })
       .eq("auction_sale_id", sale.id)
       .eq("status", "processing")
-      .eq("attempt_count", row.attempt_count)
       .eq("input_fingerprint", row.input_fingerprint)
+      .eq("attempt_count", row.attempt_count)
+      .eq("last_started_at", row.last_started_at!)
       .select("auction_sale_id")
       .maybeSingle();
 
@@ -296,7 +333,7 @@ async function processClaimedValuations(
         const code = context.code ?? "INTERNAL_ERROR";
         const transientFailure = code === "UPSTREAM_UNAVAILABLE" || code === "INTERNAL_ERROR";
         const outcome = transientFailure ? "failed" : "insufficient_data";
-        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, {
+        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, row, {
           status: outcome,
           input_fingerprint: fingerprint,
           source_updated_at: sale.updated_at,
@@ -331,7 +368,7 @@ async function processClaimedValuations(
       const estimate = context.estimate;
       if (!estimate.estimatedValueEur || estimate.estimatedValueEur <= 0) {
         const code: MarketEstimateErrorCode = "NO_COMPARABLES";
-        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, {
+        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, row, {
           status: "insufficient_data",
           input_fingerprint: fingerprint,
           source_updated_at: sale.updated_at,
@@ -365,7 +402,7 @@ async function processClaimedValuations(
         return;
       }
 
-      const published = await publishStoredEstimateForClaim(sale.id, fingerprint, {
+      const published = await publishStoredEstimateForClaim(sale.id, fingerprint, row, {
         status: "ready",
         input_fingerprint: fingerprint,
         source_updated_at: sale.updated_at,
@@ -404,7 +441,7 @@ async function processClaimedValuations(
       const message = errorMessage(error);
       const code = marketEstimateErrorCode(error);
       try {
-        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, {
+        const published = await publishStoredEstimateForClaim(sale.id, fingerprint, row, {
           status: "failed",
           input_fingerprint: fingerprint,
           source_updated_at: sale.updated_at,
@@ -439,14 +476,18 @@ async function processClaimedValuations(
 export async function publishStoredEstimateForClaim(
   saleId: string,
   claimedFingerprint: string,
+  claim: Pick<StoredEstimateRow, "attempt_count" | "last_started_at">,
   update: StoredEstimateUpdate,
 ): Promise<boolean> {
+  if (!claim.last_started_at) return false;
   const { data, error } = await supabaseAdmin
     .from("auction_sale_market_estimates")
     .update(update)
     .eq("auction_sale_id", saleId)
     .eq("input_fingerprint", claimedFingerprint)
     .eq("status", "processing")
+    .eq("attempt_count", claim.attempt_count)
+    .eq("last_started_at", claim.last_started_at)
     .select("auction_sale_id")
     .maybeSingle();
   if (error) throw error;

@@ -3,6 +3,43 @@ import { buildDpeAnalysis } from "@/lib/dpe-analysis";
 import { EXAMPLE_SALE } from "@/lib/example-sale";
 
 describe("DPE analysis", () => {
+  it("keeps technical provenance separate from the readable evidence excerpt", () => {
+    const analysis = buildDpeAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: {
+        sale_procedure: {
+          verification: { case_sources: [{ label: "Diagnostics techniques.pdf" }] },
+        },
+      },
+      source_blocks_by_source: {},
+      documents_rich: [],
+      risks: [],
+    });
+    expect(analysis.evidence).toContainEqual(
+      expect.objectContaining({
+        excerpt: "Diagnostics techniques.pdf",
+        sourceField: "sale_procedure.verification.case_sources[0].label",
+      }),
+    );
+    expect(analysis.evidence.every((item) => !item.excerpt.includes("sale_procedure"))).toBe(true);
+    expect(analysis.class).toBeNull();
+  });
+  it("does not label a building letter in a source page as an energy rating", () => {
+    const analysis = buildDpeAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: {
+        page_text: "Appartement à Toulouse, bâtiment A. Diagnostics techniques disponibles.",
+      },
+      source_blocks_by_source: {},
+      documents_rich: [],
+      risks: [],
+    });
+    expect(analysis.class).toBeNull();
+    expect(analysis.impactLevel).toBe("unknown");
+    expect(analysis.renovationPriority).toBe("unknown");
+    expect(analysis.evidence.every((item) => item.label === "Indice diagnostic")).toBe(true);
+  });
+
   it("uses ADEME structured diagnostics as high-confidence DPE evidence", () => {
     const analysis = buildDpeAnalysis(
       {

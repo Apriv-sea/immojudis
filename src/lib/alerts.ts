@@ -1,4 +1,6 @@
 import { dpeMatches, extractDpe } from "@/lib/dpe";
+import { getSaleProcedure } from "@/lib/sale-procedure";
+import { parseSaleType, saleVenueMatchesType } from "@/lib/sale-types";
 import { estimateGrossYieldPct, pricePerM2 } from "@/lib/geo";
 import { getSaleSurface } from "@/lib/surface";
 import type { AuctionSale, UserAlert, UserWatchedZone } from "@/lib/types";
@@ -29,11 +31,16 @@ export function alertMatchesSale(
     | "min_market_discount_pct"
     | "dpe_classes"
     | "require_house_with_land"
-  >,
+  > &
+    Partial<Pick<UserAlert, "advanced_criteria">>,
   sale: AuctionSale,
   context: AlertMatchContext = {},
 ): AlertMatchResult {
   const reasons: string[] = [];
+  const saleType = parseSaleType(alert.advanced_criteria?.sale_type);
+  if (saleType && !saleVenueMatchesType(getSaleProcedure(sale).venueType, saleType)) {
+    return noMatch("type de vente différent");
+  }
   const surface = getSaleSurface(sale).value;
   const ppm2 = pricePerM2(sale.starting_price_eur, surface);
   const yieldPct = estimateGrossYieldPct(sale.starting_price_eur, surface, sale.department);

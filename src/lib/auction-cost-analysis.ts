@@ -16,6 +16,7 @@ export type AuctionCostAnalysis = {
   estimatedFeesEur: number | null;
   estimatedFeesPct: number | null;
   totalCostAtStartingPriceEur: number | null;
+  totalCostAtSimulatedPriceEur: number | null;
   emolumentsTtcEur: number | null;
   registrationDutiesEur: number | null;
   forfaitFraisPoursuiteEur: number | null;
@@ -33,11 +34,10 @@ type TextCandidate = {
 };
 
 const COST_KEY =
-  /frais|consignation|caution|cheque|chèque|sequestre|séquestre|paiement|surenchere|surenchère|emolument|émolument|taxe|droit/i;
-const CONSIGNATION_KEY = /consignation|caution|cheque|chèque|sequestre|séquestre|garantie/i;
+  /frais|consignation|caution|garantie|cheque|chèque|sequestre|séquestre|paiement|surenchere|surenchère|emolument|émolument|taxe|droit/i;
 const PAYMENT_KEY = /paiement|payer|delai|délai|surenchere|surenchère|consignation/i;
 const COST_CONTEXT =
-  /frais|consignation|caution|ch[eè]que|s[ée]questre|paiement|surench[eè]re|[ée]molument|taxe|droit|adjudication/i;
+  /frais|consignation|caution|garantie|ch[eè]que|s[ée]questre|paiement|surench[eè]re|[ée]molument|taxe|droits?\s+(?:d[’']enregistrement|de\s+mutation)/i;
 
 export function buildAuctionCostAnalysis({
   sale,
@@ -49,7 +49,11 @@ export function buildAuctionCostAnalysis({
   const startingPriceEur =
     positiveNumber(sale.starting_price_eur) ?? positiveNumber(acquisition.price);
   const estimatedFeesEur = startingPriceEur ? Math.round(acquisition.acquisitionFeesTotal) : null;
-  const totalCostAtStartingPriceEur = startingPriceEur ? Math.round(acquisition.totalCost) : null;
+  const totalCostAtSimulatedPriceEur = positiveNumber(acquisition.price)
+    ? Math.round(acquisition.totalCost)
+    : null;
+  const totalCostAtStartingPriceEur =
+    acquisition.price === startingPriceEur ? totalCostAtSimulatedPriceEur : null;
   const consignation = findConsignation(sale);
   const paymentTerms = collectPaymentTerms(sale);
   const sourceFeeSignals = collectSourceFeeSignals(sale);
@@ -65,13 +69,14 @@ export function buildAuctionCostAnalysis({
     estimatedFeesEur,
     estimatedFeesPct: roundOne(acquisition.acquisitionFeesPct),
     totalCostAtStartingPriceEur,
+    totalCostAtSimulatedPriceEur,
     emolumentsTtcEur: startingPriceEur ? Math.round(acquisition.emolumentsTTC) : null,
     registrationDutiesEur: startingPriceEur ? Math.round(acquisition.registrationDuties) : null,
     forfaitFraisPoursuiteEur: startingPriceEur ? Math.round(acquisition.fpt) : null,
     consignation,
     paymentTerms,
     sourceFeeSignals,
-    summary: summary({ estimatedFeesEur, totalCostAtStartingPriceEur, consignation }),
+    summary: summary({ estimatedFeesEur, totalCostAtSimulatedPriceEur, consignation }),
     nextActions: nextActions({ consignation, paymentTerms, sourceFeeSignals }),
     limitations: limitations(status),
   };
@@ -106,24 +111,24 @@ function confidenceLabel(status: AuctionCostAnalysis["status"]): string {
   if (status === "costed_with_consignation") {
     return "Simulation frais + consignation source";
   }
-  if (status === "costed") return "Simulation frais à la mise à prix";
+  if (status === "costed") return "Simulation des frais";
   if (status === "source_signals") return "Signaux de frais à chiffrer";
   return "Frais non qualifiés";
 }
 
 function summary({
   estimatedFeesEur,
-  totalCostAtStartingPriceEur,
+  totalCostAtSimulatedPriceEur,
   consignation,
 }: {
   estimatedFeesEur: number | null;
-  totalCostAtStartingPriceEur: number | null;
+  totalCostAtSimulatedPriceEur: number | null;
   consignation: AuctionCostSourceAmount | null;
 }): string {
   const parts: string[] = [];
   if (estimatedFeesEur != null) parts.push(`frais simulés ${formatMoney(estimatedFeesEur)}`);
-  if (totalCostAtStartingPriceEur != null) {
-    parts.push(`coût complet mise à prix ${formatMoney(totalCostAtStartingPriceEur)}`);
+  if (totalCostAtSimulatedPriceEur != null) {
+    parts.push(`coût complet au prix simulé ${formatMoney(totalCostAtSimulatedPriceEur)}`);
   }
   if (consignation) parts.push(`consignation repérée ${formatMoney(consignation.amountEur)}`);
   return parts.length ? `${parts.join(" · ")}.` : "Frais et consignation à confirmer.";
@@ -175,53 +180,49 @@ function limitations(status: AuctionCostAnalysis["status"]): string[] {
 }
 
 function findConsignation(sale: AuctionSale): AuctionCostSourceAmount | null {
-  const values = flattenSaleSources(sale);
-  for (const item of values) {
-    if (!CONSIGNATION_KEY.test(item.path) && !CONSIGNATION_KEY.test(cleanText(item.value) ?? "")) {
-      continue;
-    }
-    const amount = moneyValue(item.value);
-    if (amount != null) {
-      return {
-        amountEur: amount,
-        label: "Consignation",
-        source: item.source,
-      };
+  const amounts = new Map<number, AuctionCostSourceAmount>();
+  const add = (amount: number | null, source: string) => {
+    if (amount != null) amounts.set(amount, { amountEur: amount, label: "Consignation", source });
+  };
+  const sources = dedicatedFeeSources(sale);
+  for (const item of sources) {
+    const key = item.path.split(".").at(-1) ?? "";
+    if (/^(?:montant_)?(?:consignation|caution|garantie)(?:_eur|_amount)?$/i.test(key)) {
+      add(moneyValue(item.value), item.source);
     }
   }
-
-  for (const candidate of collectTextCandidates(sale)) {
-    if (!CONSIGNATION_KEY.test(candidate.text)) continue;
-    const amount = moneyValue(candidate.text);
-    if (amount != null) {
-      return {
-        amountEur: amount,
-        label: "Consignation",
-        source: candidate.source,
-      };
-    }
+  const texts = [
+    ...sources.map((item) => ({ text: cleanText(item.value), source: item.source })),
+    { text: sale.source_description ?? sale.description, source: "Description source" },
+  ];
+  for (const { text, source } of texts) {
+    if (!text) continue;
+    // Do not take the first number in a paragraph mentioning a deposit. In
+    // particular, a starting price or a percentage is not a deposit amount.
+    const pattern =
+      /\b(?:consignation|caution|garantie)(?:\s+(?:de|d['’]un|d['’]une|est|fixée|fixe|à|bancaire|irrévocable|montant)){0,6}\s*[:=]?\s*([0-9][0-9\s.,]*?)\s*(?:EUR\b|€|euros?\b)/gi;
+    for (const match of text.matchAll(pattern)) add(moneyValue(match[1]), source);
   }
-
-  return null;
+  return amounts.size === 1 ? [...amounts.values()][0] : null;
 }
 
 function collectPaymentTerms(sale: AuctionSale): string[] {
   const terms = [
-    ...flattenSaleSources(sale)
+    ...dedicatedFeeSources(sale)
       .filter(
         (item) => PAYMENT_KEY.test(item.path) || PAYMENT_KEY.test(cleanText(item.value) ?? ""),
       )
-      .map((item) => formatSignal(item.value, item.source)),
+      .map((item) => formatSignal(item.value, item.source, PAYMENT_KEY)),
     ...collectTextCandidates(sale)
       .filter((candidate) => PAYMENT_KEY.test(candidate.text))
-      .map((candidate) => formatSignal(candidate.text, candidate.source)),
+      .map((candidate) => formatSignal(candidate.text, candidate.source, PAYMENT_KEY)),
   ];
   return dedupeStrings(terms).slice(0, 6);
 }
 
 function collectSourceFeeSignals(sale: AuctionSale): string[] {
   const signals = [
-    ...flattenSaleSources(sale)
+    ...dedicatedFeeSources(sale)
       .filter((item) => COST_KEY.test(item.path) || COST_CONTEXT.test(cleanText(item.value) ?? ""))
       .map((item) => formatSignal(item.value, item.source)),
     ...collectTextCandidates(sale)
@@ -229,6 +230,16 @@ function collectSourceFeeSignals(sale: AuctionSale): string[] {
       .map((candidate) => formatSignal(candidate.text, candidate.source)),
   ];
   return dedupeStrings(signals).slice(0, 8);
+}
+
+function dedicatedFeeSources(sale: AuctionSale) {
+  return flattenSaleSources(sale).filter(
+    ({ path }) =>
+      !/(?:^|\.)(?:page_text|description|titre|titre_detail|related|similar|autres_annonces)(?:$|\.|\[)/i.test(
+        path,
+      ) &&
+      (COST_KEY.test(path) || /conditions|payment_terms/i.test(path)),
+  );
 }
 
 function flattenSaleSources(
@@ -250,13 +261,7 @@ function flattenSaleSources(
 
 function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   const candidates: TextCandidate[] = [];
-
-  addCandidate(candidates, sale.description, "Description annonce");
-  addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
-  addCandidate(candidates, sale.risk_notes, "Notes de risques");
+  addCandidate(candidates, sale.source_description ?? sale.description, "Description source");
 
   for (const document of sale.documents_rich ?? []) {
     addCandidate(
@@ -270,7 +275,7 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
     for (const text of riskTexts(risk)) addCandidate(candidates, text, "Preuves de risques");
   }
 
-  return candidates.filter((candidate) => COST_CONTEXT.test(candidate.text));
+  return candidates;
 }
 
 function riskTexts(risk: SaleRisk): string[] {
@@ -278,7 +283,7 @@ function riskTexts(risk: SaleRisk): string[] {
   const evidence = risk.evidence_json;
   if (evidence && typeof evidence === "object") {
     const record = evidence as Record<string, unknown>;
-    texts.push(record.excerpt, record.reasoning, record.why_it_matters, record.next_action);
+    texts.push(record.excerpt);
   }
   for (const occurrence of risk.occurrences ?? []) {
     texts.push(occurrence.document_label, occurrence.document_type, occurrence.excerpt);
@@ -314,9 +319,14 @@ function moneyValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.round(value);
   const text = cleanText(value);
   if (!text) return null;
-  const match = text.match(/(?:EUR|€)?\s*([0-9][0-9\s.,]{2,})(?:\s*(?:EUR|€))?/i);
+  const match = text.match(/^(?:EUR|€)?\s*([0-9][0-9\s.,]*)(?:\s*(?:EUR|€|euros?))?$/i);
   if (!match) return null;
-  const normalized = match[1].replace(/\s/g, "").replace(",", ".");
+  const compact = match[1].replace(/\s/g, "");
+  const normalized = compact.includes(",")
+    ? compact.replace(/\./g, "").replace(",", ".")
+    : /^\d{1,3}(?:\.\d{3})+$/.test(compact)
+      ? compact.replace(/\./g, "")
+      : compact;
   const number = Number.parseFloat(normalized);
   return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
 }
@@ -329,9 +339,14 @@ function roundOne(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.round(value * 10) / 10 : null;
 }
 
-function formatSignal(value: unknown, source: string): string {
+function formatSignal(value: unknown, source: string, pattern = COST_CONTEXT): string {
   const text = cleanText(value) ?? "Signal frais";
-  return `${source} · ${excerpt(text)}`;
+  const match = pattern.exec(text);
+  // Keep the cost clause visible even when the source starts with a long heading.
+  const start = Math.max(0, (match?.index ?? 0) - 45);
+  const boundary = start ? text.indexOf(" ", start) : 0;
+  const offset = boundary >= 0 && boundary < (match?.index ?? 0) ? boundary + 1 : start;
+  return `${source} · ${offset ? "… " : ""}${excerpt(text.slice(offset))}`;
 }
 
 function dedupeStrings(values: string[]): string[] {

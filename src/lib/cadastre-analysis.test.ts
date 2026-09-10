@@ -1,8 +1,105 @@
 import { describe, expect, it } from "vitest";
-import { buildCadastralAnalysis } from "@/lib/cadastre-analysis";
+import { buildCadastralAnalysis, formatCadastralReference } from "@/lib/cadastre-analysis";
 import { EXAMPLE_SALE } from "@/lib/example-sale";
 
 describe("cadastral analysis", () => {
+  it("preserves the prefixed cadastral reference in the real Toulouse source wording", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_description:
+        "Résidence cadastrée Section 844 AN n°112, pour une contenance de 44a 34ca. Tél 05.61.52.36.83.",
+      description: null,
+      source_blocks: null,
+      source_blocks_by_source: null,
+      risks: [],
+    });
+    expect(analysis.references).toEqual([
+      expect.objectContaining({
+        prefix: "844",
+        section: "AN",
+        number: "112",
+        confidence: "inferred",
+      }),
+    ]);
+    expect(formatCadastralReference(analysis.references[0])).toBe("Section 844 AN n° 112");
+  });
+
+  it("does not turn phone numbers, dates or apartment types into parcel references", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: {
+        page_text:
+          "Plan cadastral disponible. Tél 05.61.52.36.83. Audience le 10 septembre. Appartement T5. Les 216 lots.",
+      },
+      source_blocks_by_source: null,
+      description: null,
+      source_description: null,
+      risks: [],
+      documents_rich: [],
+      land_surface_m2: null,
+    });
+    expect(analysis.references).toEqual([]);
+    expect(analysis.status).toBe("missing");
+  });
+
+  it("keeps a real explicit section without collecting unrelated numbers from the same page", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: {
+        page_text:
+          "Tél 05.61.52.36.83, vente le 10. Parcelle cadastrée section AN n° 112. Appartement T5, 216 lots.",
+      },
+      source_blocks_by_source: null,
+      description: null,
+      source_description: null,
+      risks: [],
+    });
+    expect(analysis.references).toEqual([
+      expect.objectContaining({ section: "AN", number: "112", confidence: "inferred" }),
+    ]);
+    expect(analysis.confidence).toBe("medium");
+  });
+
+  it("does not combine section and number from separate source records", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: { first: { cadastral_section: "AB" }, second: { numero_parcelle: "42" } },
+      source_blocks_by_source: null,
+      description: null,
+      source_description: null,
+      risks: [],
+    });
+    expect(analysis.references).toEqual([]);
+  });
+
+  it("accepts a compact reference only in a dedicated cadastral field", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: { cadastre: "AB 42", terrain: "T5" },
+      source_blocks_by_source: null,
+      description: null,
+      source_description: null,
+      risks: [],
+    });
+    expect(analysis.references).toEqual([
+      expect.objectContaining({ section: "AB", number: "42", confidence: "direct" }),
+    ]);
+  });
+
+  it("does not use generated descriptions as cadastral evidence", () => {
+    const analysis = buildCadastralAnalysis({
+      ...EXAMPLE_SALE,
+      source_blocks: null,
+      source_blocks_by_source: null,
+      description: null,
+      source_description: null,
+      llm_display_description: "Section ZZ n° 999",
+      about_description: "Section ZZ n° 999",
+      risks: [],
+    });
+    expect(analysis.references).toEqual([]);
+  });
+
   it("uses API Carto structured parcels before text-only cadastral signals", () => {
     const analysis = buildCadastralAnalysis(
       {
@@ -90,7 +187,7 @@ describe("cadastral analysis", () => {
   it("extracts cadastral references from source text when the wording is explicit", () => {
     const analysis = buildCadastralAnalysis({
       ...EXAMPLE_SALE,
-      description:
+      source_description:
         "Maison édifiée sur une parcelle cadastrée section ZK n° 42, avec cour et dépendance.",
       source_blocks: null,
     });

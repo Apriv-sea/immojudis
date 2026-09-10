@@ -2572,6 +2572,9 @@ export type Database = {
           is_archived: boolean;
           name: string;
           notes: string | null;
+          share_expires_at: string | null;
+          share_token_hash: string | null;
+          shared_at: string | null;
           summary_snapshot: Json;
           updated_at: string;
           user_id: string;
@@ -2584,6 +2587,9 @@ export type Database = {
           is_archived?: boolean;
           name: string;
           notes?: string | null;
+          share_expires_at?: string | null;
+          share_token_hash?: string | null;
+          shared_at?: string | null;
           summary_snapshot?: Json;
           updated_at?: string;
           user_id: string;
@@ -2596,6 +2602,9 @@ export type Database = {
           is_archived?: boolean;
           name?: string;
           notes?: string | null;
+          share_expires_at?: string | null;
+          share_token_hash?: string | null;
+          shared_at?: string | null;
           summary_snapshot?: Json;
           updated_at?: string;
           user_id?: string;
@@ -3766,6 +3775,10 @@ export type Database = {
     Views: {
       v_auction_sales_app: {
         Row: {
+          sale_procedure: Json | null;
+          sale_venue_type: string | null;
+          sale_legal_framework: string | null;
+          sale_verification_status: string | null;
           address: string | null;
           adjudication_price_eur: number | null;
           about_description: string | null;
@@ -3978,6 +3991,86 @@ export type Database = {
           id: string;
           starting_price_eur: number | null;
           total_count: number;
+        }[];
+      };
+      search_auction_sales_preview_v2: {
+        Args: {
+          p_sale_venue_type?: string | null;
+          p_city?: string | null;
+          p_departments?: string[] | null;
+          p_east?: number | null;
+          p_keywords?: string[] | null;
+          p_limit?: number;
+          p_max_price?: number | null;
+          p_max_surface?: number | null;
+          p_min_bathrooms?: number | null;
+          p_min_bedrooms?: number | null;
+          p_min_price?: number | null;
+          p_min_score?: number | null;
+          p_min_surface?: number | null;
+          p_north?: number | null;
+          p_occupancy_status?: string | null;
+          p_offset?: number;
+          p_postal_code?: string | null;
+          p_property_types?: string[] | null;
+          p_sort?: string;
+          p_south?: number | null;
+          p_statuses?: string[] | null;
+          p_tribunal?: string | null;
+          p_west?: number | null;
+        };
+        Returns: {
+          id: string;
+          starting_price_eur: number | null;
+          sale_venue_type: string;
+          sale_verification_status: string;
+          total_count: number;
+        }[];
+      };
+      search_auction_sales_preview_v3: {
+        Args: {
+          p_sale_venue_type?: string | null;
+          p_city?: string | null;
+          p_departments?: string[] | null;
+          p_east?: number | null;
+          p_keywords?: string[] | null;
+          p_limit?: number;
+          p_max_price?: number | null;
+          p_max_surface?: number | null;
+          p_min_bathrooms?: number | null;
+          p_min_bedrooms?: number | null;
+          p_min_price?: number | null;
+          p_min_score?: number | null;
+          p_min_surface?: number | null;
+          p_north?: number | null;
+          p_occupancy_status?: string | null;
+          p_offset?: number;
+          p_postal_code?: string | null;
+          p_property_types?: string[] | null;
+          p_sort?: string;
+          p_south?: number | null;
+          p_statuses?: string[] | null;
+          p_tribunal?: string | null;
+          p_west?: number | null;
+        };
+        Returns: {
+          id: string;
+          starting_price_eur: number | null;
+          sale_venue_type: string;
+          sale_verification_status: string;
+          total_count: number;
+          city: string | null;
+          department: string | null;
+          property_type: string | null;
+          sale_date: string | null;
+          app_surface_m2: number | null;
+          app_surface_kind: string | null;
+          rooms_count: number | null;
+          bedrooms_count: number | null;
+          bathrooms_count: number | null;
+          latitude: number | null;
+          longitude: number | null;
+          thumbnail_url: string | null;
         }[];
       };
       search_dvf_market_comparables: {

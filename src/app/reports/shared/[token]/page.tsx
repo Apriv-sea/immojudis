@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSharedPropertyReport } from "@/lib/property-reports";
+import { ReportSourceChangedError } from "@/lib/property-report/source-integrity";
 import { formatDate, formatPrice, formatPricePerM2 } from "@/lib/format";
+import { reportSaleSchedule } from "@/lib/report-sale-schedule";
+import { reportSimulationSchema } from "@/lib/report-simulation";
 
 type PageParams = {
   params: Promise<{ token: string }>;
@@ -17,8 +20,22 @@ export const metadata: Metadata = {
 
 export default async function SharedReportPage({ params }: PageParams) {
   const { token } = await params;
-  const report = await getSharedPropertyReport({ token }).catch(() => null);
+  const report = await getSharedPropertyReport({ token }).catch((error: unknown) =>
+    error instanceof ReportSourceChangedError ? error : null,
+  );
   if (!report) notFound();
+  if (report instanceof ReportSourceChangedError) {
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-16">
+        <h1 className="text-3xl font-semibold">Rapport à actualiser</h1>
+        <p className="mt-4 text-slate-700">
+          Les données de cette analyse ne peuvent plus être confirmées. Demandez à la personne qui
+          vous a transmis ce lien de sauvegarder une nouvelle analyse depuis l’annonce, puis de vous
+          partager le lien actualisé.
+        </p>
+      </main>
+    );
+  }
 
   const sale = report.sale;
   const analysis = report.analysis;
@@ -95,6 +112,7 @@ export default async function SharedReportPage({ params }: PageParams) {
   );
   const audienceReadinessActions = normalizeStringList(audienceReadinessAnalysis.nextActions);
   const ceiling = asRecord(report.ceiling);
+  const personalSimulation = reportSimulationSchema.safeParse(ceiling.personalSimulation);
 
   return (
     <main className="liquid-page min-h-screen px-4 py-10 text-foreground sm:px-6">
@@ -118,7 +136,9 @@ export default async function SharedReportPage({ params }: PageParams) {
             value={joinValues(sale.address, sale.city, sale.department)}
           />
           <SharedMetric label="Tribunal" value={stringValue(sale.tribunal, "À confirmer")} />
-          <SharedMetric label="Audience" value={formatDate(stringValue(sale.saleDate, null))} />
+          {reportSaleSchedule(sale).map(({ label, value }) => (
+            <SharedMetric key={label} label={label} value={value} />
+          ))}
           <SharedMetric
             label="Préparation audience"
             value={stringValue(audienceReadinessAnalysis.summary, "À compléter")}
@@ -178,6 +198,58 @@ export default async function SharedReportPage({ params }: PageParams) {
             value={stringValue(activeComparablesAnalysis.summary, "À rechercher")}
           />
         </section>
+
+        {personalSimulation.success ? (
+          <section className="border-b border-border py-5" aria-labelledby="shared-simulation">
+            <h2 id="shared-simulation" className="text-lg font-semibold text-foreground">
+              Scénario personnel sauvegardé
+            </h2>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <SharedMetric
+                label="Prix simulé"
+                value={formatPrice(personalSimulation.data.price)}
+              />
+              <SharedMetric
+                label="Travaux saisis"
+                value={formatPrice(personalSimulation.data.works)}
+              />
+              <SharedMetric
+                label="Frais préalables saisis"
+                value={formatPrice(personalSimulation.data.fpt)}
+              />
+              <SharedMetric
+                label="Scénario"
+                value={
+                  { prudent: "Prudent", offensif: "Offensif", custom: "Personnalisé" }[
+                    personalSimulation.data.scenario
+                  ]
+                }
+              />
+              <SharedMetric
+                label="Marge de sécurité"
+                value={formatPercent(numberValue(ceiling.safetyDiscountPct))}
+              />
+              <SharedMetric
+                label="Base retenue"
+                value={stringValue(ceiling.basisLabel, "À confirmer")}
+              />
+              <SharedMetric
+                label="Coût complet au prix simulé"
+                value={
+                  typeof acquisitionCosts.totalCost === "number"
+                    ? formatPrice(acquisitionCosts.totalCost)
+                    : "À confirmer"
+                }
+              />
+              {personalSimulation.data.manualMarketPricePerM2 != null ? (
+                <SharedMetric
+                  label="Référence de marché saisie"
+                  value={formatPricePerM2(personalSimulation.data.manualMarketPricePerM2)}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         {marketComparables.available ? (
           <section className="border-b border-border py-5">
@@ -989,7 +1061,7 @@ export default async function SharedReportPage({ params }: PageParams) {
               Sources et traçabilité
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {sourceTrace.slice(0, 8).map((entry) => (
+              {sourceTrace.map((entry) => (
                 <div key={entry.id} className="rounded-lg border border-border bg-muted/25 p-3">
                   <p className="text-sm font-semibold text-foreground">{entry.label}</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -1092,7 +1164,8 @@ function normalizeCadastralReferences(value: unknown): string[] {
       const section = stringValue(record.section, "");
       const number = stringValue(record.number, "");
       const raw = stringValue(record.raw, "");
-      if (section && number) return `Section ${section} n° ${number}`;
+      const prefix = stringValue(record.prefix, "");
+      if (section && number) return `Section ${prefix ? `${prefix} ` : ""}${section} n° ${number}`;
       return raw;
     })
     .filter(Boolean);

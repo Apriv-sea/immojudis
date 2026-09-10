@@ -20,6 +20,7 @@ import {
 import { Link } from "@/lib/router-compat";
 import type { InformationAgentMission } from "@/lib/information-agent";
 import type { AuctionSale } from "@/lib/types";
+import { listingContactEmail } from "@/lib/listing-evidence";
 
 const STATUS_LABELS: Record<InformationAgentMission["status"], string> = {
   draft: "Brouillon à valider",
@@ -45,7 +46,7 @@ export function InformationRequestAgent({
   const queryKey = ["information-agent", sale.id, user?.id ?? "anonymous"] as const;
   const [selectedMission, setSelectedMission] = useState<InformationAgentMission | null>(null);
   const [startNew, setStartNew] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState(() => extractEmail(sale.lawyer_contact));
+  const [recipientEmail, setRecipientEmail] = useState(() => listingContactEmail(sale));
   const [recipientName, setRecipientName] = useState(sale.lawyer_name ?? "");
   const [subject, setSubject] = useState("");
   const [bodyText, setBodyText] = useState("");
@@ -165,12 +166,12 @@ export function InformationRequestAgent({
     <section
       id="information-agent"
       aria-labelledby="information-agent-title"
-      className="overflow-hidden rounded-2xl border border-gold/25 bg-[linear-gradient(135deg,rgba(246,240,226,0.95),rgba(255,255,255,0.98))] shadow-sm"
+      className="scroll-mt-36 overflow-hidden rounded-2xl border border-gold/25 bg-[linear-gradient(135deg,rgba(246,240,226,0.95),rgba(255,255,255,0.98))] shadow-sm"
     >
       <div className="border-b border-gold/20 px-5 py-5 sm:px-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-2xl">
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-soft">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#8a5b24]">
               <Bot className="h-4 w-4" />
               Agent IA supervisé · Analyse
             </div>
@@ -226,6 +227,29 @@ export function InformationRequestAgent({
         ) : entitlementsQuery.isLoading || missionsQuery.isLoading ? (
           <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Chargement de l’agent…
+          </div>
+        ) : entitlementsQuery.isError || missionsQuery.isError ? (
+          <div
+            role="alert"
+            className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          >
+            <p>
+              Impossible de vérifier les enquêtes existantes. Réessayez avant de préparer une
+              nouvelle demande.
+            </p>
+            <Button
+              variant="outline"
+              className="h-auto min-h-9 max-w-full whitespace-normal"
+              disabled={entitlementsQuery.isFetching || missionsQuery.isFetching}
+              onClick={async () => {
+                const access = await entitlementsQuery.refetch();
+                if (access.data?.plan.features.informationAgent === "included") {
+                  await missionsQuery.refetch();
+                }
+              }}
+            >
+              Réessayer le chargement
+            </Button>
           </div>
         ) : !activeMission ? (
           <DraftStarter
@@ -567,8 +591,8 @@ function DraftStarter({
         <div className="flex items-start gap-3 text-sm text-muted-foreground">
           <MailSearch className="mt-0.5 h-5 w-5 shrink-0 text-gold-soft" />
           <span>
-            L’agent analysera les lacunes de cette annonce et préparera les questions utiles. Cette
-            étape n’envoie aucun email.
+            Vérifiez le destinataire proposé à partir de l’annonce. L’agent analysera les lacunes de
+            cette annonce et préparera les questions utiles. Cette étape n’envoie aucun email.
           </span>
         </div>
         <Button
@@ -604,10 +628,6 @@ function Field({
 
 const fieldClassName =
   "w-full rounded-md border border-border bg-white px-3 py-2 text-sm font-normal text-foreground outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/15";
-
-function extractEmail(value: string | null | undefined): string {
-  return value?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
-}
 
 function gapLabel(value: string): string {
   return (

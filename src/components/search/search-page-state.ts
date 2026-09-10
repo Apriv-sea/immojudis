@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
@@ -92,8 +91,10 @@ import {
 } from "@/lib/search/search-service";
 import type { MapViewportChange } from "./MapPanel";
 import { SearchPagination } from "./SearchPagination";
+import { parseSaleType, saleTypeFilterLabel, type SaleTypeFilter } from "@/lib/sale-types";
 
 export type SearchDraft = {
+  saleType: SaleTypeFilter | "";
   city: string;
   department: string;
   tribunal: string;
@@ -131,6 +132,7 @@ export type SearchStatistics = {
 
 export function searchToDraft(search: SalesSearchParams): SearchDraft {
   return {
+    saleType: search.saleType ?? "",
     city: search.city ?? "",
     department: search.department ?? "",
     tribunal: search.tribunal ?? "",
@@ -160,6 +162,7 @@ export function searchToDraft(search: SalesSearchParams): SearchDraft {
 
 export function emptySearchDraft(): SearchDraft {
   return {
+    saleType: "",
     city: "",
     department: "",
     tribunal: "",
@@ -189,6 +192,7 @@ export function emptySearchDraft(): SearchDraft {
 
 export function draftToSearch(draft: SearchDraft, current: SalesSearchParams): SalesSearchParams {
   return {
+    saleType: parseSaleType(draft.saleType),
     sort: current.sort,
     viewport: current.viewport,
     limit: current.limit,
@@ -344,6 +348,7 @@ export function useMediaQuery(query: string) {
 
 export function buildAlertName(search: SalesSearchParams) {
   const segments = [
+    search.saleType ? saleTypeFilterLabel(search.saleType) : null,
     search.city,
     search.tribunal,
     search.department ? `Dép. ${search.department}` : null,

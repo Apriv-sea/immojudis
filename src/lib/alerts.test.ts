@@ -113,6 +113,21 @@ function makeWatchedZone(overrides: Partial<UserWatchedZone> = {}): UserWatchedZ
 }
 
 describe("smart alert matching", () => {
+  it("respects the saved sale family, including judicial-origin notarial sales", () => {
+    const alert = makeAlert({ advanced_criteria: { sale_type: "notary" } });
+    expect(
+      alertMatchesSale(alert, makeSale({ sale_venue_type: "tribunal" }), { marketDiscountPct: 30 })
+        .matches,
+    ).toBe(false);
+    expect(
+      alertMatchesSale(
+        alert,
+        makeSale({ sale_venue_type: "notary", sale_legal_framework: "judicial_partition" }),
+        { marketDiscountPct: 30 },
+      ).matches,
+    ).toBe(true);
+  });
+
   it("matches a sale when all advanced criteria are satisfied", () => {
     const result = alertMatchesSale(makeAlert(), makeSale(), { marketDiscountPct: 28 });
 

@@ -1,4 +1,5 @@
 import { formatPrice, propertyTypeLabel } from "@/lib/format";
+import { isActiveComparableSale } from "@/lib/sale-window";
 import { getSaleSurface } from "@/lib/surface";
 import type { AuctionSale } from "@/lib/types";
 
@@ -44,7 +45,10 @@ export function buildActiveComparablesAnalysis({
   now?: Date;
 }): ActiveComparablesAnalysis {
   const items = candidates
-    .filter((candidate) => candidate.id && candidate.id !== sale.id)
+    .filter(
+      (candidate) =>
+        candidate.id && candidate.id !== sale.id && isActiveComparableSale(candidate, now),
+    )
     .map((candidate) => comparableItem({ sale, candidate, now }))
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 8);
@@ -167,6 +171,18 @@ function scoreCandidate({
     }
   }
 
+  if (!sale.property_type || candidate.property_type !== sale.property_type) {
+    reasons.unshift("Type de bien différent ou non confirmé");
+    score = Math.min(score, 69);
+  }
+  const sameArea = Boolean(
+    (sale.city && candidate.city === sale.city) ||
+    (sale.department && candidate.department === sale.department),
+  );
+  if (!sameArea) {
+    reasons.unshift("Hors du secteur géographique confirmé : référence locale à vérifier");
+    score = Math.min(score, 69);
+  }
   return { score: clamp(score), reasons: reasons.slice(0, 5) };
 }
 
@@ -179,7 +195,7 @@ function confidenceForStatus({
   items: ActiveComparableItem[];
   strongMatches: ActiveComparableItem[];
 }): ActiveComparablesAnalysis["confidence"] {
-  if (status === "missing") return "low";
+  if (status !== "matched") return "low";
   if (strongMatches.length >= 3) return "high";
   if (items.length >= 2) return "medium";
   return "low";
@@ -208,9 +224,12 @@ function summary({
   scopeLabel: string;
 }): string {
   if (!items.length) return "Aucun bien comparable en vente repéré dans le périmètre actuel.";
-  const best = items[0];
+  if (!strongMatches.length) {
+    return `${items.length} candidat(s) dans "${scopeLabel}". Aucun bien retenu selon les critères de comparaison ; aucune référence recommandée.`;
+  }
+  const best = strongMatches[0];
   const price = best.startingPriceEur != null ? `, ${formatPrice(best.startingPriceEur)}` : "";
-  return `${items.length} bien(s) actif(s) dans "${scopeLabel}", dont ${strongMatches.length} proche(s). Meilleur match : ${best.matchLabel}${price}.`;
+  return `${items.length} bien(s) actif(s) dans "${scopeLabel}", dont ${strongMatches.length} retenu(s) selon les critères de comparaison. Meilleur candidat : ${best.matchLabel}${price}.`;
 }
 
 function decisionImpact(status: ActiveComparablesAnalysis["status"]): string {
@@ -234,6 +253,13 @@ function nextActions({
     return [
       "Élargir le périmètre de recherche aux ventes du département ou du tribunal.",
       "Comparer avec les ventes DVF vendues si aucune audience active proche n'existe.",
+    ];
+  }
+  if (status === "candidates_only") {
+    return [
+      "Rechercher des biens de même type dans le secteur du bien étudié.",
+      "Vérifier localisation, surface, état et occupation avant de retenir un candidat.",
+      "Ne pas utiliser les candidats non retenus comme références de valeur.",
     ];
   }
   const actions = [

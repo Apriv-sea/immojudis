@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { salesSearchToUrlRecord, validateSalesSearch } from "./search-url-state";
+import { mergeSalesSearch, salesSearchToUrlRecord, validateSalesSearch } from "./search-url-state";
 
 describe("sales search URL state", () => {
+  it("round-trips sale families and resets pagination when the family changes", () => {
+    const next = mergeSalesSearch(
+      { saleType: "tribunal", page: 4, city: "Bordeaux" },
+      { saleType: "notary" },
+    );
+    expect(next.page).toBeUndefined();
+    expect(validateSalesSearch(salesSearchToUrlRecord(next))).toMatchObject({
+      saleType: "notary",
+      city: "Bordeaux",
+    });
+    expect(validateSalesSearch({ saleType: "online" }).saleType).toBeUndefined();
+    expect(validateSalesSearch({ saleType: "invalid" }).saleType).toBeUndefined();
+  });
+
   it("preserves numeric-looking geographic searches parsed by the router", () => {
     expect(validateSalesSearch({ q: 33000, department: 33 })).toMatchObject({
       query: "33000",

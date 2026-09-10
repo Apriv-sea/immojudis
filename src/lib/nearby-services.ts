@@ -1,4 +1,4 @@
-import type { AuctionSale, SaleRisk } from "@/lib/types";
+import type { AuctionSale } from "@/lib/types";
 
 export type NearbyServiceCategoryKey =
   | "transport"
@@ -193,7 +193,7 @@ function nearbyConfidence({
   mentionedCategories: string[];
   locationQuality: NearbyServicesAnalysis["locationQuality"];
 }): NearbyServicesAnalysis["confidence"] {
-  if (mentionedCategories.length >= 3 && locationQuality === "coordinates") return "high";
+  // Several keywords and coordinates do not independently confirm nearby services.
   if (mentionedCategories.length || locationQuality === "coordinates") return "medium";
   return "low";
 }
@@ -225,7 +225,7 @@ function nearbySummary({
     return `${mentionedCategories.length} famille(s) de services repérée(s) : ${mentionedCategories.join(", ")}.`;
   }
   if (locationQuality === "coordinates") {
-    return "Bien géocodé : distances aux services à calculer par provider POI.";
+    return "Bien localisé : distances aux services à vérifier.";
   }
   if (locationQuality === "address" || locationQuality === "commune") {
     return "Localisation disponible : services de proximité à enrichir.";
@@ -265,7 +265,7 @@ function nearbyNextActions({
     );
   } else {
     actions.push(
-      "Interroger un provider POI pour qualifier transports, écoles, commerces, santé et espaces verts.",
+      "Consulter une carte à jour pour repérer transports, écoles, commerces, santé et espaces verts.",
     );
   }
 
@@ -290,43 +290,22 @@ function nearbyLimitations(status: NearbyServicesAnalysis["status"]): string[] {
 
 function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   const candidates: TextCandidate[] = [];
-
-  addCandidate(candidates, sale.title, "Titre annonce");
-  addCandidate(candidates, sale.description, "Description annonce");
-  addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.address, "Adresse");
-  addCandidate(candidates, sale.city, "Commune");
-  addCandidate(candidates, sale.tribunal, "Tribunal");
-  addCandidate(candidates, sale.tribunal_name, "Tribunal");
-
-  for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
-    addCandidate(candidates, `${item.path}: ${cleanText(item.value)}`, "Données source");
-  }
-
-  for (const [sourceName, blocks] of Object.entries(sale.source_blocks_by_source ?? {})) {
+  addCandidate(candidates, sale.source_description ?? sale.description, "Description source");
+  const addBlocks = (blocks: unknown, source: string) => {
     for (const item of flattenKeyValues(blocks)) {
-      addCandidate(
-        candidates,
-        `${item.path}: ${cleanText(item.value)}`,
-        `Données source ${sourceName}`,
-      );
+      if (
+        /(?:^|\.)(?:quartier|neighborhood|proximite|nearby_services|services_proximite)(?:\.|$)/i.test(
+          item.path,
+        )
+      ) {
+        addCandidate(candidates, item.value, source);
+      }
     }
+  };
+  addBlocks(sale.source_blocks, "Données source");
+  for (const [source, blocks] of Object.entries(sale.source_blocks_by_source ?? {})) {
+    addBlocks(blocks, `Données source ${source}`);
   }
-
-  for (const document of sale.documents_rich ?? []) {
-    addCandidate(
-      candidates,
-      `${document.type ?? ""} ${document.document_type ?? ""} ${document.label ?? ""}`,
-      "Pièces du dossier",
-    );
-  }
-
-  for (const risk of sale.risks ?? []) {
-    for (const text of riskTexts(risk)) addCandidate(candidates, text, "Preuves de risques");
-  }
-
   return candidates;
 }
 
@@ -337,22 +316,18 @@ function resolveLocationQuality(sale: AuctionSale): NearbyServicesAnalysis["loca
   return "missing";
 }
 
-function riskTexts(risk: SaleRisk): string[] {
-  const texts: unknown[] = [risk.risk_label, risk.evidence];
-  const evidence = risk.evidence_json;
-  if (evidence && typeof evidence === "object") {
-    const record = evidence as Record<string, unknown>;
-    texts.push(record.excerpt, record.reasoning, record.why_it_matters, record.next_action);
-  }
-  for (const occurrence of risk.occurrences ?? []) {
-    texts.push(occurrence.document_label, occurrence.document_type, occurrence.excerpt);
-  }
-  return texts.map(cleanText).filter((text): text is string => Boolean(text));
-}
-
 function addCandidate(candidates: TextCandidate[], value: unknown, source: string) {
   const text = cleanText(value);
-  if (text) candidates.push({ text, source });
+  if (!text) return;
+  for (const sentence of text.split(/[.!?;\n]+/)) {
+    if (
+      /\b(?:proche|proximite|deux pas|a cote|distance|a pied)\b|\b\d+\s*(?:m|metres|km|minutes|min)\b/i.test(
+        normalizeText(sentence),
+      )
+    ) {
+      candidates.push({ text: sentence.trim(), source });
+    }
+  }
 }
 
 function flattenKeyValues(value: unknown, path = ""): Array<{ path: string; value: unknown }> {

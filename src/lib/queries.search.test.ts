@@ -2,6 +2,37 @@ import { describe, expect, it } from "vitest";
 import { getSales } from "./queries";
 
 describe("Supabase sale search query", () => {
+  it.each([false, true])(
+    "filters sale types before pagination, including preview=%s",
+    async (preview) => {
+      const builder = new QueryRecorder();
+      await getSales({ sale_venue_type: "notary" }, 12, "price_asc", 24, {
+        preview,
+        discovery: true,
+        client: { from: () => builder } as never,
+      });
+      expect(builder.calls).toContainEqual(["eq", "sale_venue_type", "notary"]);
+      expect(builder.calls).toContainEqual(["range", 24, 35]);
+      const columns = String(builder.calls.find((call) => call[0] === "select")?.[1]);
+      expect(columns).toContain("sale_venue_type");
+      expect(columns).toContain("sale_verification_status");
+      if (preview) {
+        expect(columns).not.toContain("lawyer_contact");
+        expect(columns).not.toContain("sale_procedure");
+      } else {
+        expect(columns).toContain("sale_procedure");
+      }
+    },
+  );
+
+  it("does not treat legacy online entries as an organizer family", async () => {
+    const builder = new QueryRecorder();
+    await getSales({ sale_venue_type: "unknown" }, 24, "price_asc", 0, {
+      client: { from: () => builder } as never,
+    });
+    expect(builder.calls).toContainEqual(["in", "sale_venue_type", ["unknown", "online"]]);
+  });
+
   it("applies department names, postal codes and accent-tolerant multi-term text filters", async () => {
     const builder = new QueryRecorder();
     const client = { from: () => builder };

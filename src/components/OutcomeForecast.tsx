@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import Ban from "lucide-react/dist/esm/icons/ban.js";
 import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.js";
 import CalendarDays from "lucide-react/dist/esm/icons/calendar-days.js";
@@ -13,7 +12,7 @@ import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.js";
 import Target from "lucide-react/dist/esm/icons/target.js";
 import TrendingUp from "lucide-react/dist/esm/icons/trending-up.js";
 import Users from "lucide-react/dist/esm/icons/users.js";
-import { fetchOutcomeGraphForecast } from "@/lib/client-api";
+import type { OutcomeGraphForecastQuery } from "@/hooks/use-outcome-graph-forecast";
 import { formatPrice } from "@/lib/format";
 import {
   cumulativeProbability,
@@ -22,17 +21,7 @@ import {
   type OutcomeGraphQuantiles,
 } from "@/lib/outcome-graph";
 
-export function useOutcomeGraphForecast(saleId: string, enabled = true) {
-  return useQuery({
-    queryKey: ["outcome-graph", saleId],
-    queryFn: () => fetchOutcomeGraphForecast({ saleId }),
-    enabled,
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
-}
-
-export type OutcomeGraphForecastQuery = ReturnType<typeof useOutcomeGraphForecast>;
+export type { OutcomeGraphForecastQuery } from "@/hooks/use-outcome-graph-forecast";
 
 export function OutcomeForecast({ forecastQuery }: { forecastQuery: OutcomeGraphForecastQuery }) {
   const [ceilingDraft, setCeilingDraft] = useState("");

@@ -27,6 +27,7 @@ import {
 } from "@/lib/profitability";
 import { fetchPrecomputedMarketEstimate } from "@/lib/client-api";
 import type { MarketEstimate as DvfMarketEstimate } from "@/lib/market.functions";
+import { marketReferenceConfidence } from "@/lib/market-comparables-analysis";
 import {
   documentTypeLabel,
   formatDate,
@@ -37,34 +38,26 @@ import {
 } from "@/lib/format";
 import { getMarketValuationSurfaces, getSaleSurface } from "@/lib/surface";
 import type { AuctionSale, SaleRisk } from "@/lib/types";
-
-type AssistantState = {
-  price: number;
-  works: number;
-  worksScenario: WorksScenarioKey | null;
-  fpt: number;
-  scenario: MarketCeilingScenarioKey;
-  manualMarketPricePerM2: number;
-  marketEdited: boolean;
-};
+import { useAuth } from "@/hooks/use-auth";
+import { BidSimulationHistory } from "@/components/BidSimulationHistory";
+import type { ReportSimulation } from "@/lib/report-simulation";
+import {
+  bidStorageKey,
+  parseBidDraft,
+  type BidAssistantState as AssistantState,
+} from "@/lib/bid-simulation-history";
 
 type ScenarioResult = {
-  key: MarketCeilingScenarioKey;
+  key: MarketCeilingScenarioKey | "custom";
   label: string;
   description: string;
   result: MarketCeilingResult;
 };
 
-function storageKey(saleId: string) {
-  return `bid-ceiling-assistant:${saleId}`;
-}
-
-function loadState(saleId: string): Partial<AssistantState> | null {
+function loadState(key: string): AssistantState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(storageKey(saleId));
-    if (!raw) return null;
-    return JSON.parse(raw) as Partial<AssistantState>;
+    return parseBidDraft(window.localStorage.getItem(key));
   } catch {
     return null;
   }
@@ -88,7 +81,8 @@ function isWorksScenarioKey(value: unknown): value is WorksScenarioKey {
   return WORKS_SCENARIOS.some((scenario) => scenario.key === value);
 }
 
-function normalizeMarketScenario(value: unknown): MarketCeilingScenarioKey {
+function normalizeMarketScenario(value: unknown): MarketCeilingScenarioKey | "custom" {
+  if (value === "custom") return "custom";
   return value === "offensif" ? "offensif" : DEFAULT_MARKET_CEILING_SCENARIO;
 }
 
@@ -104,6 +98,7 @@ function createAssistantState(
     worksScenario: defaultWorksScenario,
     fpt: DEFAULTS.fpt,
     scenario: DEFAULT_MARKET_CEILING_SCENARIO,
+    customSafetyDiscountPct: 8,
     manualMarketPricePerM2: 0,
     marketEdited: false,
   };
@@ -134,13 +129,55 @@ function createAssistantState(
   };
 }
 
+export type BidSimulationSnapshot = {
+  saleId: string;
+  ownerId: string;
+  result: MarketCeilingResult;
+  works: number;
+  worksKnown?: boolean;
+  reportInput?: ReportSimulation;
+};
+
 export function BidCeilingAssistant({
   sale,
   marketEstimateOverride = null,
+  onSimulationChange,
 }: {
   sale: AuctionSale;
   marketEstimateOverride?: DvfMarketEstimate | null;
+  onSimulationChange?: (snapshot: BidSimulationSnapshot) => void;
 }) {
+  const { user, loading } = useAuth();
+  if (loading)
+    return (
+      <p role="status" className="p-5 text-sm text-muted-foreground">
+        Chargement du simulateur…
+      </p>
+    );
+  const ownerId = user?.id ?? "guest-demo";
+  return (
+    <BidCeilingWorkspace
+      key={`${ownerId}:${sale.id}`}
+      sale={sale}
+      marketEstimateOverride={marketEstimateOverride}
+      ownerId={ownerId}
+      onSimulationChange={onSimulationChange}
+    />
+  );
+}
+
+function BidCeilingWorkspace({
+  sale,
+  marketEstimateOverride,
+  ownerId,
+  onSimulationChange,
+}: {
+  sale: AuctionSale;
+  marketEstimateOverride: DvfMarketEstimate | null;
+  ownerId: string;
+  onSimulationChange?: (snapshot: BidSimulationSnapshot) => void;
+}) {
+  const draftKey = bidStorageKey("draft", ownerId, sale.id);
   const surfaceInfo = getSaleSurface(sale);
   const marketSurfaces = getMarketValuationSurfaces(sale);
   const surface = marketSurfaces.builtSurfaceM2;
@@ -150,24 +187,24 @@ export function BidCeilingAssistant({
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [state, setState] = useState<AssistantState>(() =>
-    createAssistantState(startingPrice, surface, loadState(sale.id)),
+    createAssistantState(startingPrice, surface, loadState(draftKey)),
   );
   const [stateSaleId, setStateSaleId] = useState(sale.id);
 
   useEffect(() => {
-    const stored = loadState(sale.id);
+    const stored = loadState(draftKey);
     setState(createAssistantState(startingPrice, surface, stored));
     setStateSaleId(sale.id);
-  }, [sale.id, startingPrice, surface]);
+  }, [draftKey, sale.id, startingPrice, surface]);
 
   useEffect(() => {
     if (typeof window === "undefined" || stateSaleId !== sale.id) return;
     try {
-      window.localStorage.setItem(storageKey(sale.id), JSON.stringify(state));
+      window.localStorage.setItem(draftKey, JSON.stringify(state));
     } catch {
       /* ignore quota errors */
     }
-  }, [sale.id, state, stateSaleId]);
+  }, [draftKey, sale.id, state, stateSaleId]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["precomputed-market-estimate", sale.id],
@@ -189,7 +226,14 @@ export function BidCeilingAssistant({
 
   const scenarioResults = useMemo<ScenarioResult[]>(
     () =>
-      MARKET_CEILING_SCENARIOS.map((scenario) => ({
+      [
+        ...MARKET_CEILING_SCENARIOS,
+        {
+          key: "custom" as const,
+          label: "Personnalisé",
+          description: "Marge choisie par l’utilisateur sur la référence prudente disponible.",
+        },
+      ].map((scenario) => ({
         key: scenario.key,
         label: scenario.label,
         description: scenario.description,
@@ -199,6 +243,7 @@ export function BidCeilingAssistant({
           works: state.works,
           fpt: state.fpt,
           scenario: scenario.key,
+          customSafetyDiscountPct: state.customSafetyDiscountPct,
           manualMarketPricePerM2: useManualMarket ? state.manualMarketPricePerM2 : null,
           medianPricePerM2: effectiveEstimate?.medianPricePerM2,
           p25PricePerM2: effectiveEstimate?.p25PricePerM2,
@@ -210,6 +255,24 @@ export function BidCeilingAssistant({
 
   const selected =
     scenarioResults.find((item) => item.key === state.scenario) ?? scenarioResults[0];
+  useEffect(() => {
+    onSimulationChange?.({
+      saleId: sale.id,
+      ownerId,
+      result: selected.result,
+      works: state.works,
+      worksKnown: surface != null || state.worksScenario == null,
+      reportInput: {
+        price: state.price,
+        works: state.works,
+        fpt: state.fpt,
+        scenario: state.scenario,
+        customSafetyDiscountPct: state.customSafetyDiscountPct,
+        manualMarketPricePerM2: useManualMarket ? state.manualMarketPricePerM2 : null,
+        expectedMaxBid: selected.result.maxBid,
+      },
+    });
+  }, [onSimulationChange, ownerId, sale.id, selected.result, state, surface, useManualMarket]);
   const recommendedCeilings = useMemo(
     () =>
       computeRecommendedCeilings({
@@ -217,6 +280,7 @@ export function BidCeilingAssistant({
         price: state.price,
         fpt: state.fpt,
         scenario: selected.key,
+        customSafetyDiscountPct: state.customSafetyDiscountPct,
         manualMarketPricePerM2: useManualMarket ? state.manualMarketPricePerM2 : null,
         medianPricePerM2: effectiveEstimate?.medianPricePerM2,
         p25PricePerM2: effectiveEstimate?.p25PricePerM2,
@@ -226,6 +290,7 @@ export function BidCeilingAssistant({
       effectiveEstimate,
       selected.key,
       state.fpt,
+      state.customSafetyDiscountPct,
       state.manualMarketPricePerM2,
       state.price,
       surface,
@@ -253,7 +318,6 @@ export function BidCeilingAssistant({
   const reliability = reliabilityLabel(effectiveEstimate, sale, useManualMarket);
 
   const reset = () => {
-    if (typeof window !== "undefined") window.localStorage.removeItem(storageKey(sale.id));
     setState(createAssistantState(startingPrice, surface));
   };
 
@@ -331,10 +395,37 @@ export function BidCeilingAssistant({
               </div>
               <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 Fiabilité {reliability} · Surface{" "}
-                {surfaceInfo.estimated ? surfaceInfo.label : formatSurface(surface)}
+                {marketSurfaces.builtSurfaceEstimated
+                  ? `${formatSurface(surface)} estimés`
+                  : surfaceInfo.estimated
+                    ? surfaceInfo.label
+                    : formatSurface(surface)}
               </span>
             </div>
           </div>
+
+          {state.scenario === "custom" ? (
+            <label className="mb-5 grid gap-2 text-sm">
+              Marge de sécurité personnalisée (%)
+              <input
+                type="range"
+                min="0"
+                max="40"
+                step="1"
+                value={state.customSafetyDiscountPct ?? 8}
+                onChange={(event) =>
+                  setState((current) => ({
+                    ...current,
+                    customSafetyDiscountPct: Math.min(40, Math.max(0, Number(event.target.value))),
+                  }))
+                }
+              />
+              <span>
+                {state.customSafetyDiscountPct ?? 8} % sous la référence retenue. Cette hypothèse
+                n’est pas une garantie de marge.
+              </span>
+            </label>
+          ) : null}
 
           <CeilingReferencePair
             withoutWorks={recommendedCeilings.withoutWorks}
@@ -343,9 +434,9 @@ export function BidCeilingAssistant({
             profileLabel={selected.label}
           />
 
-          {surfaceInfo.estimated && (
+          {(surfaceInfo.estimated || marketSurfaces.builtSurfaceEstimated) && (
             <p className="mt-4 rounded-lg border border-gold/20 bg-gold/[0.06] px-3 py-2 text-xs leading-relaxed text-gold-soft">
-              {surfaceInfo.helperText}
+              {marketSurfaces.builtSurfaceAssumption ?? surfaceInfo.helperText}
             </p>
           )}
 
@@ -415,6 +506,24 @@ export function BidCeilingAssistant({
           }
           onWorksChange={(works) =>
             setState((current) => ({ ...current, works, worksScenario: null }))
+          }
+        />
+
+        <BidSimulationHistory
+          ownerId={ownerId}
+          saleId={sale.id}
+          inputs={state}
+          result={selected.result}
+          onRestore={(snapshot) =>
+            setState({
+              ...snapshot.inputs,
+              worksScenario:
+                snapshot.inputs.worksScenario &&
+                estimateWorksBudget(surface, snapshot.inputs.worksScenario) ===
+                  snapshot.inputs.works
+                  ? snapshot.inputs.worksScenario
+                  : null,
+            })
           }
         />
 
@@ -1491,8 +1600,9 @@ function reliabilityLabel(
   if (useManualMarket) return "provisoire";
   if (!estimate) return "à compléter";
   const docs = sale.documents_rich?.length ?? 0;
-  if (estimate.qualityLabel === "forte" && docs > 0) return "forte";
-  if (estimate.qualityLabel === "fragile") return "fragile";
+  const confidence = marketReferenceConfidence(estimate).confidence;
+  if (confidence === "high" && docs > 0) return "forte";
+  if (confidence === "low") return "fragile";
   return "correcte";
 }
 
@@ -1530,7 +1640,7 @@ function buildSuccessConditions(
       title: "Marché local",
       text:
         estimate && !useManualMarket
-          ? `Référence DVF ${estimate.qualityLabel} : ${estimate.sampleSize} ${
+          ? `${marketReferenceConfidence(estimate).confidenceLabel} : ${estimate.sampleSize} ${
               estimate.comparableMode === "address_history"
                 ? "ventes de l'adresse"
                 : estimate.comparableMode === "unit_sales"

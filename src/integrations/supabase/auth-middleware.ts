@@ -17,15 +17,11 @@ export type SupabaseAuthContext = {
 };
 
 function supabasePublicEnv() {
-  const SUPABASE_URL =
-    process.env.SUPABASE_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL ??
-    process.env.VITE_SUPABASE_URL;
+  const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY =
     process.env.SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
@@ -66,7 +62,11 @@ export async function requireSupabaseAuthContext(token: string): Promise<Supabas
     },
   });
 
-  const { data, error } = await supabase.auth.getClaims(token);
+  // The SDK can throw during JWT validation (notably for an expired exp claim),
+  // rather than returning its usual { data, error } result.
+  const { data, error } = await supabase.auth.getClaims(token).catch((cause: unknown) => {
+    throw new Error("Unauthorized: Invalid token", { cause });
+  });
   if (error || !data?.claims) {
     throw new Error("Unauthorized: Invalid token");
   }

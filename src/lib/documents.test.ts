@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { isEmbeddableDocumentUrl, parseDocs, safeDocumentUrl } from "@/lib/documents";
 
 describe("document URL safety", () => {
+  it("preserves the source label as the display name when no name field is supplied", () => {
+    expect(
+      parseDocs([
+        { url: "https://example.test/opaque-id.pdf", label: "Plan cadastral.pdf", type: "pdf" },
+      ])[0],
+    ).toMatchObject({ name: "Plan cadastral.pdf" });
+  });
   it("keeps HTTP(S) documents and rejects active or credentialed URLs", () => {
     expect(
       parseDocs([

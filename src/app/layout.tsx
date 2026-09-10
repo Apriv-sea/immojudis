@@ -12,6 +12,7 @@ const cormorantGaramond = Cormorant_Garamond({
   style: ["normal", "italic"],
   display: "swap",
   variable: "--font-cormorant-garamond",
+  preload: false,
 });
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -26,20 +27,20 @@ const siteOrigin = resolveSiteOrigin(process.env, "http://localhost:3000")!;
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: {
-    default: "Immojudis - Rapports d'opportunite pour ventes judiciaires",
+    default: "Immojudis - Les enchères immobilières en toute clarté",
     template: "%s - Immojudis",
   },
   description:
-    "Rapports d'opportunite, annonces analysees, alertes et mise maximale pour encheres immobilieres judiciaires.",
+    "Tribunal, notaire ou État : annonces immobilières référencées, procédures expliquées et analyses pour préparer votre achat.",
   authors: [{ name: "Immojudis" }],
   icons: {
     icon: "/brand/immojudis-justice-temple.svg",
     apple: "/brand/immojudis-justice-temple.svg",
   },
   openGraph: {
-    title: "Immojudis - Rapports d'opportunite pour ventes judiciaires",
+    title: "Immojudis - Les enchères immobilières en toute clarté",
     description:
-      "Annonces analysees, comparables DVF, alertes et mise maximale pour les encheres immobilieres judiciaires.",
+      "Ventes au tribunal, notariales et domaniales référencées : comprenez les règles et préparez votre achat avec Immojudis.",
     type: "website",
     url: siteOrigin,
   },

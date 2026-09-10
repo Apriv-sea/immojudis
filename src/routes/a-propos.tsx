@@ -14,7 +14,7 @@ export const Route = createFileRoute("/a-propos")({
       {
         name: "description",
         content:
-          "Immojudis centralise les ventes immobilières judiciaires et rend leur analyse plus lisible.",
+          "Immojudis rassemble les ventes au tribunal, notariales et domaniales référencées et explique les règles propres à chaque procédure.",
       },
     ],
   }),
@@ -32,12 +32,13 @@ export function AboutPage() {
                 <Landmark className="h-4 w-4" />À propos d'Immojudis
               </div>
               <h1 className="mt-4 max-w-3xl font-display text-4xl leading-tight text-foreground sm:text-5xl">
-                Rendre l'immobilier judiciaire lisible, comparable et actionnable.
+                Rendre les ventes immobilières aux enchères compréhensibles et comparables.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Les ventes judiciaires sont publiques, mais rarement simples à exploiter. Immojudis
-                rassemble les annonces, structure les signaux utiles et aide à décider avant
-                l'audience.
+                Au tribunal, chez le notaire ou auprès de l’État, les démarches ne sont pas les
+                mêmes. Immojudis rassemble les annonces référencées, explique le type de vente et
+                aide à préparer sa décision. Une vente notariale ou domaniale n’est pas forcément
+                judiciaire.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -79,7 +80,7 @@ export function AboutPage() {
           <AboutCard
             icon={Landmark}
             title="Préparer"
-            text="Aider chaque investisseur à arriver au tribunal avec une méthode, pas une intuition."
+            text="Aider chaque acheteur à comprendre les conditions de sa vente et à contacter le bon interlocuteur."
           />
         </section>
       </div>

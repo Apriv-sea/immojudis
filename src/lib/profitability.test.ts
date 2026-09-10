@@ -10,6 +10,22 @@ import {
 } from "./profitability";
 
 describe("estimateWorksBudget", () => {
+  it("names the market statistic actually used when the prudent P10 is missing", () => {
+    const input = {
+      surface: 57.6,
+      price: 110000,
+      works: 28800,
+      scenario: "prudent" as const,
+      medianPricePerM2: 3022,
+    };
+    const fallback = computeMarketCeiling(input);
+    expect(fallback.basis).toBe("median");
+    expect(fallback.basisLabel).toBe("médiane locale (P10 indisponible)");
+    const p10 = computeMarketCeiling({ ...input, p10PricePerM2: 2400 });
+    expect(p10.basis).toBe("p10");
+    expect(p10.marketReferencePricePerM2).toBe(2400);
+    expect(p10.maxBid).toBeLessThan(fallback.maxBid);
+  });
   it("exposes the three reference prices per square metre", () => {
     expect(WORKS_SCENARIOS.map((scenario) => scenario.pricePerM2)).toEqual([500, 1_440, 1_850]);
   });

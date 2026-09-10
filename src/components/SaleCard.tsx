@@ -60,7 +60,7 @@ export function SaleCard({ sale, locked = false }: { sale: AuctionSale; locked?:
                 Nouveau
               </span>
             ) : null}
-            {locked ? null : <SaleProcedureBadge sale={sale} />}
+            <SaleProcedureBadge sale={sale} />
             {locked ? null : <SaleCountdown date={sale.sale_date} />}
           </div>
           {viewed && (

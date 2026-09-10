@@ -30,11 +30,39 @@ const MARKET_ESTIMATE: MarketEstimate = {
 };
 
 describe("source traceability", () => {
+  it("preserves the complete document inventory after deduplicating identical URLs", () => {
+    const documents = Array.from({ length: 20 }, (_, index) => ({
+      url: `https://example.test/document-${index}.pdf`,
+      label: `Pièce ${index}`,
+      type: "pdf",
+      extraction_status: null,
+    }));
+    const result = buildReportTraceability({
+      sale: {
+        ...EXAMPLE_SALE,
+        documents_rich: [documents[0], ...documents],
+        documents: [],
+        sale_procedure: null,
+        source_blocks: null,
+        source_blocks_by_source: null,
+      },
+      marketEstimate: null,
+    });
+    const entries = result.entries.filter((entry) => entry.kind === "judicial_document");
+    expect(entries).toHaveLength(20);
+    expect(entries.at(-1)?.url).toBe(documents[19].url);
+    expect(entries.filter((entry) => entry.url === documents[0].url)).toHaveLength(1);
+  });
+
   it("builds a report manifest from listing, documents, risk evidence and market sources", () => {
     const traceability = buildReportTraceability({
       sale: {
         ...EXAMPLE_SALE,
         source_urls: ["/ressources", "https://example.test/vente/demo"],
+        documents_rich: (EXAMPLE_SALE.documents_rich ?? []).map((document, index) => ({
+          ...document,
+          url: `https://example.test/piece-${index}.pdf`,
+        })),
       },
       marketEstimate: MARKET_ESTIMATE,
       generatedAt: "2026-07-06T10:00:00.000Z",

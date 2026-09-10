@@ -277,7 +277,8 @@ export function normalizeCadastralReferences(value: unknown): string[] {
       const section = stringValue(record.section, "");
       const number = stringValue(record.number, "");
       const raw = stringValue(record.raw, "");
-      if (section && number) return `Section ${section} n° ${number}`;
+      const prefix = stringValue(record.prefix, "");
+      if (section && number) return `Section ${prefix ? `${prefix} ` : ""}${section} n° ${number}`;
       return raw;
     })
     .filter(Boolean)
@@ -348,7 +349,7 @@ export function normalizeNeighborhoodSignals(value: unknown): string[] {
       const status = stringValue(record.status, "");
       const source = stringValue(record.source, "");
       const detail = stringValue(record.detail, "");
-      return [label, status ? status.toUpperCase() : null, source, detail]
+      return [label, status ? reportStatusLabel(status) : null, source, detail]
         .filter(Boolean)
         .join(" | ");
     })
@@ -366,7 +367,7 @@ export function normalizeDemographicSignals(value: unknown): string[] {
       const source = stringValue(record.source, "");
       const detail = stringValue(record.detail, "");
       const impact = stringValue(record.impact, "");
-      return [status ? status.toUpperCase() : null, label, source, detail, impact]
+      return [status ? reportStatusLabel(status) : null, label, source, detail, impact]
         .filter(Boolean)
         .join(" | ");
     })
@@ -384,7 +385,7 @@ export function normalizeLegalAttentionItems(value: unknown): string[] {
       const reason = stringValue(record.reason, "");
       const action = stringValue(record.action, "");
       return [
-        priority ? priority.toUpperCase() : null,
+        priority ? reportPriorityLabel(priority) : null,
         label,
         reason,
         action ? `Action: ${action}` : null,
@@ -408,8 +409,8 @@ export function normalizeUrbanPlanningItems(value: unknown): string[] {
       const detail = stringValue(record.detail, "");
       const action = stringValue(record.action, "");
       return [
-        priority ? priority.toUpperCase() : null,
-        status ? status.toUpperCase() : null,
+        priority ? reportPriorityLabel(priority) : null,
+        status ? reportStatusLabel(status) : null,
         label,
         source,
         detail,
@@ -438,7 +439,7 @@ export function normalizeMarketComparableRows(value: unknown): string[] {
         type,
         totalPrice != null ? formatPrice(totalPrice) : null,
         pricePerM2 != null ? formatPricePerM2(pricePerM2) : null,
-        surface != null ? `${Math.round(surface)} m2` : null,
+        surface != null ? `${Math.round(surface)} m²` : null,
         distance != null ? `${Math.round(distance)} m` : null,
       ]
         .filter(Boolean)
@@ -458,7 +459,7 @@ export function normalizeValuationCheckpoints(value: unknown): string[] {
       const detail = stringValue(record.detail, "");
       const action = stringValue(record.action, "");
       return [
-        status ? status.toUpperCase() : null,
+        status ? reportStatusLabel(status) : null,
         label,
         detail,
         action ? `Action: ${action}` : null,
@@ -490,7 +491,7 @@ export function normalizeActiveComparableItems(value: unknown): string[] {
         saleDate ? formatDate(saleDate) : null,
         startingPrice != null ? formatPrice(startingPrice) : null,
         pricePerM2 != null ? formatPricePerM2(pricePerM2) : null,
-        surface != null ? `${Math.round(surface)} m2` : null,
+        surface != null ? `${Math.round(surface)} m²` : null,
       ]
         .filter(Boolean)
         .join(" | ");
@@ -501,6 +502,12 @@ export function normalizeActiveComparableItems(value: unknown): string[] {
 
 export function normalizeAudienceChecklistItems(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
+  const statuses: Record<string, string> = {
+    done: "Repéré",
+    watch: "À vérifier",
+    to_do: "À compléter",
+  };
+  const priorities: Record<string, string> = { high: "haute", medium: "moyenne", low: "basse" };
   return value
     .map((item) => {
       const record = asRecord(item);
@@ -510,8 +517,8 @@ export function normalizeAudienceChecklistItems(value: unknown): string[] {
       const detail = stringValue(record.detail, "");
       const action = stringValue(record.action, "");
       return [
-        status ? status.toUpperCase() : null,
-        priority ? `Priorite ${priority}` : null,
+        status ? (statuses[status] ?? "À vérifier") : null,
+        priority ? `Priorité ${priorities[priority] ?? "à confirmer"}` : null,
         label,
         detail,
         action ? `Action: ${action}` : null,
@@ -603,4 +610,27 @@ export function normalizeShareExpiresAt(value: string | null | undefined): strin
 
 export function shareIsExpired(value: string | null): boolean {
   return Boolean(value && new Date(value).getTime() <= Date.now());
+}
+
+function reportStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    done: "Repéré",
+    watch: "À vérifier",
+    to_do: "À compléter",
+    positive: "Favorable",
+    to_enrich: "À compléter",
+    source_signal: "Mention dans la source",
+    proxy: "Indice indirect",
+    documented: "Documenté",
+    to_verify: "À vérifier",
+    missing: "Non renseigné",
+    pass: "Vérifié",
+    fail: "Point à résoudre",
+  };
+  return labels[status] ?? "À vérifier";
+}
+
+function reportPriorityLabel(priority: string): string {
+  const labels: Record<string, string> = { high: "haute", medium: "moyenne", low: "basse" };
+  return `Priorité ${labels[priority] ?? "à confirmer"}`;
 }

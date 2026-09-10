@@ -162,7 +162,11 @@ export function getSaleProcedure(sale: AuctionSale): SaleProcedurePresentation {
       procedure?.eligible_bar ?? (venueType === "tribunal" ? legacyEligibleBar(sale) : null),
     participationMode:
       procedure?.participation_mode ??
-      (venueType === "tribunal" && venueIsConfirmed ? "in_person" : "unknown"),
+      (venueType === "online"
+        ? "online"
+        : venueType === "tribunal" && venueIsConfirmed
+          ? "in_person"
+          : "unknown"),
     lawyerRequired:
       rules?.lawyer_required ?? (venueType === "tribunal" && venueIsConfirmed ? true : null),
     lawyerNote:
@@ -202,8 +206,8 @@ export function saleVenueLabel(venueType: SaleVenueType): string {
     tribunal: "Vente au tribunal",
     notary: "Vente notariale",
     state: "Vente domaniale",
-    online: "Vente en ligne",
-    unknown: "Mode de vente à confirmer",
+    online: "Organisateur à confirmer",
+    unknown: "Type de vente à confirmer",
   }[venueType];
 }
 
@@ -212,7 +216,7 @@ export function saleVenueShortLabel(venueType: SaleVenueType): string {
     tribunal: "Tribunal",
     notary: "Notaire",
     state: "État",
-    online: "En ligne",
+    online: "À confirmer",
     unknown: "À confirmer",
   }[venueType];
 }

@@ -2,7 +2,7 @@ import type { EnvironmentalContext } from "@/lib/environment.functions";
 import type { MarketEstimate } from "@/lib/market.functions";
 import type { NearbyServicesAnalysis } from "@/lib/nearby-services";
 import type { StreetFacadeAnalysis } from "@/lib/street-facade-analysis";
-import type { AuctionSale, SaleRisk, SaleScoreFactor } from "@/lib/types";
+import type { AuctionSale, SaleRisk } from "@/lib/types";
 
 export type NeighborhoodStatus = "profiled" | "market_only" | "location_only" | "missing";
 export type NeighborhoodSignalKind = "market" | "services" | "street" | "environment" | "source";
@@ -99,7 +99,11 @@ export function buildNeighborhoodAnalysis({
     environmentalContext: environmentalContext ?? null,
     sourceSignals,
   });
-  const status = resolveStatus({ dimensions, marketEstimate });
+  const status = resolveStatus({
+    dimensions,
+    marketEstimate,
+    hasLocation: streetFacade.available || nearbyServices.available,
+  });
   const confidence = resolveConfidence({
     dimensions,
     marketEstimate,
@@ -128,7 +132,6 @@ export function buildNeighborhoodAnalysis({
 function resolveDimensions({
   marketEstimate,
   nearbyServices,
-  streetFacade,
   environmentalContext,
   sourceSignals,
 }: {
@@ -140,8 +143,7 @@ function resolveDimensions({
 }): string[] {
   const dimensions: string[] = [];
   if (marketEstimate) dimensions.push("Marché DVF");
-  if (nearbyServices.available) dimensions.push("Services");
-  if (streetFacade.available) dimensions.push("Façade et rue");
+  if (nearbyServices.mentionedCategories.length) dimensions.push("Services mentionnés");
   if (environmentalContext) dimensions.push("Environnement");
   if (sourceSignals.length) dimensions.push("Signaux source");
   return dimensions;
@@ -150,35 +152,27 @@ function resolveDimensions({
 function resolveStatus({
   dimensions,
   marketEstimate,
+  hasLocation,
 }: {
   dimensions: string[];
   marketEstimate: MarketEstimate | null;
+  hasLocation: boolean;
 }): NeighborhoodStatus {
   if (dimensions.length >= 2) return "profiled";
   if (marketEstimate) return "market_only";
-  if (dimensions.length === 1) return "location_only";
+  if (dimensions.length === 1 || hasLocation) return "location_only";
   return "missing";
 }
 
 function resolveConfidence({
   dimensions,
   marketEstimate,
-  nearbyServices,
-  streetFacade,
 }: {
   dimensions: string[];
   marketEstimate: MarketEstimate | null;
   nearbyServices: NearbyServicesAnalysis;
   streetFacade: StreetFacadeAnalysis;
 }): NeighborhoodAnalysis["confidence"] {
-  if (
-    dimensions.length >= 3 &&
-    marketEstimate?.qualityLabel !== "fragile" &&
-    nearbyServices.confidence !== "low" &&
-    streetFacade.confidence !== "low"
-  ) {
-    return "high";
-  }
   if (dimensions.length >= 2 || marketEstimate) return "medium";
   return "low";
 }
@@ -218,7 +212,7 @@ function streetSignal(streetFacade: StreetFacadeAnalysis): NeighborhoodSignal | 
   return {
     kind: "street",
     label: "Façade et rue",
-    status: streetFacade.status === "coordinates_ready" ? "positive" : "to_enrich",
+    status: "to_enrich",
     source: "Localisation annonce",
     detail: streetFacade.summary,
   };
@@ -322,6 +316,8 @@ function summary({
 }): string {
   if (status === "missing")
     return "Quartier à qualifier : marché, localisation et services manquent.";
+  if (status === "location_only" && !dimensions.length)
+    return "Localisation disponible ; quartier et services à qualifier.";
   const watchCount = signals.filter((signal) => signal.status === "watch").length;
   const intro =
     status === "profiled"
@@ -391,15 +387,9 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   const candidates: TextCandidate[] = [];
   addCandidate(candidates, sale.description, "Description annonce");
   addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
   addCandidate(candidates, sale.risk_notes, "Notes de risques");
 
-  for (const factor of sale.score_factors ?? []) {
-    for (const text of scoreFactorTexts(factor))
-      addCandidate(candidates, text, "Facteurs de score");
-  }
+  // Generated scores and summaries are not independent evidence about the property.
 
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     if (NEIGHBORHOOD_KEY.test(item.path) || hasNeighborhoodSignal(item.value)) {
@@ -424,18 +414,6 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   }
 
   return candidates.filter((candidate) => hasNeighborhoodSignal(candidate.text));
-}
-
-function scoreFactorTexts(factor: SaleScoreFactor): string[] {
-  const texts: unknown[] = [
-    factor.factor_key,
-    factor.label,
-    factor.reason,
-    factor.evidence,
-    factor.raw_value,
-    factor.normalized_value,
-  ];
-  return texts.map(cleanText).filter((text): text is string => Boolean(text));
 }
 
 function riskTexts(risk: SaleRisk): string[] {

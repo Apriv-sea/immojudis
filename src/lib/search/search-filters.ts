@@ -1,4 +1,6 @@
 import type { AuctionSale, SaleFilters, SortKey } from "@/lib/types";
+import { getSaleProcedure } from "@/lib/sale-procedure";
+import { saleVenueMatchesType } from "@/lib/sale-types";
 import { isHouseWithLand } from "@/lib/alerts";
 import { dpeMatches, extractDpe } from "@/lib/dpe";
 import { getSaleSurface } from "@/lib/surface";
@@ -14,7 +16,7 @@ export const DEFAULT_SEARCH_LIMIT = 24;
 export const MAX_MAP_RESULTS = 300;
 
 export const TRANSACTION_OPTIONS = [
-  { label: "Ventes judiciaires", value: "for_sale" },
+  { label: "Ventes aux enchères", value: "for_sale" },
   { label: "Locations", value: "for_rent" },
   { label: "Ventes passées", value: "sold" },
 ] as const;
@@ -88,6 +90,7 @@ export function dataFiltersFromSearch(search: SalesSearchParams): SaleFilters {
     city: search.city,
     postal_code: queryScope.kind === "postal_code" ? queryScope.postalCode : undefined,
     tribunal: search.tribunal,
+    sale_venue_type: search.saleType,
     viewport: search.viewport,
     property_type: search.homeTypes?.length === 1 ? search.homeTypes[0] : undefined,
     property_types: search.homeTypes && search.homeTypes.length > 1 ? search.homeTypes : undefined,
@@ -116,6 +119,7 @@ export function countActiveSearchFilters(search: SalesSearchParams): number {
     search.city,
     search.department,
     search.tribunal,
+    search.saleType,
     search.query,
     search.minPrice,
     search.maxPrice,
@@ -162,6 +166,12 @@ export function applyClientSearchFilters(
   center: GeoPoint | null,
 ): AuctionSale[] {
   return sales.filter((sale) => {
+    if (
+      search.saleType &&
+      !saleVenueMatchesType(getSaleProcedure(sale).venueType, search.saleType)
+    ) {
+      return false;
+    }
     if (search.transactionType === "for_rent") return false;
     if (search.transactionType === "sold" && !isSoldLike(sale)) return false;
 

@@ -138,7 +138,8 @@ function estimateBuiltSurface(
   const buildingOrActivity = /\b(building|immeuble|commercial|commerce|local|mixed|mixte)\b/.test(
     type,
   );
-  if (!apartment && !house && !buildingOrActivity) return null;
+  // Room counts do not establish the area of commercial, mixed or whole-building lots.
+  if (buildingOrActivity || (!apartment && !house)) return null;
 
   const rooms =
     positiveSurface(sale.rooms_count) ??
@@ -153,13 +154,7 @@ function estimateBuiltSurface(
         uncertaintyPct: 20,
       };
     }
-    const value = apartment
-      ? 50
-      : house
-        ? 100
-        : /immeuble|building|mixed|mixte/.test(type)
-          ? 250
-          : 80;
+    const value = apartment ? 50 : 100;
     return {
       value,
       assumption: `surface provisoire de ${value} m² retenue faute de surface et de nombre de pièces publiés`,
@@ -170,13 +165,11 @@ function estimateBuiltSurface(
   const roundedRooms = Math.max(1, Math.round(rooms));
   const value = apartment
     ? [20, 42, 62, 82, 105][Math.min(4, roundedRooms - 1)] + Math.max(0, roundedRooms - 5) * 20
-    : house
-      ? [45, 60, 80, 100, 120][Math.min(4, roundedRooms - 1)] + Math.max(0, roundedRooms - 5) * 22
-      : roundedRooms * 28;
+    : [45, 60, 80, 100, 120][Math.min(4, roundedRooms - 1)] + Math.max(0, roundedRooms - 5) * 22;
   return {
     value,
     assumption: `surface provisoire de ${value} m² estimée à partir de ${roundedRooms} pièce${roundedRooms > 1 ? "s" : ""}`,
-    uncertaintyPct: apartment ? 25 : house ? 30 : 35,
+    uncertaintyPct: apartment ? 25 : 30,
   };
 }
 

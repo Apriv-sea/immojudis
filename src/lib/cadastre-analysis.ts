@@ -1,6 +1,7 @@
 import type { AuctionSale, SaleDocumentRich, SaleRisk } from "@/lib/types";
 
 export type CadastralReference = {
+  prefix?: string | null;
   section: string | null;
   number: string | null;
   raw: string;
@@ -56,13 +57,15 @@ const CADASTRAL_CONTEXT =
 const CADASTRAL_KEY =
   /cadastre|cadastral|cadastr|parcelle|parcel|section|contenance|terrain|land_surface|surface_terrain/i;
 const SECTION_KEYS = /(^|_|\.)(section|section_cadastrale|cadastral_section)$/i;
-const NUMBER_KEYS = /parcelle|parcel|numero_parcelle|num_parcelle|cadastral_number/i;
+const NUMBER_KEYS =
+  /(?:^|\.)(?:number|numero|numero_parcelle|num_parcelle|cadastral_number|parcel_number|parcelNumber|parcelle|parcel)$/i;
+const COMPACT_REFERENCE_KEY =
+  /(?:^|\.)(?:cadastre|reference_cadastrale|cadastral_reference|parcelle|parcel_reference)$/i;
 
 const REFERENCE_PATTERNS = [
-  /\bsection\s+([A-Z]{1,4})\s*(?:,|\s|-)*(?:parcelle\s*)?(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)\b/gi,
+  /\bsection\s+(?:[0-9]{3}\s+)?([A-Z]{1,4})\s*(?:,|\s|-)*(?:parcelle\s*)?(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)\b/gi,
   /\bparcelle(?:s)?(?:\s+cadastr(?:ee|e|ees|ees))?\s*(?:section\s*)?([A-Z]{1,4})\s*(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)\b/gi,
   /\bcadastre(?:e|es|s)?\s*(?:section\s*)?([A-Z]{1,4})\s*(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)\b/gi,
-  /\b([A-Z]{1,4})\s*(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)\b/gi,
 ];
 
 export function buildCadastralAnalysis(
@@ -103,7 +106,7 @@ export function buildCadastralAnalysis(
 
 export function formatCadastralReference(reference: CadastralReference): string {
   if (reference.section && reference.number) {
-    return `Section ${reference.section} n° ${reference.number}`;
+    return `Section ${reference.prefix ? `${reference.prefix} ` : ""}${reference.section} n° ${reference.number}`;
   }
   return reference.raw;
 }
@@ -152,14 +155,20 @@ function directReferencesFromBlocks(
 
   const values = flattenKeyValues(blocks);
   const references: CadastralReference[] = [];
-  const section = firstKeyValue(values, SECTION_KEYS);
-  const number = firstKeyValue(values, NUMBER_KEYS);
-
-  if (section && number) {
+  for (const section of values.filter((item) => SECTION_KEYS.test(item.path))) {
+    const parent = section.path.slice(0, section.path.lastIndexOf(".") + 1);
+    const number = values.find(
+      (item) =>
+        NUMBER_KEYS.test(item.path) &&
+        item.path.slice(0, item.path.lastIndexOf(".") + 1) === parent,
+    );
+    const normalizedSection = normalizeSection(section.value);
+    const normalizedNumber = normalizeParcelNumber(number?.value);
+    if (!normalizedSection || !normalizedNumber || !number) continue;
     references.push({
-      section: normalizeSection(section.value),
-      number: normalizeParcelNumber(number.value),
-      raw: `${section.value} ${number.value}`.trim(),
+      section: normalizedSection,
+      number: normalizedNumber,
+      raw: `${normalizedSection} ${normalizedNumber}`,
       source: `${source} (${section.path}, ${number.path})`,
       confidence: "direct",
     });
@@ -169,11 +178,22 @@ function directReferencesFromBlocks(
     if (!CADASTRAL_KEY.test(item.path)) continue;
     const text = cleanText(item.value);
     if (!text) continue;
-    references.push(
-      ...extractReferencesFromCandidate({
-        text: `${item.path}: ${text}`,
+    const compact =
+      COMPACT_REFERENCE_KEY.test(item.path) &&
+      /^([A-Z]{1,4})\s*(?:n(?:umero|o|°|º)?\.?\s*)?([0-9]{1,5}[A-Z]?)$/i.exec(text);
+    if (compact)
+      references.push({
+        section: normalizeSection(compact[1]),
+        number: normalizeParcelNumber(compact[2]),
+        raw: text,
         source: `${source} (${item.path})`,
         confidence: "direct",
+      });
+    references.push(
+      ...extractReferencesFromCandidate({
+        text,
+        source: `${source} (${item.path})`,
+        confidence: "inferred",
       }),
     );
   }
@@ -185,32 +205,25 @@ function textCandidatesFromSale(sale: AuctionSale): TextCandidate[] {
   const candidates: TextCandidate[] = [];
 
   addCandidate(candidates, sale.title, "Titre annonce", "inferred");
-  addCandidate(candidates, sale.description, "Description annonce", "inferred");
+  addCandidate(
+    candidates,
+    sale.source_description ? null : sale.description,
+    "Description annonce",
+    "inferred",
+  );
   addCandidate(candidates, sale.source_description, "Description source", "inferred");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie", "inferred");
-  addCandidate(candidates, sale.about_description, "Description synthétique", "inferred");
   addCandidate(candidates, sale.surface_evidence, "Preuve de surface", "inferred");
 
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     if (CADASTRAL_KEY.test(item.path) || CADASTRAL_CONTEXT.test(cleanText(item.value) ?? "")) {
-      addCandidate(
-        candidates,
-        `${item.path}: ${cleanText(item.value)}`,
-        "Données source",
-        "direct",
-      );
+      addCandidate(candidates, cleanText(item.value), "Données source", "inferred");
     }
   }
 
   for (const [sourceName, blocks] of Object.entries(sale.source_blocks_by_source ?? {})) {
     for (const item of flattenKeyValues(blocks)) {
       if (CADASTRAL_KEY.test(item.path) || CADASTRAL_CONTEXT.test(cleanText(item.value) ?? "")) {
-        addCandidate(
-          candidates,
-          `${item.path}: ${cleanText(item.value)}`,
-          `Données source ${sourceName}`,
-          "direct",
-        );
+        addCandidate(candidates, cleanText(item.value), `Données source ${sourceName}`, "inferred");
       }
     }
   }
@@ -247,6 +260,7 @@ function extractReferencesFromCandidate(candidate: TextCandidate): CadastralRefe
       references.push({
         section,
         number,
+        prefix: /\bsection\s+([0-9]{3})\s+/i.exec(match[0])?.[1] ?? null,
         raw: match[0].trim(),
         source: candidate.source,
         confidence: candidate.confidence,
@@ -464,7 +478,7 @@ function dedupeReferences(references: CadastralReference[]): CadastralReference[
   for (const reference of references) {
     const key =
       reference.section && reference.number
-        ? `${reference.section}-${reference.number}`
+        ? `${reference.prefix ?? ""}-${reference.section}-${reference.number}`
         : normalizeForMatching(reference.raw);
     const existing = byKey.get(key);
     if (!existing || referencePriority(reference) > referencePriority(existing)) {
@@ -495,7 +509,7 @@ function riskTexts(risk: SaleRisk): string[] {
   const evidence = risk.evidence_json;
   if (evidence && typeof evidence === "object") {
     const record = evidence as Record<string, unknown>;
-    texts.push(record.excerpt, record.reasoning, record.why_it_matters, record.next_action);
+    texts.push(record.excerpt);
   }
   for (const occurrence of risk.occurrences ?? []) {
     texts.push(
@@ -525,19 +539,6 @@ function flattenPrimitiveOrObject(
 ): Array<{ path: string; value: unknown }> {
   if (value && typeof value === "object") return flattenKeyValues(value, path);
   return [{ path, value }];
-}
-
-function firstKeyValue(
-  values: Array<{ path: string; value: unknown }>,
-  pattern: RegExp,
-): { path: string; value: string } | null {
-  for (const item of values) {
-    if (!pattern.test(item.path)) continue;
-    pattern.lastIndex = 0;
-    const value = cleanText(item.value);
-    if (value) return { path: item.path, value };
-  }
-  return null;
 }
 
 function normalizeSection(value: unknown): string | null {

@@ -8,9 +8,23 @@ import {
 import type { Json } from "@/integrations/supabase/types";
 import type { SupabaseAuthContext } from "@/integrations/supabase/auth-middleware";
 import { EXAMPLE_SALE } from "@/lib/example-sale";
-import { computeAcquisitionCosts } from "@/lib/profitability";
+import { computeAcquisitionCosts, computeRentabilityScore } from "@/lib/profitability";
+import { buildCeilingSnapshot } from "./property-report/analysis";
 
 describe("property report sharing", () => {
+  it("does not recreate a withdrawn documentary score from financial indicators", () => {
+    const sale = { ...EXAMPLE_SALE, investment_score: null, score_confidence: 0.9 };
+    const result = buildOpportunityAnalysis({
+      sale,
+      surfaceM2: 80,
+      marketEstimate: null,
+      ceilingSnapshot: buildCeilingSnapshot(sale, null),
+    });
+    expect(result.score).toBeNull();
+    expect(result.scoreConfidencePct).toBeNull();
+    expect(result.label).toBe("À compléter");
+    expect(result.summary).not.toMatch(/score \d/);
+  });
   it("builds a public report without private user notes", () => {
     const report = buildPublicSharedPropertyReport({
       id: "report-1",
@@ -232,7 +246,7 @@ describe("property report sharing", () => {
   });
 
   it("builds opportunity metrics for judicial-sale reports", () => {
-    const acquisition = computeAcquisitionCosts({ price: 120_000, works: 0, fpt: 3_000 });
+    const acquisition = computeAcquisitionCosts({ price: 140_000, works: 25_000, fpt: 5_000 });
     const opportunity = buildOpportunityAnalysis({
       sale: {
         ...EXAMPLE_SALE,
@@ -251,6 +265,8 @@ describe("property report sharing", () => {
         medianPricePerM2: 2_000,
         p25PricePerM2: 1_800,
         p75PricePerM2: 2_300,
+        estimatedValueLowEur: 116_000,
+        estimatedValueHighEur: 249_000,
         minPricePerM2: 1_500,
         maxPricePerM2: 2_800,
         sampleSize: 12,
@@ -285,14 +301,26 @@ describe("property report sharing", () => {
       },
     });
 
+    expect(opportunity.rentabilityScore).toEqual(
+      computeRentabilityScore({
+        surface: 80,
+        price: 140_000,
+        works: 25_000,
+        fpt: 5_000,
+        department: "33",
+        marketMarginPerM2: 100,
+      }),
+    );
+    expect(opportunity.acquisitionCosts.price).toBe(140_000);
     expect(opportunity).toMatchObject({
       score: 78,
       scoreConfidencePct: 84,
       label: "À étudier en priorité",
       startingPricePerM2: 1_500,
       estimatedMarketValue: 160_000,
-      estimatedMarketLow: 144_000,
-      estimatedMarketHigh: 184_000,
+      estimatedMarketLow: 116_000,
+      estimatedMarketHigh: 249_000,
+      estimatedMarketRangeLabel: "Fourchette de valeur estimée",
       apparentDiscountPct: 25,
       grossYieldPct: 10.2,
       rentabilityScore: {

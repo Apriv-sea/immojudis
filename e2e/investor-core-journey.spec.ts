@@ -116,7 +116,15 @@ test("inscription → recherche → rapport → paiement → partage", async ({ 
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Mot de passe").fill("password-e2e");
   await page.getByRole("button", { name: "Créer mon compte gratuit" }).click();
+  await expect(page).toHaveURL(/\/bienvenue/);
+  await page.getByLabel("Ville, département ou région").fill("Bordeaux");
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await page.getByLabel("Mise à prix maximale (€)").fill("150000");
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await page.getByRole("button", { name: "Voir les biens" }).click();
   await expect(page).toHaveURL(/\/sales/);
+  await expect(page).toHaveURL(/query=Bordeaux/);
+  await expect(page).toHaveURL(/maxPrice=150000/);
 
   await expect(page.getByText(/120[\s\u202f]000/).first()).toBeVisible();
 

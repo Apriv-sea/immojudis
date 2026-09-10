@@ -1,3 +1,4 @@
+import { collectSaleDocuments } from "@/lib/sale-documents";
 import type { EnvironmentalContext } from "@/lib/environment.functions";
 import type { MarketEstimate } from "@/lib/market.functions";
 import type { AuctionSale, SaleDocumentRich, SaleRisk } from "@/lib/types";
@@ -43,17 +44,15 @@ export type ReportTraceability = {
 };
 
 export const REPORT_COMPLIANCE_NOTICE =
-  "Rapport indicatif ImmoJudis : les estimations, scores et plafonds d'enchere sont des aides a la decision, sans promesse de gain. Verifiez les pieces officielles, la visite, le cahier des conditions de vente et votre conseil avant toute enchere.";
+  "Rapport indicatif ImmoJudis : les estimations, scores et plafonds d’enchère sont des aides à la décision, sans promesse de gain. Vérifiez les pièces officielles, la visite, le cahier des conditions de vente et votre conseil avant toute enchère.";
 
 const GENERIC_REPORT_LIMITATIONS = [
-  "Les estimations reposent sur les donnees disponibles au moment de la generation du rapport.",
-  "Les comparables de marche peuvent etre incomplets, decales dans le temps ou non parfaitement comparables au bien.",
-  "Le score d'opportunite ne tient pas compte de tous les elements qualitatifs observes lors d'une visite.",
-  "Les frais, travaux, conditions d'occupation et points juridiques doivent etre confirmes avant l'audience.",
+  "Les estimations reposent sur les données disponibles au moment de la génération du rapport.",
+  "Les comparables de marché peuvent être incomplets, décalés dans le temps ou non parfaitement comparables au bien.",
+  "Le score d’opportunité ne tient pas compte de tous les éléments qualitatifs observés lors d'une visite.",
+  "Les frais, travaux, conditions d'occupation et points juridiques doivent être confirmés avant l'audience.",
   "Aucun rendement, gain, adjudication ou prix de revente n'est garanti.",
 ];
-
-const MAX_TRACE_ENTRIES = 18;
 
 export function buildReportTraceability({
   sale,
@@ -79,11 +78,11 @@ export function buildReportTraceability({
     ...cadastreEntries(cadastreParcels),
     ...dpeEntries(dpeDiagnostics),
     ...urbanPlanningEntries(urbanPlanningSignals),
-    ...documentEntries(sale.documents_rich ?? []),
+    ...documentEntries(collectSaleDocuments(sale)),
     ...riskEntries(sale.risks ?? []),
     ...marketEntries(marketEstimate),
     ...environmentEntries(environmentalContext ?? null),
-  ]).slice(0, MAX_TRACE_ENTRIES);
+  ]);
 
   return {
     generatedAt,
@@ -97,19 +96,21 @@ function procedureEntries(sale: AuctionSale): SourceTraceEntry[] {
   const procedure = getSaleProcedure(sale);
   if (!procedure.procedure) return [];
 
-  return procedure.sources.slice(0, 4).map((source, index) => ({
-    id: stableId("sale-procedure", source.url, source.label, String(index)),
-    kind: "sale_procedure",
-    label: cleanText(source.label) ?? `Source de procédure ${index + 1}`,
-    sourceName: cleanText(source.source_name) ?? "Vérification Immojudis",
-    url: cleanText(source.url),
-    capturedAt: cleanText(source.checked_at) ?? procedure.verifiedAt,
-    confidenceLabel: saleVerificationLabel(procedure.verificationStatus),
-    detail: `${saleVenueLabel(procedure.venueType)} · ${lawyerRequirementLabel(procedure)}`,
-    limitation: procedure.issues.length
-      ? procedure.issues.join(" ")
-      : "Les conditions particulières du cahier des charges restent applicables à cette vente.",
-  }));
+  return procedure.sources
+    .filter((source) => source.kind !== "document")
+    .map((source, index) => ({
+      id: stableId("sale-procedure", source.url, source.label, String(index)),
+      kind: "sale_procedure",
+      label: cleanText(source.label) ?? `Source de procédure ${index + 1}`,
+      sourceName: cleanText(source.source_name) ?? "Vérification Immojudis",
+      url: cleanText(source.url),
+      capturedAt: cleanText(source.checked_at) ?? procedure.verifiedAt,
+      confidenceLabel: saleVerificationLabel(procedure.verificationStatus),
+      detail: `${saleVenueLabel(procedure.venueType)} · ${lawyerRequirementLabel(procedure)}`,
+      limitation: procedure.issues.length
+        ? procedure.issues.join(" ")
+        : "Les conditions particulières du cahier des charges restent applicables à cette vente.",
+    }));
 }
 
 function urbanPlanningEntries(signals: StructuredUrbanPlanningSignal[]): SourceTraceEntry[] {
@@ -135,7 +136,7 @@ function urbanPlanningEntries(signals: StructuredUrbanPlanningSignal[]): SourceT
       confidenceLabel:
         typeof signal.confidence === "number"
           ? `${Math.round(signal.confidence * 100)}%`
-          : "A confirmer",
+          : "À confirmer",
       detail: truncate(detail || "Signal urbanisme, permis ou servitude rattache a la vente.", 260),
       limitation:
         "Le signal doit etre recoupe avec le PLU, le cahier des conditions et les pieces officielles.",
@@ -164,7 +165,7 @@ function dpeEntries(diagnostics: StructuredDpeDiagnostic[]): SourceTraceEntry[] 
       confidenceLabel:
         typeof diagnostic.confidence === "number"
           ? `${Math.round(diagnostic.confidence * 100)}%`
-          : "A confirmer",
+          : "À confirmer",
       detail: detail || "Diagnostic energetique rattache a la vente.",
       limitation:
         "Le rattachement ADEME doit etre recoupe avec le diagnostic joint au dossier et l'adresse exacte du bien.",
@@ -194,7 +195,7 @@ function cadastreEntries(parcels: StructuredCadastralParcel[]): SourceTraceEntry
       confidenceLabel:
         typeof parcel.confidence === "number"
           ? `${Math.round(parcel.confidence * 100)}%`
-          : "A confirmer",
+          : "À confirmer",
       detail: reference || "Parcelle rattachee depuis la localisation geocodee.",
       limitation:
         "Le rattachement par point geocode doit etre recoupe avec le plan cadastral et les pieces officielles.",
@@ -247,20 +248,20 @@ function surfaceEntries(sale: AuctionSale): SourceTraceEntry[] {
   const confidence =
     typeof sale.surface_confidence === "number"
       ? `${Math.round(sale.surface_confidence * 100)}%`
-      : "A confirmer";
+      : "À confirmer";
 
   return [
     {
       id: stableId("surface", sale.id, evidence),
       kind: "surface_evidence",
       label: "Surface retenue",
-      sourceName: cleanText(sale.surface_source)?.replaceAll("_", " ") ?? "Piece du dossier",
+      sourceName: cleanText(sale.surface_source)?.replaceAll("_", " ") ?? "Pièce du dossier",
       url: cleanText(sale.source_url),
       capturedAt: sourceCapturedAt(sale),
       confidenceLabel: confidence,
       detail: truncate(evidence, 260),
       limitation:
-        "Une surface erronnee modifie le prix au metre carre, les comparables et le plafond d'enchere.",
+        "Une surface erronnee modifie le prix au metre carre, les comparables et le plafond d’enchère.",
     },
   ];
 }
@@ -271,7 +272,6 @@ function documentEntries(documents: SaleDocumentRich[]): SourceTraceEntry[] {
       (document) =>
         cleanText(document.url) || cleanText(document.label) || cleanText(document.type),
     )
-    .slice(0, 8)
     .map((document, index) => {
       const label =
         cleanText(document.label) ?? cleanText(document.type) ?? `Document ${index + 1}`;
@@ -281,14 +281,14 @@ function documentEntries(documents: SaleDocumentRich[]): SourceTraceEntry[] {
         kind: "judicial_document",
         label,
         sourceName:
-          cleanText(document.type) ?? cleanText(document.document_type) ?? "Piece du dossier",
+          cleanText(document.type) ?? cleanText(document.document_type) ?? "Pièce du dossier",
         url: cleanText(document.url),
         capturedAt: null,
-        confidenceLabel: status ? `Statut ${status}` : "Piece referencee",
+        confidenceLabel: status ? `Statut ${status}` : "Pièce référencée",
         detail:
           typeof document.text_chars === "number" && document.text_chars > 0
             ? `${document.text_chars.toLocaleString("fr-FR")} caracteres extraits`
-            : "Piece referencee dans le dossier de vente.",
+            : "Pièce référencée dans le dossier de vente.",
         limitation: "Le contenu doit etre confronte au document officiel complet et a ses annexes.",
       };
     });
@@ -305,7 +305,7 @@ function riskEntries(risks: SaleRisk[]): SourceTraceEntry[] {
       const confidence =
         typeof risk.confidence === "number"
           ? `${Math.round(risk.confidence * 100)}%`
-          : "A confirmer";
+          : "À confirmer";
       return {
         id: stableId("risk", label, occurrence?.document_url, String(index)),
         kind: "risk_evidence",
@@ -334,7 +334,7 @@ function marketEntries(marketEstimate: MarketEstimate | null): SourceTraceEntry[
       sourceName: cleanText(marketEstimate.source) ?? "Comparables de marche",
       url: null,
       capturedAt: null,
-      confidenceLabel: cleanText(marketEstimate.qualityLabel) ?? "Qualite a confirmer",
+      confidenceLabel: cleanText(marketEstimate.qualityLabel) ?? "Qualité à confirmer",
       detail: `${marketEstimate.sampleSize} comparable(s), rayon ${marketEstimate.radiusM} m, mode ${marketEstimate.comparableMode}.`,
       limitation:
         "Les references de marche ne captent pas toutes les qualites, defauts, travaux ou contraintes propres au bien.",

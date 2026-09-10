@@ -1,4 +1,4 @@
-import type { AuctionSale, SaleRisk, SaleScoreFactor } from "@/lib/types";
+import type { AuctionSale, SaleRisk } from "@/lib/types";
 
 export type RenovationConditionStatus =
   | "good"
@@ -193,12 +193,7 @@ function budgetLevelForStatus(status: RenovationConditionStatus): RenovationBudg
 
 function confidenceForEvidence(evidence: RenovationEvidence[]): RenovationAnalysis["confidence"] {
   if (!evidence.length) return "low";
-  const sources = new Set(evidence.map((item) => item.source));
-  const hasStructuredSource = evidence.some((item) => item.source.startsWith("Données source"));
-  const hasRiskOrDocument = evidence.some((item) =>
-    /risques|pieces|pièces|diagnostics|pv/i.test(item.source),
-  );
-  if (sources.size >= 2 || (hasStructuredSource && hasRiskOrDocument)) return "high";
+  // Distinct field labels may repeat the same publication; independence is not established.
   return "medium";
 }
 
@@ -260,7 +255,7 @@ function confidenceLabel({
   evidence: RenovationEvidence[];
 }): string {
   if (status === "unknown") return "Aucun indice travaux exploitable";
-  if (confidence === "high") return "État recoupé par plusieurs sources";
+  if (confidence === "high") return "Indices concordants, état à confirmer";
   if (confidence === "medium") return "Indice travaux repéré, à confirmer";
   if (evidence.length) return "Signal faible";
   return "À rechercher dans le PV descriptif";
@@ -353,15 +348,9 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
 
   addCandidate(candidates, sale.description, "Description annonce");
   addCandidate(candidates, sale.source_description, "Description source");
-  addCandidate(candidates, sale.llm_display_description, "Description enrichie");
-  addCandidate(candidates, sale.about_description, "Description synthétique");
-  addCandidate(candidates, sale.investment_summary, "Synthèse investissement");
   addCandidate(candidates, sale.risk_notes, "Notes de risques");
 
-  for (const factor of sale.score_factors ?? []) {
-    for (const text of scoreFactorTexts(factor))
-      addCandidate(candidates, text, "Facteurs de score");
-  }
+  // Generated scores and summaries are not independent evidence about the property.
 
   for (const item of flattenKeyValues(sale.source_blocks ?? {})) {
     if (WORKS_KEY.test(item.path) || hasRenovationText(item.value)) {
@@ -394,18 +383,6 @@ function collectTextCandidates(sale: AuctionSale): TextCandidate[] {
   }
 
   return candidates.filter((candidate) => hasRenovationText(candidate.text));
-}
-
-function scoreFactorTexts(factor: SaleScoreFactor): string[] {
-  const texts: unknown[] = [
-    factor.label,
-    factor.reason,
-    factor.evidence,
-    factor.factor_key,
-    factor.raw_value,
-    factor.normalized_value,
-  ];
-  return texts.map(cleanText).filter((text): text is string => Boolean(text));
 }
 
 function riskTexts(risk: SaleRisk): string[] {

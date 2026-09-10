@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import entryMotion from "@/components/ui/entry-motion.module.css";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
@@ -93,6 +93,7 @@ import {
 import type { MapViewportChange } from "./MapPanel";
 import { SearchPagination } from "./SearchPagination";
 import { SearchDraft, toggleValue } from "./search-page-state";
+import { SaleTypeFilter } from "./SaleTypeFilter";
 export function MoreFiltersModal({
   open,
   draft,
@@ -108,16 +109,11 @@ export function MoreFiltersModal({
   onClose: () => void;
   onReset: () => void;
 }) {
-  const reduceMotion = useReducedMotion();
-
   return (
-    <AnimatePresence>
+    <>
       {open ? (
-        <motion.div
-          className="fixed inset-0 z-50 bg-[#132238]/55 p-0 backdrop-blur-sm sm:p-4"
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduceMotion ? undefined : { opacity: 0 }}
+        <div
+          className={`${entryMotion.fadeIn} fixed inset-0 z-50 bg-[#132238]/55 p-0 backdrop-blur-sm sm:p-4`}
         >
           <button
             type="button"
@@ -132,9 +128,9 @@ export function MoreFiltersModal({
             onClose={onClose}
             onReset={onReset}
           />
-        </motion.div>
+        </div>
       ) : null}
-    </AnimatePresence>
+    </>
   );
 }
 
@@ -178,6 +174,18 @@ export function MobileFilterDrawer({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div className="mb-5">
+          <SaleTypeFilter
+            value={draft.saleType}
+            onChange={(saleType) =>
+              setDraft((current) => ({
+                ...current,
+                saleType,
+                tribunal: !saleType || saleType === "tribunal" ? current.tribunal : "",
+              }))
+            }
+          />
+        </div>
         <div className="grid gap-5 md:grid-cols-2">
           <AdvancedGroup title="Localisation">
             <FilterField label="Département">
@@ -557,7 +565,8 @@ export function NoResultsState() {
       <SearchIcon className="mx-auto h-8 w-8 text-[#0f766e]" />
       <h2 className="mt-4 text-xl font-extrabold text-[#132238]">Aucun dossier trouvé</h2>
       <p className="mt-2 text-sm font-medium text-[#55626f]">
-        Essayez une autre ville, un autre tribunal ou élargissez les critères.
+        Aucune annonce référencée ne correspond à ces critères pour le moment. Essayez un autre type
+        de vente, une autre zone ou élargissez votre budget.
       </p>
     </div>
   );

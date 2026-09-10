@@ -3,6 +3,25 @@ import { EXAMPLE_SALE } from "@/lib/example-sale";
 import { buildRenovationAnalysis } from "@/lib/renovation-analysis";
 
 describe("renovation analysis", () => {
+  it("does not treat repeated source fields as independent condition confirmation", () => {
+    const text = "Appartement en bon état général.";
+    const analysis = buildRenovationAnalysis({
+      sale: {
+        ...EXAMPLE_SALE,
+        description: text,
+        source_description: text,
+        source_blocks: { etat: text },
+        source_blocks_by_source: { licitor: { etat: text } },
+        risks: [],
+        documents_rich: [],
+        risk_notes: null,
+      },
+      surfaceM2: 21,
+    });
+    expect(analysis.status).toBe("good");
+    expect(analysis.confidence).toBe("medium");
+    expect(analysis.confidenceLabel).toBe("Indice travaux repéré, à confirmer");
+  });
   it("detects a light refresh from structured source data and estimates a budget range", () => {
     const analysis = buildRenovationAnalysis({
       sale: {

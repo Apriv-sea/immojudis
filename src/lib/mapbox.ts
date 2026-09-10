@@ -7,11 +7,7 @@ export const MAPBOX_ATTRIBUTION = "© Mapbox © OpenStreetMap";
 export const MAPBOX_COPYRIGHT_URL = "https://www.mapbox.com/about/maps/";
 
 export function getMapboxAccessToken() {
-  return (
-    process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ??
-    process.env.VITE_MAPBOX_ACCESS_TOKEN ??
-    ""
-  ).trim();
+  return (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "").trim();
 }
 
 export function getMapboxStylePath() {
@@ -19,8 +15,6 @@ export function getMapboxStylePath() {
     (
       process.env.NEXT_PUBLIC_MAPBOX_STYLE ??
       process.env.NEXT_PUBLIC_MAPBOX_STYLE_ID ??
-      process.env.VITE_MAPBOX_STYLE ??
-      process.env.VITE_MAPBOX_STYLE_ID ??
       DEFAULT_MAPBOX_STYLE
     ).trim(),
   );

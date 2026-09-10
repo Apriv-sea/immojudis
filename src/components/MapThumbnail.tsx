@@ -14,9 +14,18 @@ type Props = {
   className?: string;
   alt?: string;
   variant?: "streets" | "satellite";
+  markerLabel?: string;
 };
 
-export function MapThumbnail({ lat, lng, zoom = 15, className, alt, variant = "streets" }: Props) {
+export function MapThumbnail({
+  lat,
+  lng,
+  zoom = 15,
+  className,
+  alt,
+  variant = "streets",
+  markerLabel,
+}: Props) {
   const mapboxUrl =
     lat != null && lng != null
       ? variant === "satellite"
@@ -38,24 +47,14 @@ export function MapThumbnail({ lat, lng, zoom = 15, className, alt, variant = "s
   if (!mapboxUrl || failedUrl === mapboxUrl) {
     return (
       <div
-        className={`relative flex items-center justify-center overflow-hidden bg-[var(--surface)] ${className ?? ""}`}
+        className={`relative flex items-center justify-center overflow-hidden bg-slate-50 ${className ?? ""}`}
       >
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(21,19,17,0.96),rgba(8,8,10,0.98)),radial-gradient(circle_at_35%_30%,rgba(242,196,135,0.2),transparent_34%)]" />
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
         <div className="relative flex flex-col items-center gap-2 px-4 text-center">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold">
             <MapPin className="h-4 w-4" />
           </span>
-          <span className="text-xs font-medium text-foreground">Aperçu Mapbox indisponible</span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-sm font-medium text-slate-700">Aperçu Mapbox indisponible</span>
+          <span className="text-xs text-slate-600">
             Coordonnées conservées : {lat.toFixed(4)}, {lng.toFixed(4)}
           </span>
         </div>
@@ -74,6 +73,11 @@ export function MapThumbnail({ lat, lng, zoom = 15, className, alt, variant = "s
         onError={() => setFailedUrl(mapboxUrl)}
         className="h-full w-full object-cover"
       />
+      {markerLabel ? (
+        <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%] whitespace-nowrap rounded-xl border-2 border-white bg-[#132238] px-3 py-2 text-base font-bold text-white shadow-md">
+          {markerLabel}
+        </span>
+      ) : null}
       <a
         href={MAPBOX_COPYRIGHT_URL}
         target="_blank"

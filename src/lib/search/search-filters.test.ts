@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyClientSearchFilters,
   dataFiltersFromSearch,
+  countActiveSearchFilters,
   hasClientOnlyFilters,
   saleIsInViewport,
 } from "./search-filters";
@@ -9,6 +10,23 @@ import type { ViewportBounds } from "./search-url-state";
 import type { AuctionSale } from "@/lib/types";
 
 describe("sales search filters", () => {
+  it("filters the family on the server and consistently in derived local results", () => {
+    expect(dataFiltersFromSearch({ saleType: "notary" })).toMatchObject({
+      sale_venue_type: "notary",
+    });
+    expect(hasClientOnlyFilters({ saleType: "notary" })).toBe(false);
+    expect(countActiveSearchFilters({ saleType: "notary" })).toBe(1);
+    const items = ["tribunal", "notary", "state", "online", "unknown"].map(
+      (type) => ({ id: type, sale_venue_type: type }) as AuctionSale,
+    );
+    expect(applyClientSearchFilters(items, { saleType: "notary" }, null).map((s) => s.id)).toEqual([
+      "notary",
+    ]);
+    expect(applyClientSearchFilters(items, { saleType: "unknown" }, null).map((s) => s.id)).toEqual(
+      ["online", "unknown"],
+    );
+  });
+
   it.each([
     [
       "Nouvelle-Aquitaine",

@@ -18,6 +18,10 @@ type SupabaseQueryError = {
 type SupabaseReader = Pick<typeof supabase, "from">;
 
 export const SALE_LIST_COLUMNS = [
+  "sale_procedure",
+  "sale_venue_type",
+  "sale_legal_framework",
+  "sale_verification_status",
   "id",
   "title",
   "description",
@@ -88,6 +92,10 @@ const SALE_PREVIEW_COLUMNS = [
 ].join(",");
 
 const SALE_MAP_COLUMNS = [
+  "sale_procedure",
+  "sale_venue_type",
+  "sale_legal_framework",
+  "sale_verification_status",
   "id",
   "title",
   "city",
@@ -160,6 +168,7 @@ async function getSalesFromLegacyPreview(
     .order("starting_price_eur", { ascending: previewSortDirection(sort), nullsFirst: false })
     .range(offset, offset + limit - 1);
 
+  q = applySaleTypeFilter(q, filters);
   if (filters.min_price != null) q = q.gte("starting_price_eur", filters.min_price);
   if (filters.max_price != null) q = q.lte("starting_price_eur", filters.max_price);
 
@@ -181,6 +190,7 @@ async function getSalePreviewFromLegacyView(id: string): Promise<AuctionSale | n
 async function getSalesPreviewCountFromLegacyView(filters: SaleFilters): Promise<number> {
   let q = supabase.from(DETAIL_VIEW).select("id", { count: "exact" }).range(0, 999);
 
+  q = applySaleTypeFilter(q, filters);
   if (filters.min_price != null) q = q.gte("starting_price_eur", filters.min_price);
   if (filters.max_price != null) q = q.lte("starting_price_eur", filters.max_price);
 
@@ -236,8 +246,18 @@ function accentTolerantPatterns(term: string): string[] {
   return patterns;
 }
 
-function applyAuthenticatedSaleFilters<TQuery>(query: TQuery, filters: SaleFilters) {
+function applySaleTypeFilter<TQuery>(query: TQuery, filters: SaleFilters): TQuery {
   let q = query as unknown as FilterableQuery;
+  if (filters.sale_venue_type === "unknown") {
+    q = q.in("sale_venue_type", ["unknown", "online"]);
+  } else if (filters.sale_venue_type) {
+    q = q.eq("sale_venue_type", filters.sale_venue_type);
+  }
+  return q as unknown as TQuery;
+}
+
+function applyAuthenticatedSaleFilters<TQuery>(query: TQuery, filters: SaleFilters) {
+  let q = applySaleTypeFilter(query, filters) as unknown as FilterableQuery;
 
   if (filters.department) q = q.eq("department", filters.department);
   if (filters.departments?.length) {
@@ -310,6 +330,7 @@ export async function getSales(
       .order("starting_price_eur", { ascending: previewSortDirection(sort), nullsFirst: false })
       .range(offset, offset + limit - 1);
 
+    q = applySaleTypeFilter(q, filters);
     if (filters.min_price != null) q = q.gte("starting_price_eur", filters.min_price);
     if (filters.max_price != null) q = q.lte("starting_price_eur", filters.max_price);
 
@@ -355,6 +376,7 @@ export async function getSalesPreviewCount(filters: SaleFilters = {}): Promise<n
   if (!assertCloudConfigured()) return 0;
   let q = supabase.from(PUBLIC_PREVIEW_VIEW).select("id", { count: "exact", head: true });
 
+  q = applySaleTypeFilter(q, filters);
   if (filters.min_price != null) q = q.gte("starting_price_eur", filters.min_price);
   if (filters.max_price != null) q = q.lte("starting_price_eur", filters.max_price);
 

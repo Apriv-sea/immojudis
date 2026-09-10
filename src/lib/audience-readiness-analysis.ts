@@ -39,6 +39,9 @@ export type AudienceReadinessAnalysis = {
   limitations: string[];
 };
 
+import { publishedDay, sourceVisitExcerpt, visitHasPassed } from "./listing-evidence";
+import { safeDocumentUrl } from "./documents";
+
 export function buildAudienceReadinessAnalysis({
   sale,
   documents,
@@ -72,6 +75,7 @@ export function buildAudienceReadinessAnalysis({
     audienceDate,
     daysUntilAudience,
     visitDates,
+    now,
   });
   const totalCount = checklist.length;
   const doneCount = checklist.filter((item) => item.status === "done").length;
@@ -122,6 +126,7 @@ function buildChecklist({
   audienceDate,
   daysUntilAudience,
   visitDates,
+  now,
 }: {
   sale: AuctionSale;
   documents: SaleDocumentRich[];
@@ -133,10 +138,15 @@ function buildChecklist({
   audienceDate: Date | null;
   daysUntilAudience: number | null;
   visitDates: string[];
+  now: Date;
 }): AudienceReadinessItem[] {
   const hasConditions = hasDocument(documents, /cahier|conditions/i);
   const hasDescriptiveReport = hasDocument(documents, /pv|descriptif|commissaire|huissier/i);
   const hasDiagnostics = hasDocument(documents, /diagnostic|dpe|amiante|plomb|termite/i);
+  const currentVisits = visitDates.filter(
+    (value) => publishedDay(value) && !visitHasPassed(value, now),
+  );
+  const pastVisits = visitDates.filter((value) => visitHasPassed(value, now));
 
   return [
     {
@@ -161,15 +171,17 @@ function buildChecklist({
     {
       key: "visits",
       label: "Visite ou accès au bien",
-      status: visitDates.length ? "done" : "to_do",
+      status: currentVisits.length ? "done" : visitDates.length ? "watch" : "to_do",
       priority: "medium",
       source: "Annonce et sources",
-      detail: visitDates.length
-        ? `${visitDates.length} créneau(x) ou mention(s) de visite repéré(s).`
-        : "Aucun créneau de visite exploitable.",
-      action: visitDates.length
+      detail: currentVisits.length
+        ? `${currentVisits.length} créneau(x) daté(s) encore à venir ou aujourd’hui. La présence à la visite n’est pas confirmée.`
+        : pastVisits.length
+          ? "Les créneaux datés repérés sont passés. Aucun nouveau rendez-vous confirmé."
+          : "Aucun créneau de visite daté exploitable.",
+      action: currentVisits.length
         ? "Vérifier présence, horaires et modalités d'inscription à la visite."
-        : "Identifier les créneaux de visite ou les modalités d'accès au bien.",
+        : "Demander à l’organisateur si un nouvel accès au bien est possible.",
     },
     {
       key: "consignation",
@@ -350,7 +362,7 @@ function summary({
   const open = highPriorityOpenCount
     ? ` · ${highPriorityOpenCount} point(s) prioritaire(s) ouvert(s)`
     : "";
-  return `${statusLabel(status)} · ${doneCount}/${totalCount} contrôle(s) validé(s) (${progressPct} %)${open}.`;
+  return `${statusLabel(status)} · ${doneCount}/${totalCount} élément(s) renseigné(s) (${progressPct} %)${open}.`;
 }
 
 function decisionImpact(status: AudienceReadinessStatus): string {
@@ -389,8 +401,10 @@ function nextActions(
 }
 
 function normalizeVisitDates(sale: AuctionSale): string[] {
+  const sourceVisit = sourceVisitExcerpt(sale);
   const values = [
     ...primitiveTexts(sale.visit_dates),
+    ...(sourceVisit ? [sourceVisit] : []),
     ...sourceBlockTexts(sale.source_blocks, /visite|visit/i),
     ...Object.values(sale.source_blocks_by_source ?? {}).flatMap((blocks) =>
       sourceBlockTexts(blocks, /visite|visit/i),
@@ -416,8 +430,12 @@ function primitiveTexts(value: unknown): string[] {
 }
 
 function hasDocument(documents: SaleDocumentRich[], pattern: RegExp): boolean {
-  return documents.some((document) =>
-    pattern.test(`${document.type ?? ""} ${document.document_type ?? ""} ${document.label ?? ""}`),
+  return documents.some(
+    (document) =>
+      Boolean(safeDocumentUrl(document.url)) &&
+      pattern.test(
+        `${document.type ?? ""} ${document.document_type ?? ""} ${document.label ?? ""}`,
+      ),
   );
 }
 
@@ -429,8 +447,17 @@ function parseDate(value: string | null): Date | null {
 
 function daysUntil(date: Date | null, now: Date): number | null {
   if (!date || !Number.isFinite(now.getTime())) return null;
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.ceil((date.getTime() - now.getTime()) / dayMs);
+  const calendarDay = (value: Date) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(value);
+    const part = (type: string) => Number(parts.find((item) => item.type === type)?.value);
+    return Date.UTC(part("year"), part("month") - 1, part("day"));
+  };
+  return (calendarDay(date) - calendarDay(now)) / (24 * 60 * 60 * 1000);
 }
 
 function formatMoney(value: number): string {

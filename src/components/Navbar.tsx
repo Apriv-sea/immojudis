@@ -450,7 +450,7 @@ function HeaderLogo({ onClick }: { onClick?: () => void }) {
         <strong>
           Immo<span>Judis</span>
         </strong>
-        <small>L'immobilier judiciaire en toute confiance</small>
+        <small>Les ventes immobilières en toute clarté</small>
       </span>
     </Link>
   );

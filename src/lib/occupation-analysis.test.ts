@@ -3,6 +3,92 @@ import { EXAMPLE_SALE } from "@/lib/example-sale";
 import { buildOccupancyAnalysis } from "@/lib/occupation-analysis";
 
 describe("occupation analysis", () => {
+  const cleanSale = {
+    ...EXAMPLE_SALE,
+    description: "Appartement.",
+    source_description: null,
+    llm_display_description: null,
+    about_description: null,
+    investment_summary: null,
+    risk_notes: null,
+    source_blocks: {},
+    source_blocks_by_source: {},
+    score_factors: [],
+    documents_rich: [],
+    risks: [],
+  };
+
+  it("does not treat copies of one publication as independent confirmation", () => {
+    const text = "Studio loué avec bail en cours.";
+    const analysis = buildOccupancyAnalysis({
+      ...cleanSale,
+      occupancy_status: "rented",
+      description: text,
+      source_description: text,
+      source_blocks: { page_text: text, occupation: "rented" },
+      source_blocks_by_source: { licitor: { page_text: text, occupation: "rented" } },
+    });
+    expect(analysis.status).toBe("rented");
+    expect(analysis.confidence).toBe("medium");
+    expect(analysis.confidenceLabel).toBe("Statut repéré, à confirmer");
+  });
+
+  it.each(["Présence d'un meuble", "Présence d’un placard", "Présence d’une fenêtre"])(
+    "does not turn a physical observation into occupation: %s",
+    (description) => {
+      const analysis = buildOccupancyAnalysis({
+        ...cleanSale,
+        occupancy_status: "rented",
+        description,
+      });
+      expect(analysis.status).toBe("rented");
+      expect(analysis.evidence).toHaveLength(1);
+    },
+  );
+
+  it("treats rented and occupied as compatible signals", () => {
+    const analysis = buildOccupancyAnalysis({
+      ...cleanSale,
+      occupancy_status: "rented",
+      source_description: "Présence d’une personne dans le logement.",
+    });
+    expect(analysis.status).toBe("rented");
+    expect(analysis.evidence.map((item) => item.status)).toContain("occupied");
+  });
+
+  it("keeps a late contradiction in the decision and visible evidence", () => {
+    const analysis = buildOccupancyAnalysis({
+      ...cleanSale,
+      occupancy_status: "free",
+      source_blocks: {
+        ...Object.fromEntries(
+          Array.from({ length: 10 }, (_, i) => [
+            `occupation_${i}`,
+            `Libre de toute occupation, constat ${i}.`,
+          ]),
+        ),
+        occupation_finale: "Présence d’une personne dans le logement.",
+      },
+    });
+    expect(analysis.status).toBe("conflicting");
+    expect(analysis.evidence).toHaveLength(8);
+    expect(analysis.evidence.map((item) => item.status)).toEqual(
+      expect.arrayContaining(["free", "occupied"]),
+    );
+  });
+
+  it("does not treat vacancy at a historical inspection as current availability", () => {
+    const analysis = buildOccupancyAnalysis({
+      ...EXAMPLE_SALE,
+      occupancy_status: "vacant",
+      source_description: "Le logement était inoccupé lors du constat.",
+      source_blocks: {},
+      risks: [],
+    });
+    expect(analysis.status).toBe("to_confirm");
+    expect(analysis.summary).toContain("Inoccupé au constat");
+    expect(analysis.summary).toContain("disponibilité actuelle reste à confirmer");
+  });
   it("qualifies free properties from a structured status and source confirmation", () => {
     const analysis = buildOccupancyAnalysis({
       ...EXAMPLE_SALE,
@@ -17,7 +103,7 @@ describe("occupation analysis", () => {
       available: true,
       status: "free",
       label: "Libre",
-      confidence: "high",
+      confidence: "medium",
       hasLeaseSignal: false,
     });
     expect(analysis.decisionImpact).toContain("jouissance");

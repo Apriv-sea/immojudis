@@ -1,0 +1,316 @@
+.page {
+  min-height: 100vh;
+  background: #f4f6f9;
+  color: #132238;
+}
+
+.container {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 24px 16px 56px;
+}
+
+.back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  color: #132238;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.back:hover {
+  color: #946724;
+}
+
+.hero {
+  display: grid;
+  gap: 24px;
+  margin-top: 18px;
+  align-items: stretch;
+}
+
+.summary,
+.procedure,
+.access {
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  background: #fff;
+}
+
+.summary {
+  padding: 26px;
+}
+
+.title {
+  max-width: 700px;
+  margin-top: 18px;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(34px, 7vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+.intro {
+  max-width: 650px;
+  margin-top: 16px;
+  color: #607086;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.priceLabel {
+  margin-top: 30px;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.price {
+  margin-top: 2px;
+  font-size: clamp(42px, 11vw, 64px);
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.priceNote {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.facts {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.fact {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.fact dt {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.fact dd {
+  margin-top: 5px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.procedure {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.procedureText {
+  margin-top: 16px;
+  color: #405168;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.verification {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  color: #405168;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.verification svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  color: #17865d;
+}
+
+.catalogueNote {
+  margin-top: auto;
+  border-radius: 14px;
+  background: #f5f8fb;
+  padding: 16px;
+  color: #405168;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.catalogueNote strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #132238;
+}
+
+.access {
+  margin-top: 24px;
+  padding: 26px;
+}
+
+.accessHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.accessIntro {
+  max-width: 680px;
+  margin-top: 8px;
+  color: #607086;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 11px 17px;
+  font-size: 14px;
+  font-weight: 700;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.primary {
+  border: 1px solid #132238;
+  background: #132238;
+  color: #fff;
+}
+
+.primary:hover {
+  background: #243c58;
+}
+
+.secondary {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #132238;
+}
+
+.secondary:hover {
+  border-color: #946724;
+  color: #946724;
+}
+
+.tiers {
+  display: grid;
+  gap: 12px;
+  margin-top: 26px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 24px;
+}
+
+.tier {
+  min-width: 0;
+  border-left: 3px solid #dbe1e9;
+  padding: 4px 4px 4px 14px;
+}
+
+.tierFree {
+  border-left-color: #17865d;
+}
+
+.tierAnalysis {
+  border-left-color: #946724;
+}
+
+.tierTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.tierTitle svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.tier p {
+  margin-top: 7px;
+  color: #607086;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page :is(a, button):focus-visible {
+  outline: 2px solid #946724;
+  outline-offset: 4px;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 32px 24px 64px;
+  }
+
+  .summary,
+  .procedure,
+  .access {
+    padding: 32px;
+  }
+
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accessHeader {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .actions {
+    flex: none;
+    justify-content: flex-end;
+  }
+
+  .tiers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  }
+}

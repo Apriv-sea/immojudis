@@ -3,6 +3,17 @@ import { EXAMPLE_MARKET_ESTIMATE, EXAMPLE_SALE } from "@/lib/example-sale";
 import { buildValuationAudit } from "@/lib/valuation-audit";
 
 describe("valuation audit", () => {
+  it.each([6, 7])("does not call a short sample of %s robust", (sampleSize) => {
+    const audit = buildValuationAudit({
+      sale: EXAMPLE_SALE,
+      surfaceM2: EXAMPLE_SALE.app_surface_m2,
+      marketEstimate: { ...EXAMPLE_MARKET_ESTIMATE, sampleSize, qualityScore: 95 },
+    });
+    expect(audit.status).toBe("usable");
+    expect(audit.checkpoints).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "sample_size", status: "watch" })]),
+    );
+  });
   it("marks a well-sampled DVF estimate as robust", () => {
     const audit = buildValuationAudit({
       sale: EXAMPLE_SALE,

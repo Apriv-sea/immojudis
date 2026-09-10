@@ -159,7 +159,7 @@ export type MarketCeilingResult = {
   reason?: string;
   surface: number;
   scenario: MarketCeilingScenarioKey | "custom";
-  basis: MarketCeilingBasis | "manual";
+  basis: MarketCeilingBasis | "manual" | "p25";
   basisLabel: string;
   marketReferencePricePerM2: number;
   safetyDiscountPct: number;
@@ -264,15 +264,18 @@ export function computeMarketCeiling(inputs: MarketCeilingInputs): MarketCeiling
   const scenarioConfig =
     MARKET_CEILING_SCENARIOS.find((item) => item.key === inputs.scenario) ??
     MARKET_CEILING_SCENARIOS.find((item) => item.key === DEFAULT_MARKET_CEILING_SCENARIO)!;
-  const basis = manualMarket ? "manual" : scenarioConfig.basis;
-  const marketReference =
-    manualMarket ??
-    cleanPositive(basis === "p10" ? inputs.p10PricePerM2 : inputs.medianPricePerM2) ??
-    cleanPositive(inputs.medianPricePerM2) ??
-    cleanPositive(inputs.p10PricePerM2) ??
-    cleanPositive(inputs.p25PricePerM2);
+  const references = {
+    manual: manualMarket,
+    median: cleanPositive(inputs.medianPricePerM2),
+    p10: cleanPositive(inputs.p10PricePerM2),
+    p25: cleanPositive(inputs.p25PricePerM2),
+  };
+  const basis = (["manual", scenarioConfig.basis, "median", "p10", "p25"] as const).find(
+    (candidate) => references[candidate] != null,
+  );
+  const marketReference = basis ? references[basis] : null;
 
-  if (!marketReference) {
+  if (!marketReference || !basis) {
     return unavailableResult("Prix de marché local insuffisant", surface, inputs, simulated);
   }
 
@@ -295,7 +298,13 @@ export function computeMarketCeiling(inputs: MarketCeilingInputs): MarketCeiling
     surface,
     scenario: inputs.scenario,
     basis,
-    basisLabel: manualMarket ? "prix marché saisi" : scenarioConfig.basisLabel,
+    basisLabel: {
+      manual: "prix marché saisi",
+      median:
+        scenarioConfig.basis === "p10" ? "médiane locale (P10 indisponible)" : "médiane locale",
+      p10: "borne basse (P10)",
+      p25: "premier quartile (P25)",
+    }[basis],
     marketReferencePricePerM2: Math.round(marketReference),
     safetyDiscountPct,
     safetyDiscountPerM2: Math.round(marketReference - maxAllInPricePerM2),

@@ -28,7 +28,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export impossible";
-    const status = message.startsWith("Unauthorized") ? 401 : 400;
-    return Response.json({ ok: false, error: message }, { status });
+    const status = message.startsWith("Unauthorized")
+      ? 401
+      : message.includes("réservé") || message.startsWith("Forbidden")
+        ? 403
+        : 400;
+    return Response.json(
+      { ok: false, error: message },
+      { status, headers: { "cache-control": "private, no-store", vary: "authorization" } },
+    );
   }
 }

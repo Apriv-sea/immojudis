@@ -63,6 +63,8 @@ const FIT_PADDING = { top: 82, right: 70, bottom: 86, left: 70 };
 const MOBILE_FIT_PADDING = { top: 88, right: 30, bottom: 120, left: 30 };
 
 export type MapPanelProps = {
+  preview?: boolean;
+  showDpeLegend?: boolean;
   sales: AuctionSale[];
   hoveredSaleId: string | null;
   selectedSaleId: string | null;
@@ -90,7 +92,11 @@ type QueriedMapFeature = {
   properties?: Record<string, unknown>;
 };
 
+type PopupAccess = { preview: boolean; analysisLocked: boolean };
+
 export function MapPanel({
+  preview = false,
+  showDpeLegend = true,
   sales,
   hoveredSaleId,
   selectedSaleId,
@@ -104,6 +110,7 @@ export function MapPanel({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const popupAccessRef = useRef<PopupAccess>({ preview, analysisLocked: !showDpeLegend });
   const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -115,7 +122,7 @@ export function MapPanel({
   const mapStyle = useMemo(() => getMapboxStyleUrl(), []);
   const featureCollection = useMemo(() => buildMapboxSaleFeatureCollection(sales), [sales]);
   const geocodedSales = useMemo(() => sales.filter(hasCoordinates), [sales]);
-  const canToggleSearchAsMove = mapReady && (geocodedSales.length > 0 || searchAsMove);
+  const canToggleSearchAsMove = !preview && mapReady && (geocodedSales.length > 0 || searchAsMove);
   const activeId = hoveredSaleId ?? selectedSaleId;
 
   function markUserInteracted() {
@@ -139,24 +146,39 @@ export function MapPanel({
   }, [sales]);
 
   useEffect(() => {
+    popupAccessRef.current = { preview, analysisLocked: !showDpeLegend };
+    popupRef.current?.remove();
+    popupRef.current = null;
+  }, [preview, showDpeLegend]);
+
+  useEffect(() => {
     if (!containerRef.current || !accessToken) return;
 
     mapboxgl.accessToken = accessToken;
-    const map = new mapboxgl.Map({
-      accessToken,
-      container: containerRef.current,
-      style: mapStyle,
-      center: DEFAULT_MAP_CENTER,
-      zoom: defaultMapZoomForViewport(containerRef.current),
-      minZoom: MIN_MAP_ZOOM,
-      maxZoom: MAX_MAP_ZOOM,
-      attributionControl: true,
-      pitchWithRotate: false,
-      dragRotate: false,
-      cooperativeGestures: false,
-    });
+    let map: MapboxMap;
+    try {
+      map = new mapboxgl.Map({
+        accessToken,
+        container: containerRef.current,
+        style: mapStyle,
+        center: DEFAULT_MAP_CENTER,
+        zoom: defaultMapZoomForViewport(containerRef.current),
+        minZoom: MIN_MAP_ZOOM,
+        maxZoom: MAX_MAP_ZOOM,
+        attributionControl: true,
+        pitchWithRotate: false,
+        dragRotate: false,
+        cooperativeGestures: false,
+      });
+    } catch {
+      setMapError("La carte n’a pas pu démarrer sur cet appareil.");
+      return;
+    }
 
     mapRef.current = map;
+    const loadTimeout = window.setTimeout(() => {
+      setMapError("Le chargement de la carte prend trop de temps.");
+    }, 12_000);
 
     const emitViewport = () => {
       onViewportChangeRef.current({
@@ -170,6 +192,8 @@ export function MapPanel({
     };
 
     map.on("load", () => {
+      window.clearTimeout(loadTimeout);
+      setMapError(null);
       addSalesLayers(map, featureCollection);
       if (!hasUserInteractedRef.current) centerMapOnFrance(map, false, containerRef.current);
       emitViewport();
@@ -198,7 +222,7 @@ export function MapPanel({
       if (!sale || !hasCoordinates(sale)) return;
       event.preventDefault();
       onSelectRef.current(saleId);
-      popupRef.current = showSalePopup(map, sale, popupRef.current);
+      popupRef.current = showSalePopup(map, sale, popupRef.current, popupAccessRef.current);
     };
 
     const handleClusterEnter = () => {
@@ -251,6 +275,7 @@ export function MapPanel({
     observer.observe(containerRef.current);
 
     return () => {
+      window.clearTimeout(loadTimeout);
       observer.disconnect();
       canvas.removeEventListener("pointerdown", handleDirectMapInteraction);
       canvas.removeEventListener("wheel", handleDirectMapInteraction);
@@ -291,8 +316,8 @@ export function MapPanel({
       zoom,
       duration: 360,
     });
-    popupRef.current = showSalePopup(map, sale, popupRef.current);
-  }, [mapReady, selectedSaleId]);
+    popupRef.current = showSalePopup(map, sale, popupRef.current, popupAccessRef.current);
+  }, [mapReady, selectedSaleId, preview, showDpeLegend]);
 
   function zoomIn() {
     markUserInteracted();
@@ -321,7 +346,7 @@ export function MapPanel({
   if (!accessToken) {
     return (
       <div className="relative h-full min-h-[28rem] overflow-hidden bg-[#dcece5]">
-        <MapFallback message="Token Mapbox manquant. Ajoutez NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN pour charger la carte." />
+        <MapFallback message="La carte est indisponible. Vous pouvez continuer à consulter les annonces dans la liste." />
       </div>
     );
   }
@@ -336,14 +361,14 @@ export function MapPanel({
       />
 
       {mapError ? (
-        <MapFallback message={`Mapbox n'a pas pu charger la carte : ${mapError}`} />
+        <MapFallback message="La carte n’a pas pu charger. Les annonces restent accessibles dans la liste." />
       ) : null}
 
-      {isLoading || !mapReady ? (
+      {!mapError && (isLoading || !mapReady) ? (
         <div className="pointer-events-none absolute inset-x-0 top-16 z-20 grid place-items-center">
           <div className="inline-flex items-center gap-2 rounded-md border border-[#cbded8] bg-white px-4 py-3 text-sm font-bold text-[#132238] shadow-lg">
             <LoaderCircle className="h-4 w-4 animate-spin text-[#0f766e]" />
-            Mise à jour de la carte
+            {!mapReady ? "Chargement de la carte" : "Mise à jour de la carte"}
           </div>
         </div>
       ) : null}
@@ -355,26 +380,32 @@ export function MapPanel({
       ) : null}
 
       <div className="absolute left-4 top-4 z-30 flex max-w-[calc(100%-6rem)] flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            if (!canToggleSearchAsMove) return;
-            markUserInteracted();
-            onSearchAsMoveChange(!searchAsMove);
-          }}
-          disabled={!canToggleSearchAsMove}
-          aria-pressed={searchAsMove}
-          className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-extrabold shadow-lg backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c98d45] disabled:cursor-not-allowed disabled:opacity-60 ${
-            searchAsMove
-              ? "border-[#132238] bg-[#132238] text-white"
-              : "border-[#d6e0dc] bg-white/95 text-[#132238] hover:border-[#c98d45] disabled:hover:border-[#d6e0dc]"
-          }`}
-        >
-          <LocateFixed className="h-4 w-4" />
-          {searchAsMove ? "Carte active" : "Rechercher ici"}
-        </button>
+        {!preview ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!canToggleSearchAsMove) return;
+              markUserInteracted();
+              onSearchAsMoveChange(!searchAsMove);
+            }}
+            disabled={!canToggleSearchAsMove}
+            aria-pressed={searchAsMove}
+            className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-extrabold shadow-lg backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c98d45] disabled:cursor-not-allowed disabled:opacity-60 ${
+              searchAsMove
+                ? "border-[#132238] bg-[#132238] text-white"
+                : "border-[#d6e0dc] bg-white/95 text-[#132238] hover:border-[#c98d45] disabled:hover:border-[#d6e0dc]"
+            }`}
+          >
+            <LocateFixed className="h-4 w-4" />
+            {searchAsMove ? "Carte active" : "Rechercher ici"}
+          </button>
+        ) : (
+          <span className="rounded-md border border-[#d6e0dc] bg-white/95 px-3 py-2 text-xs font-bold text-[#3d4b57] shadow-lg">
+            Positions approximatives · annonces de cette page
+          </span>
+        )}
         <div className="hidden h-10 items-center rounded-md border border-[#d6e0dc] bg-white/95 px-3 text-xs font-bold text-[#3d4b57] shadow-lg backdrop-blur sm:inline-flex">
-          {geocodedSales.length.toLocaleString("fr-FR")} géocodés
+          {geocodedSales.length.toLocaleString("fr-FR")} {preview ? "situées" : "géocodés"}
         </div>
       </div>
 
@@ -403,25 +434,27 @@ export function MapPanel({
         </span>
       </div>
 
-      <div className="absolute bottom-16 left-4 z-30 hidden rounded-md border border-[#d6e0dc] bg-white/95 px-2 py-2 shadow-lg backdrop-blur sm:block">
-        <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#667482]">
-          DPE
+      {showDpeLegend ? (
+        <div className="absolute bottom-16 left-4 z-30 hidden rounded-md border border-[#d6e0dc] bg-white/95 px-2 py-2 shadow-lg backdrop-blur sm:block">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#667482]">
+            DPE
+          </div>
+          <div className="flex gap-1">
+            {DPE_CLASSES.map((dpeClass) => {
+              const color = dpeColor(dpeClass);
+              return (
+                <span
+                  key={dpeClass}
+                  className="grid h-5 w-5 place-items-center rounded text-[10px] font-extrabold"
+                  style={{ backgroundColor: color?.background, color: color?.foreground }}
+                >
+                  {dpeClass}
+                </span>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex gap-1">
-          {DPE_CLASSES.map((dpeClass) => {
-            const color = dpeColor(dpeClass);
-            return (
-              <span
-                key={dpeClass}
-                className="grid h-5 w-5 place-items-center rounded text-[10px] font-extrabold"
-                style={{ backgroundColor: color?.background, color: color?.foreground }}
-              >
-                {dpeClass}
-              </span>
-            );
-          })}
-        </div>
-      </div>
+      ) : null}
 
       <a
         href={MAPBOX_COPYRIGHT_URL}
@@ -618,6 +651,7 @@ function showSalePopup(
   map: MapboxMap,
   sale: AuctionSale & { latitude: number; longitude: number },
   currentPopup: mapboxgl.Popup | null,
+  access: PopupAccess,
 ) {
   currentPopup?.remove();
   return new mapboxgl.Popup({
@@ -628,12 +662,19 @@ function showSalePopup(
     offset: 18,
   })
     .setLngLat([sale.longitude, sale.latitude])
-    .setHTML(buildPopupHtml(sale))
+    .setHTML(buildPopupHtml(sale, access))
     .addTo(map);
 }
 
-function buildPopupHtml(sale: AuctionSale & { latitude: number; longitude: number }) {
-  const saleTitle = saleDisplayTitle(sale);
+function buildPopupHtml(
+  sale: AuctionSale & { latitude: number; longitude: number },
+  access: PopupAccess,
+) {
+  const saleTitle = access.preview
+    ? [propertyTypeLabel(sale.property_type), sale.city ? `à ${sale.city}` : null]
+        .filter(Boolean)
+        .join(" ")
+    : saleDisplayTitle(sale);
   const dpe = extractDpe(sale);
   const dpeTheme = dpeColor(dpe.class);
   const surface = getSaleSurface(sale).value;
@@ -643,15 +684,16 @@ function buildPopupHtml(sale: AuctionSale & { latitude: number; longitude: numbe
     sale.investment_score == null ? "À auditer" : `${Math.round(sale.investment_score)}`;
   const riskCount = sale.risks?.length ?? 0;
   const riskLabel =
-    riskCount > 1 ? `${riskCount} alertes` : riskCount === 1 ? "1 alerte" : "Faible";
-  const imageUrl =
-    mapboxSatelliteImageUrl({
-      lat: sale.latitude,
-      lng: sale.longitude,
-      zoom: 15,
-      width: 420,
-      height: 250,
-    }) || firstPropertyImage(sale.media);
+    riskCount > 1 ? `${riskCount} alertes` : riskCount === 1 ? "1 alerte" : "À vérifier";
+  const imageUrl = access.preview
+    ? firstPropertyImage(sale.media)
+    : mapboxSatelliteImageUrl({
+        lat: sale.latitude,
+        lng: sale.longitude,
+        zoom: 15,
+        width: 420,
+        height: 250,
+      }) || firstPropertyImage(sale.media);
   const detailUrl = `/sales/${encodeURIComponent(sale.id)}`;
   const location = [sale.city, sale.tribunal_city ?? sale.tribunal_name]
     .filter(Boolean)
@@ -677,14 +719,14 @@ function buildPopupHtml(sale: AuctionSale & { latitude: number; longitude: numbe
         <div class="immo-mapbox-popup-metrics">
           <span>${escapeHtml(displaySurface.label)}</span>
           <span>${escapeHtml(formatPricePerM2(pricePerSquareMeter))}</span>
-          <span>Score ${escapeHtml(score)}</span>
-          <span>Risque ${escapeHtml(riskLabel)}</span>
+          <span>Score ${escapeHtml(access.analysisLocked ? "Analyse" : score)}</span>
+          <span>Risque ${escapeHtml(access.analysisLocked ? "Analyse" : riskLabel)}</span>
         </div>
         <div class="immo-mapbox-popup-tags">
           <span>${escapeHtml(propertyTypeLabel(sale.property_type))}</span>
           ${sale.sale_date ? `<span>${escapeHtml(formatDate(sale.sale_date))}</span>` : ""}
           ${
-            dpe.class
+            !access.analysisLocked && dpe.class
               ? `<span style="background:${escapeAttribute(
                   dpeTheme?.background ?? "#eef3f5",
                 )};border-color:${escapeAttribute(
@@ -695,6 +737,7 @@ function buildPopupHtml(sale: AuctionSale & { latitude: number; longitude: numbe
               : ""
           }
         </div>
+        ${access.preview ? '<p class="immo-mapbox-popup-location">Position approximative · fiche complète avec un compte gratuit</p>' : ""}
         <a class="immo-mapbox-popup-link" href="${escapeAttribute(detailUrl)}">Voir le détail</a>
       </div>
     </article>

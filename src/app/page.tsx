@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { HomePage } from "@/routes/index";
 
 export const metadata: Metadata = {
-  title: "Immojudis - L'immobilier judiciaire en toute clarté",
+  title: "Immojudis - Les enchères immobilières en toute clarté",
   description:
-    "L'immobilier judiciaire en toute clarté : rapports d'opportunité, comparables DVF, alertes avancées et mise maximale avant audience.",
+    "Ventes au tribunal, notariales et domaniales référencées : distinguez les procédures, trouvez une annonce et préparez votre achat immobilier.",
   alternates: { canonical: "/" },
 };
 
