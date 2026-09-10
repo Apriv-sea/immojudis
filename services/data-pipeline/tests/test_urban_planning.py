@@ -2,6 +2,24 @@ from src.models import AuctionSale
 from src.urban_planning import build_urban_planning_signal_rows
 
 
+def test_generated_questions_are_not_urban_planning_evidence() -> None:
+    question = "L'occupation, les servitudes et les contraintes sont-elles maîtrisées ?"
+    generated = {"asset_normalization": {"score_factors": [{"question": question}]}}
+    sale = AuctionSale(
+        source_name="licitor",
+        source_url="https://example.test/vente-3",
+        investment_summary="Usage commercial et copropriété à analyser.",
+        score_factors=[{"factor_key": "legal_security", "evidence": question}],
+        raw_payload=generated,
+        observations=[{"raw_payload": generated}],
+    )
+    assert build_urban_planning_signal_rows(sale) == []
+    sale.raw_payload["source_blocks"] = {"servitude": "Servitude de passage au profit du voisin."}
+    rows = build_urban_planning_signal_rows(sale)
+    assert any(row["signal_kind"] == "servitude" for row in rows)
+    assert all("asset_normalization" not in row["excerpt"] for row in rows)
+
+
 def test_urban_planning_signals_extract_pdf_permit_and_servitude() -> None:
     sale = AuctionSale(
         source_name="avoventes",

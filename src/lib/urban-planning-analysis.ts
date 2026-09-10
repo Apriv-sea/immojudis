@@ -198,8 +198,15 @@ export function buildUrbanPlanningAnalysis({
   };
 }
 
+export function isPrimaryUrbanPlanningSignal(signal: StructuredUrbanPlanningSignal): boolean {
+  if (["llm", "score_factor"].includes(signal.sourceKind ?? "")) return false;
+  return !/(?:asset_normalization|score_factors|investment_summary|llm_display_description|about_description)(?:\b|\[)/i.test(
+    signal.excerpt ?? "",
+  );
+}
+
 function structuredSignalItems(signals: StructuredUrbanPlanningSignal[]): UrbanPlanningItem[] {
-  return signals.map((signal): UrbanPlanningItem => {
+  return signals.filter(isPrimaryUrbanPlanningSignal).map((signal): UrbanPlanningItem => {
     const definition = SIGNAL_DEFINITIONS.find((item) => item.kind === signal.signalKind);
     const source =
       cleanText(signal.sourceName) ?? cleanText(signal.documentLabel) ?? "Signal structuré";

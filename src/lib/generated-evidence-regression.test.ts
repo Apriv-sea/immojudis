@@ -5,6 +5,28 @@ import { buildOccupancyAnalysis } from "@/lib/occupation-analysis";
 import { buildNeighborhoodAnalysis } from "@/lib/neighborhood-analysis";
 import { buildNearbyServicesAnalysis } from "@/lib/nearby-services";
 import { buildStreetFacadeAnalysis } from "@/lib/street-facade-analysis";
+import {
+  isPrimaryUrbanPlanningSignal,
+  type StructuredUrbanPlanningSignal,
+} from "@/lib/urban-planning-analysis";
+
+it("rejects stored generated urban-planning evidence while retaining primary excerpts", () => {
+  const base = {
+    sourceKind: "source_payload",
+    excerpt: "Servitude de passage à confirmer dans le cahier.",
+  } as StructuredUrbanPlanningSignal;
+  expect(isPrimaryUrbanPlanningSignal(base)).toBe(true);
+  expect(isPrimaryUrbanPlanningSignal({ ...base, sourceKind: "pdf" })).toBe(true);
+  for (const sourceKind of ["llm", "score_factor"]) {
+    expect(isPrimaryUrbanPlanningSignal({ ...base, sourceKind })).toBe(false);
+  }
+  for (const excerpt of [
+    "asset_normalization.score_factors[0].normalized_value.question: Les servitudes sont-elles maîtrisées ?",
+    "observations[0].raw_payload.asset_normalization.score_factors[0].normalized_value.question: copropriété",
+    "investment_summary: Usage commercial favorable",
+  ])
+    expect(isPrimaryUrbanPlanningSignal({ ...base, excerpt })).toBe(false);
+});
 
 it("does not turn generated summaries or scores into independent property evidence", () => {
   const generated = "Studio loué en bon état général d'entretien au cœur du centre-ville à ANGLET.";

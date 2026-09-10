@@ -4,7 +4,10 @@ import type { MarketEstimate } from "@/lib/market.functions";
 import type { AuctionSale, SaleDocumentRich, SaleRisk } from "@/lib/types";
 import type { StructuredCadastralParcel } from "@/lib/cadastre-analysis";
 import type { StructuredDpeDiagnostic } from "@/lib/dpe";
-import type { StructuredUrbanPlanningSignal } from "@/lib/urban-planning-analysis";
+import {
+  isPrimaryUrbanPlanningSignal,
+  type StructuredUrbanPlanningSignal,
+} from "@/lib/urban-planning-analysis";
 import {
   getSaleProcedure,
   lawyerRequirementLabel,
@@ -114,34 +117,40 @@ function procedureEntries(sale: AuctionSale): SourceTraceEntry[] {
 }
 
 function urbanPlanningEntries(signals: StructuredUrbanPlanningSignal[]): SourceTraceEntry[] {
-  return signals.slice(0, 4).map((signal, index) => {
-    const detail = [
-      cleanText(signal.label),
-      cleanText(signal.excerpt),
-      typeof signal.pageNumber === "number" ? `page ${signal.pageNumber}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+  return signals
+    .filter(isPrimaryUrbanPlanningSignal)
+    .slice(0, 4)
+    .map((signal, index) => {
+      const detail = [
+        cleanText(signal.label),
+        cleanText(signal.excerpt),
+        typeof signal.pageNumber === "number" ? `page ${signal.pageNumber}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
-    return {
-      id: stableId("urban-planning", signal.signalKey, String(index)),
-      kind: "urban_planning_context",
-      label: cleanText(signal.label) ?? "Signal urbanisme",
-      sourceName:
-        cleanText(signal.documentLabel) ??
-        cleanText(signal.sourceName) ??
-        "Signal urbanisme ImmoJudis",
-      url: cleanText(signal.documentUrl),
-      capturedAt: cleanText(signal.updatedAt),
-      confidenceLabel:
-        typeof signal.confidence === "number"
-          ? `${Math.round(signal.confidence * 100)}%`
-          : "À confirmer",
-      detail: truncate(detail || "Signal urbanisme, permis ou servitude rattache a la vente.", 260),
-      limitation:
-        "Le signal doit etre recoupe avec le PLU, le cahier des conditions et les pieces officielles.",
-    };
-  });
+      return {
+        id: stableId("urban-planning", signal.signalKey, String(index)),
+        kind: "urban_planning_context",
+        label: cleanText(signal.label) ?? "Signal urbanisme",
+        sourceName:
+          cleanText(signal.documentLabel) ??
+          cleanText(signal.sourceName) ??
+          "Signal urbanisme ImmoJudis",
+        url: cleanText(signal.documentUrl),
+        capturedAt: cleanText(signal.updatedAt),
+        confidenceLabel:
+          typeof signal.confidence === "number"
+            ? `${Math.round(signal.confidence * 100)}%`
+            : "À confirmer",
+        detail: truncate(
+          detail || "Signal urbanisme, permis ou servitude rattache a la vente.",
+          260,
+        ),
+        limitation:
+          "Le signal doit etre recoupe avec le PLU, le cahier des conditions et les pieces officielles.",
+      };
+    });
 }
 
 function dpeEntries(diagnostics: StructuredDpeDiagnostic[]): SourceTraceEntry[] {
