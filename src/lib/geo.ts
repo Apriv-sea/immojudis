@@ -21,7 +21,14 @@ export async function geocodeAddress(q: string): Promise<GeoPoint | null> {
   return geocodeAddressWithFrenchApi(q);
 }
 
-async function geocodeAddressWithMapbox(q: string): Promise<GeoPoint | null> {
+export function geocodeAdministrativeArea(q: string): Promise<GeoPoint | null> {
+  return geocodeAddressWithMapbox(q, true);
+}
+
+async function geocodeAddressWithMapbox(
+  q: string,
+  administrative = false,
+): Promise<GeoPoint | null> {
   const token = getMapboxAccessToken();
   if (!token) return null;
 
@@ -33,7 +40,9 @@ async function geocodeAddressWithMapbox(q: string): Promise<GeoPoint | null> {
     country: "fr",
     language: "fr",
     limit: "1",
-    types: "address,street,postcode,place,locality,neighborhood",
+    types: administrative
+      ? "region,district"
+      : "address,street,postcode,place,locality,neighborhood",
   });
   const url = `https://api.mapbox.com/search/geocode/v6/forward?${params.toString()}`;
 

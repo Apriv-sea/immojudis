@@ -63,7 +63,7 @@ const FIT_PADDING = { top: 82, right: 70, bottom: 86, left: 70 };
 const MOBILE_FIT_PADDING = { top: 88, right: 30, bottom: 120, left: 30 };
 
 export type MapPanelProps = {
-  locationCenter?: { lat: number; lng: number } | null;
+  locationCenter?: { lat: number; lng: number; zoom?: number } | null;
   totalCount?: number;
   preview?: boolean;
   showDpeLegend?: boolean;
@@ -328,7 +328,11 @@ export function MapPanel({
     const map = mapRef.current;
     if (!map || !mapReady) return;
     if (locationCenter)
-      map.easeTo({ center: [locationCenter.lng, locationCenter.lat], zoom: 10, duration: 500 });
+      map.easeTo({
+        center: [locationCenter.lng, locationCenter.lat],
+        zoom: locationCenter.zoom ?? 10,
+        duration: 500,
+      });
     else centerMapOnFrance(map, true, containerRef.current);
   }, [locationCenter, mapReady]);
 

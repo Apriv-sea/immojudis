@@ -57,12 +57,13 @@ import {
   occupancyLabel,
   propertyTypeLabel,
 } from "@/lib/format";
-import { geocodeAddress, pricePerM2, type GeoPoint } from "@/lib/geo";
+import { geocodeAddress, geocodeAdministrativeArea, pricePerM2, type GeoPoint } from "@/lib/geo";
 import { mapboxStaticImageUrl } from "@/lib/mapbox";
 import { firstPropertyImage, shouldRejectRenderedPropertyImage } from "@/lib/sale-media";
 import { cleanSaleTitle, saleDisplayTitle } from "@/lib/sale-title";
 import { getDisplaySurface, getSaleSurface } from "@/lib/surface";
 import { isNew } from "@/lib/dates";
+import { departmentSearchValues, resolveFrenchGeoSearch } from "@/lib/search/french-geo-search";
 import type { AuctionSale } from "@/lib/types";
 import type { WatchedZoneInput } from "@/lib/watched-zones";
 import type { SalesStatisticsResponse } from "@/lib/sales-statistics";
@@ -150,7 +151,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   const mapTriggerRef = useRef<HTMLElement | null>(null);
   const [center, setCenter] = useState<GeoPoint | null>(null);
   const [geocoding, setGeocoding] = useState(false);
-  const [locationCenter, setLocationCenter] = useState<GeoPoint | null>(null);
+  const [locationCenter, setLocationCenter] = useState<(GeoPoint & { zoom?: number }) | null>(null);
   const geographicLabel = search.city || search.department || search.query || "";
   useEffect(() => {
     let cancelled = false;
@@ -158,8 +159,25 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
       setLocationCenter(null);
       return;
     }
-    geocodeAddress(geographicLabel).then((point) => {
-      if (!cancelled) setLocationCenter(point);
+    const scope = resolveFrenchGeoSearch(geographicLabel);
+    const administrative = scope.kind === "department" || scope.kind === "region";
+    const label =
+      scope.kind === "department"
+        ? (departmentSearchValues(scope.departments).find(
+            (value) => !scope.departments.includes(value),
+          ) ?? geographicLabel)
+        : geographicLabel;
+    const request = administrative ? geocodeAdministrativeArea(label) : geocodeAddress(label);
+    request.then((point) => {
+      if (!cancelled)
+        setLocationCenter(
+          point
+            ? {
+                ...point,
+                zoom: scope.kind === "region" ? 6 : scope.kind === "department" ? 7.5 : 10,
+              }
+            : null,
+        );
     });
     return () => {
       cancelled = true;

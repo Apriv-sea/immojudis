@@ -33,6 +33,7 @@ Aucun P0/P1/P2 ouvert après comparaison et recette. Les différences intentionn
 
 ## Parcours vérifiés
 
+- Département 33 : 8 annonces, carte cadrée sur la Gironde (zoom 7,5). Nouvelle-Aquitaine : 35 annonces, cadrage régional (zoom 6).
 - Ville Bordeaux : deux annonces de Bordeaux, carte recentrée.
 - Période 11–30 septembre : 265 résultats ; notaire : 27 ; budget maximum 100 000 € : 10 ; maisons : 4.
 - Budget maximum 1 € : état vide explicite ; réinitialisation rétablit 935 résultats publics.
@@ -44,7 +45,7 @@ Aucun P0/P1/P2 ouvert après comparaison et recette. Les différences intentionn
 
 ## Validation technique
 
-931 tests unitaires réussis, 3 ignorés ; typage, lint, invariants de sécurité, collecte manuelle, build et budgets vérifiés. Migration additive `20260911081621_sales_search_date_range.sql`, ancienne RPC v3 conservée. Compteur SQL public de période comparé directement aux données : 265.
+932 tests unitaires réussis, 3 ignorés ; typage, lint, invariants de sécurité, collecte manuelle, build et budgets vérifiés. Migration additive `20260911081621_sales_search_date_range.sql`, ancienne RPC v3 conservée. Compteur SQL public de période comparé directement aux données : 265.
 
 ## Ajustements facultatifs
 
