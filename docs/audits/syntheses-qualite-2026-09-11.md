@@ -16,3 +16,11 @@ Canari réel sans base ni IA : trois annonces, trois détails opérateur complet
 Validation : 1 087 tests Python passants, 21 intégrations ignorées ; Ruff et invariant de collecte manuelle passants.
 
 Pilote de production : résultats ajoutés après CI.
+
+## Relecture du pilote et contradiction terrain
+
+Le pilote PR #115 a publié trois fiches, extrait sept PDF et revalidé trois synthèses (deux générations, une réapplication du cache). Zéro erreur technique. La relecture a néanmoins détecté une assertion non réservée de « terrain de 92 m² » à Revel, alors que les champs cadastraux indiquent 1 742 m² et une parcelle de 91 m² détenue partiellement.
+
+Le complément détecte une surface terrain inférieure à une des surfaces cadastrales explicitement indiquées, sans additionner parcelles et quotes-parts. La synthèse passe alors en repli factuel, cite les champs à rapprocher et conserve les mentions d'indivision. La version de qualité v2 force la réapplication du contrôle aux synthèses déjà enregistrées. Le cas réel de Revel donne 120 m² habitables, occupation libre, terrain à clarifier et les références contradictoires citées.
+
+Tests après complément : 1 090 passants, 21 ignorés. Ce garde-fou ciblé ne remplace pas la vérification de toutes les contradictions possibles.

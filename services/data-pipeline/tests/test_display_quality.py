@@ -81,3 +81,24 @@ def test_rejected_constraint_budget_removes_old_display_and_current_marker():
     assert 'llm_display_description' not in sale.raw_payload
     assert not has_current_display(sale.raw_payload, 'v1')
     assert sale.raw_payload['llm_display_source_constraints'] == [source.strip()]
+
+
+def test_source_land_conflict_cannot_be_published_as_confident_generated_surface():
+    source = 'Surface terrain : 92 m². Références cadastrales : YD 59 (1 742m²) et YD 60 (91 m²).'
+    sale = AuctionSale(source_name='agrasc', source_url='https://example.test/land-conflict',
+                       property_type='house', surface_m2=Decimal('120'), description=source,
+                       raw_payload={'description': source, 'operator_land_surface_conflict': True,
+                                    'source_display_constraints': ['Surface terrain : 92 m².', 'Références cadastrales : YD 59 (1 742m²) et YD 60 (91 m²).'],
+                                    'llm_extraction': {'display_description': 'Maison sur un terrain de 92 m².'}})
+    assert apply_cached_llm_extraction_to_sale(sale, prompt_version='v1')
+    text = sale.raw_payload['llm_display_description']
+    assert 'sur un terrain de 92' not in text
+    assert '120 m²' in text and '1 742m²' in text
+    assert sale.raw_payload['llm_display_status'] == 'fallback'
+    assert 'à clarifier' in text
+
+
+def test_stale_extra_quote_is_not_reintroduced_into_new_source():
+    text, quotes = preserve_source_constraints('Maison.', 'Maison.', max_chars=850, max_words=115,
+                                              extra_quotes=['Ancienne servitude.'])
+    assert text == 'Maison.' and quotes == []

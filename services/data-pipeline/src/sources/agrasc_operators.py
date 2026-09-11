@@ -148,6 +148,19 @@ def parse_agora_operator_detail(html: str, source_url: str) -> dict[str, Any]:
                 surface = re.match(r"\s*(\d+(?:[.,]\d+)?)\s*m[²2]\b", value)
                 if surface:
                     detail["surface_m2"] = surface.group(1).replace(",", ".")
+        field_map = {label.casefold(): value for label, value in fields}
+        land_text = field_map.get("surface terrain", "")
+        cadastral_text = field_map.get("références cadastrales", "")
+        land_areas = _explicit_square_metres(land_text)
+        cadastral_areas = _explicit_square_metres(cadastral_text)
+        # Do not sum parcels or shares. A listed terrain smaller than one of
+        # its cadastral areas needs reconciliation, not a confident AI scalar.
+        if len(land_areas) == 1 and cadastral_areas and land_areas[0] < max(cadastral_areas):
+            detail["operator_land_surface_conflict"] = True
+            detail["source_display_constraints"] = [
+                f"{label} : {value}" for label, value in fields
+                if label.casefold() in {"surface terrain", "références cadastrales"}
+            ]
         state = page.get("saleState") or {}
         if str(state.get("productId")) == marker.group(1):
             detail["sale_date"] = state.get("endDate")
@@ -167,3 +180,8 @@ def parse_agora_operator_detail(html: str, source_url: str) -> dict[str, Any]:
 def _operator_field_text(value: Any) -> str:
     text = str(value or "")
     return BeautifulSoup(text, "html.parser").get_text(" ", strip=True) if "<" in text else unescape(text).strip()
+
+
+def _explicit_square_metres(text: str) -> list[float]:
+    return [float(re.sub(r"\s", "", value).replace(",", "."))
+            for value in re.findall(r"(\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d+)?)\s*m[²2]", text)]

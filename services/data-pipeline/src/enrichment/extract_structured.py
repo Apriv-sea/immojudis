@@ -1229,7 +1229,8 @@ def _apply_extraction_to_sale(
             sale.property_type = extraction.property_type
 
     display_description = _normalize_display_description(extraction.display_description)
-    if display_description and confidence.get("display_description", 1.0) >= DISPLAY_DESCRIPTION_MIN_CONFIDENCE:
+    if (display_description and confidence.get("display_description", 1.0) >= DISPLAY_DESCRIPTION_MIN_CONFIDENCE
+            and not sale.raw_payload.get("operator_land_surface_conflict")):
         sale.raw_payload["llm_display_status"] = "accepted"
         sale.raw_payload["llm_display_description"] = display_description
         sale.raw_payload["llm_display_description_word_count"] = len(display_description.split())
@@ -1238,7 +1239,8 @@ def _apply_extraction_to_sale(
         fallback_display_description = _fallback_display_description(sale, extraction)
         if fallback_display_description:
             sale.raw_payload["llm_display_status"] = "fallback"
-            sale.raw_payload["llm_display_description"] = fallback_display_description
+            sale.raw_payload["llm_display_description"] = (fallback_display_description + " Surface du terrain à clarifier entre les champs de la source."
+                                                               if sale.raw_payload.get("operator_land_surface_conflict") else fallback_display_description)
             sale.raw_payload["llm_display_description_word_count"] = len(fallback_display_description.split())
 
     # Revalidate cached generations too; do not certify stale text on rejection.
@@ -1247,6 +1249,7 @@ def _apply_extraction_to_sale(
     checked_display, source_quotes = preserve_source_constraints(
         sale.raw_payload.get("llm_display_description"), extract_source_description(sale),
         max_chars=DISPLAY_DESCRIPTION_MAX_CHARS, max_words=DISPLAY_DESCRIPTION_MAX_WORDS,
+        extra_quotes=sale.raw_payload.get("source_display_constraints"),
     )
     sale.raw_payload["llm_display_source_constraints"] = source_quotes
     sale.raw_payload.pop("llm_display_quality_version", None)
