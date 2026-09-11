@@ -37,6 +37,7 @@ def test_enrichment_can_make_previously_rejected_sale_admissible():
     ('2026-03-29T00:00:00+00:00', 'upcoming', {'sale_date': '2026-03-29'}, '2026-03-29T23:00:00+00:00'),
     ('2026-09-10T12:00:00+00:00', 'postponed', {}, None),
     (None, 'upcoming', {}, None),
+    ('2026-09-10T12:00:00+00:00', 'past', {'status': 'Vente reportée'}, None),
 ])
 def test_retention_deadline_matches_database(date, status, raw, expected):
     from src.admission import retention_deadline

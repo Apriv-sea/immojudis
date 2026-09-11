@@ -1,5 +1,5 @@
 begin;
-select plan(18);
+select plan(19);
 select is(app_private.sale_retention_deadline('2000-01-01 12:00Z','upcoming','{}','{}'),'2000-01-02 12:00Z'::timestamptz,'exactly 24 hours');
 select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"sale_date":"10/09/2026"}'),'2026-09-10 22:00Z'::timestamptz,'date-only Paris midnight plus 24 hours');
 select is(app_private.sale_retention_deadline('2026-03-29 00:00Z','upcoming','{}','{"sale_date":"2026-03-29"}'),'2026-03-29 23:00Z'::timestamptz,'DST uses 24 elapsed hours');
@@ -7,6 +7,7 @@ select is(app_private.sale_retention_deadline(null,'upcoming','{}','{}'),null::t
 select is(app_private.sale_retention_deadline('2000-01-01','postponed','{}','{}'),null::timestamptz,'postponed sale retained');
 select is(app_private.sale_retention_deadline('2000-01-01','upcoming','{"sale_window":{"opens_at":"2000-01-01T12:00:00Z","closes_at":"2000-01-05T12:00:00Z"}}','{}'),'2000-01-06 12:00Z'::timestamptz,'online closing date takes precedence');
 select is(app_private.sale_retention_deadline('2000-01-01','upcoming','{"sale_window":{"opens_at":"bad","closes_at":"bad"}}','{}'),null::timestamptz,'malformed explicit window retained');
+select is(app_private.sale_retention_deadline('2000-01-01','past','{}','{"status":"Vente reportée"}'),null::timestamptz,'source postponement survives legacy normalization');
 select ok(not has_function_privilege('authenticated','public.purge_expired_auction_sales(timestamptz,integer)','execute'),'users cannot purge');
 select ok(not has_table_privilege('anon','public.sale_retention_storage_queue','select'),'outbox private');
 insert into auth.users(id) values ('ffffffff-ffff-ffff-ffff-ffffffffff70');

@@ -25,7 +25,7 @@ def retention_deadline(sale: AuctionSale):
     from datetime import UTC, datetime, timedelta
     from zoneinfo import ZoneInfo
 
-    if str(sale.status or '').lower() in {'postponed', 'reported', 'reportee', 'reporté', 'reportée'}:
+    if re.search(r'\b(postponed|reported|report[eé]e?)\b', str(sale.status or '') + ' ' + str(sale.raw_payload.get('status') or ''), re.I):
         return None
     procedure = sale.sale_procedure or {}
     for schedule in (procedure.get('sale_window'), procedure.get('sale_session'), sale.raw_payload.get('source_sale_schedule')):
