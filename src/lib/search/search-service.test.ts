@@ -262,3 +262,50 @@ describe("public preview search service", () => {
     );
   });
 });
+
+describe("advanced filters before pagination", () => {
+  it("finds matches beyond the first 100 candidates and shares the scan with the counter", async () => {
+    getSales.mockReset();
+    const sale = {
+      id: "match",
+      property_type: "house",
+      starting_price_eur: 50000,
+      app_surface_m2: 100,
+      app_surface_kind: "habitable",
+    };
+    getSales
+      .mockResolvedValueOnce(
+        Array.from({ length: 100 }, (_, i) => ({
+          ...sale,
+          id: String(i),
+          starting_price_eur: 500000,
+        })),
+      )
+      .mockResolvedValueOnce([sale]);
+    const search = { maxPricePerM2: 1000 };
+    const [rows, count] = await Promise.all([
+      fetchSearchResults({ search, preview: false }),
+      fetchSearchCount({ search, preview: false }),
+    ]);
+    expect(rows.map((row) => row.id)).toEqual(["match"]);
+    expect(count).toBe(1);
+    expect(getSales).toHaveBeenCalledTimes(2);
+    expect(getSales.mock.calls[1][3]).toBe(100);
+  });
+});
+
+it("passes dates to the additive public RPC before counting or pagination", async () => {
+  rpc.mockResolvedValue({ data: [], error: null });
+  await fetchSearchResults({
+    search: { minSaleDate: "2026-09-11", maxSaleDate: "2026-10-01", page: 2 },
+    preview: true,
+  });
+  expect(rpc).toHaveBeenLastCalledWith(
+    "search_auction_sales_preview_v4",
+    expect.objectContaining({
+      p_min_sale_date: "2026-09-11",
+      p_max_sale_date: "2026-10-01",
+      p_offset: 24,
+    }),
+  );
+});

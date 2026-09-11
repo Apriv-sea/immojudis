@@ -1,3 +1,4 @@
+import { saleDateBoundary, validSaleDate } from "./search/sale-date-range";
 import { dpeMatches, extractDpe } from "@/lib/dpe";
 import { getSaleProcedure } from "@/lib/sale-procedure";
 import { parseSaleType, saleVenueMatchesType } from "@/lib/sale-types";
@@ -37,6 +38,17 @@ export function alertMatchesSale(
   context: AlertMatchContext = {},
 ): AlertMatchResult {
   const reasons: string[] = [];
+  const minSaleDate = validSaleDate(alert.advanced_criteria?.min_sale_date);
+  const maxSaleDate = validSaleDate(alert.advanced_criteria?.max_sale_date);
+  if (minSaleDate || maxSaleDate) {
+    const saleTime = sale.sale_date ? Date.parse(sale.sale_date) : NaN;
+    if (
+      !Number.isFinite(saleTime) ||
+      (minSaleDate && saleTime < Date.parse(saleDateBoundary(minSaleDate))) ||
+      (maxSaleDate && saleTime > Date.parse(saleDateBoundary(maxSaleDate, true)))
+    )
+      return noMatch("vente hors période");
+  }
   const saleType = parseSaleType(alert.advanced_criteria?.sale_type);
   if (saleType && !saleVenueMatchesType(getSaleProcedure(sale).venueType, saleType)) {
     return noMatch("type de vente différent");

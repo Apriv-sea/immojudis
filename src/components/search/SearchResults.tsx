@@ -424,12 +424,7 @@ export function ListingCard({
       onMouseLeave={() => onHover(null)}
       onFocusCapture={() => onHover(sale.id)}
       onBlurCapture={() => onHover(null)}
-      style={{ "--entry-delay": `${Math.min(index * 25, 180)}ms` } as React.CSSProperties}
-      className={`${entryMotion.riseIn} group relative grid h-full overflow-hidden rounded-md border bg-white shadow-[0_2px_8px_rgba(19,34,56,0.08)] transition duration-200 sm:grid-cols-[9.5rem_1fr] xl:grid-cols-[10.5rem_1fr] ${
-        active
-          ? "border-[#c98d45] shadow-[0_0_0_2px_rgba(201,141,69,0.22),0_14px_36px_rgba(19,34,56,0.14)]"
-          : "border-[#d8e0e7] hover:border-[#c98d45] hover:shadow-md"
-      } ${viewed ? "opacity-75" : ""}`}
+      className={`group relative grid grid-cols-[100px_minmax(0,1fr)] gap-3 rounded-lg border bg-white p-3 transition-colors sm:grid-cols-[minmax(150px,30%)_minmax(0,1fr)] sm:gap-5 ${active ? "border-[#c98d45] ring-1 ring-[#c98d45]" : "border-[#dce3eb] hover:border-[#c98d45]"}`}
     >
       <Link
         id={`sale-card-${sale.id}`}
@@ -437,170 +432,72 @@ export function ListingCard({
         params={{ id: sale.id }}
         search={{ from: returnTo }}
         onClick={() => onSelect(sale.id)}
-        className="absolute inset-0 z-10 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0f766e]"
         aria-label={`Voir ${title}`}
+        className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9c642b]"
       />
-      <div className="relative aspect-[1.35] overflow-hidden bg-[#edf2f5] sm:aspect-auto sm:min-h-[12.25rem]">
+      <div className="relative min-h-32 overflow-hidden rounded-md bg-[#edf2f5] sm:min-h-40">
         <ListingImage sale={sale} locked={false} title={title} />
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-          {locked ? (
-            <ListingBadge tone="navy" icon={LockKeyhole}>
-              Aperçu gratuit
-            </ListingBadge>
-          ) : analysisLocked ? (
-            <ListingBadge tone="cream" icon={LockKeyhole}>
-              Analyse verrouillée
-            </ListingBadge>
-          ) : fresh ? (
-            <ListingBadge tone="teal">Nouveau</ListingBadge>
-          ) : null}
-          {sale.sale_date ? (
-            <ListingBadge tone="cream">{formatDate(sale.sale_date)}</ListingBadge>
-          ) : null}
-        </div>
-        {viewed ? (
-          <span className="absolute right-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[11px] font-bold text-[#55626f] shadow-sm">
-            Vu
-          </span>
-        ) : null}
+        {viewed && (
+          <span className="absolute left-2 top-2 rounded bg-white px-2 py-1 text-xs">Vu</span>
+        )}
       </div>
-
-      <div className="flex min-w-0 flex-1 flex-col p-3.5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#667482]">
-              Mise à prix
-            </div>
-            <div className="mt-0.5 text-[22px] font-extrabold leading-tight text-[#132238]">
-              {formatPrice(sale.starting_price_eur)}
-            </div>
-            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm font-bold text-[#132238]">
-              <MapPin className="h-4 w-4 shrink-0 text-[#0f766e]" />
-              <span className="truncate">{location || "Localisation à préciser"}</span>
-            </div>
+            <h3 className="font-display text-xl font-semibold leading-tight sm:text-2xl">
+              {[sale.city, sale.department].filter(Boolean).join(" · ") ||
+                "Localisation à préciser"}
+            </h3>
+            <p className="mt-1 text-sm text-[#526170]">
+              {propertyTypeLabel(sale.property_type)} ·{" "}
+              {displaySurface.value != null ? displaySurface.label : "Surface n.c."}
+              {sale.bedrooms_count != null ? ` · ${sale.bedrooms_count} ch.` : ""}
+            </p>
           </div>
-          <div className="flex shrink-0 gap-1">
-            <ShareButton sale={sale} />
-            <CompactFavoriteButton saleId={sale.id} locked={premiumLocked} />
-          </div>
+          <CompactFavoriteButton saleId={sale.id} locked={premiumLocked} />
         </div>
-
-        <div className="mt-2 min-w-0">
-          <div className="mb-2">
-            <SaleProcedureBadge sale={sale} />
-          </div>
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-[#3d4b57]">
-            {title}
-          </h3>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-[#3d4b57]">
-          <Metric icon={Landmark} label={organizerLabel} />
-          <Metric
-            icon={CalendarDays}
-            label={
-              locked
-                ? formatDate(sale.sale_date)
-                : `${saleEventLabel(procedure.venueType)} ${formatDate(sale.sale_date)}`
-            }
-          />
-          <Metric
-            icon={Ruler}
-            label={displaySurface.value != null ? displaySurface.label : "Surface n.c."}
-          />
-          <Metric icon={BedDouble} label={beds != null ? `${beds} ch.` : "Ch. n.c."} />
-        </div>
-
-        <div
-          className={`relative mt-3 grid grid-cols-3 overflow-hidden rounded-md border border-[#e2e8ee] bg-[#fbfdff] text-xs ${
-            premiumLocked ? "select-none" : ""
-          }`}
-        >
-          <ListingSignal
-            label="Dossier"
-            value={premiumLocked ? "Analyse" : "Vérifié"}
-            tone={premiumLocked ? "text-[#8a5b24]" : "text-[#0f766e]"}
-          />
-          <ListingSignal label="Score" value={scoreLabel} tone="text-[#0f766e]" />
-          <ListingSignal label="Risque" value={riskLabel} tone={riskTone} />
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#667482]">
-          {locked ? (
-            <span>Compte gratuit : fiche et adresse · Analyse : calculs et pièces</span>
-          ) : analysisLocked ? (
-            <>
-              <span className="rounded-md bg-[#f0f5f8] px-2 py-1">
-                {propertyTypeLabel(sale.property_type)}
-              </span>
-              <span className="rounded-md border border-dashed border-[#c98d45] bg-[#fffaf2] px-2 py-1 text-[#8a5b24]">
-                Analyse détaillée avec l’offre Analyse
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="rounded-md bg-[#f0f5f8] px-2 py-1">
-                {propertyTypeLabel(sale.property_type)}
-              </span>
-              <span className="rounded-md bg-[#f0f5f8] px-2 py-1">
-                {occupancyLabel(sale.occupancy_status)}
-              </span>
-              {ppm != null ? (
-                <span className="rounded-md bg-[#f0f5f8] px-2 py-1">
-                  {Math.round(ppm).toLocaleString("fr-FR")} €/m²
-                </span>
-              ) : null}
-              {dpe?.class ? (
-                <span
-                  className="rounded-md border px-2 py-1 font-extrabold"
-                  style={{
-                    backgroundColor: dpeTheme?.background,
-                    borderColor: dpeTheme?.border,
-                    color: dpeTheme?.foreground,
-                  }}
-                >
-                  DPE {dpe.class}
-                </span>
-              ) : null}
-            </>
+        <p className="mt-2 text-xl font-bold leading-tight text-[#9c642b] sm:text-2xl">
+          {formatPrice(sale.starting_price_eur)}
+        </p>
+        <p className="text-xs text-[#526170]">Mise à prix</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#526170]">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {formatDate(sale.sale_date)}
+          </span>
+          <SaleProcedureBadge sale={sale} />
+          {!premiumLocked && sale.occupancy_status && (
+            <span className="rounded bg-[#f0f5f3] px-2 py-1">
+              {occupancyLabel(sale.occupancy_status)}
+            </span>
           )}
         </div>
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
-          <span className="line-clamp-1 text-[11px] font-bold text-[#8b949e]">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1">
+          <span className="text-xs text-[#526170]">
             {locked
-              ? "Immojudis"
+              ? "Fiche complète avec un compte gratuit"
               : analysisLocked
-                ? "Sources et preuves réservées au plan Analyse"
-                : `Source ${sale.source_name || sale.primary_source || "publique"}${
-                    sale.tribunal_city ? ` · ${sale.tribunal_city}` : ""
-                  }`}
+                ? "Analyse détaillée avec l’offre Analyse"
+                : "Voir le détail"}
           </span>
-          <div className="flex items-center gap-2">
-            {onToggleComparison ? (
+          <div className="flex items-center">
+            <ShareButton sale={sale} />
+            {onToggleComparison && (
               <button
                 type="button"
                 aria-label={`Comparer ${title}`}
                 aria-pressed={comparisonSelected}
                 disabled={comparisonDisabled}
-                title={
-                  comparisonDisabled
-                    ? "Retirez un bien de la sélection pour en ajouter un autre."
-                    : undefined
-                }
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   onToggleComparison(sale);
                 }}
-                className={`relative z-20 min-h-11 rounded-md border px-3 text-xs font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f766e] disabled:cursor-not-allowed disabled:opacity-50 ${comparisonSelected ? "border-[#0f766e] bg-[#e1f1ec] text-[#0f766e]" : "border-[#cbd5df] bg-white text-[#132238] hover:bg-[#f4faf8]"}`}
+                className="relative z-20 min-h-11 rounded px-2 text-xs font-medium hover:bg-[#eef3f8] focus-visible:outline-2 focus-visible:outline-[#9c642b] disabled:opacity-50"
               >
                 {comparisonSelected ? "Sélectionné ✓" : "Comparer"}
               </button>
-            ) : null}
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#f4f7f9] px-2 py-1 text-[11px] font-extrabold text-[#132238]">
-              Voir le détail
-            </span>
+            )}
           </div>
         </div>
       </div>

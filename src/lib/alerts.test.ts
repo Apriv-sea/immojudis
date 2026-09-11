@@ -201,3 +201,13 @@ describe("smart alert matching", () => {
     });
   });
 });
+
+it("rejects an alert match outside the saved local sale-date range", () => {
+  const alert = makeAlert({
+    advanced_criteria: { min_sale_date: "2026-09-11", max_sale_date: "2026-09-30" },
+  });
+  expect(alertMatchesSale(alert, makeSale({ sale_date: "2026-10-01T08:00:00Z" }))).toEqual({
+    matches: false,
+    reasons: ["vente hors période"],
+  });
+});

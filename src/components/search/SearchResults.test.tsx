@@ -105,7 +105,7 @@ describe("useful public discovery", () => {
         />
       </QueryClientProvider>,
     );
-    expect(screen.getByRole("heading", { name: "Appartement à Bordeaux" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Bordeaux · 33" })).toBeTruthy();
     expect(screen.getByText("Bordeaux · 33")).toBeTruthy();
     expect(screen.getByText(/60\s*m²/)).toBeTruthy();
     expect(screen.getAllByText(/oct/i).length).toBeGreaterThan(0);
@@ -120,7 +120,7 @@ describe("useful public discovery", () => {
       expect(container.textContent).not.toContain(text);
     }
     expect(container.querySelector('[class*="blur-"]')).toBeNull();
-    expect(screen.getByText(/Compte gratuit : fiche et adresse/)).toBeTruthy();
+    expect(screen.getByText(/Fiche complète avec un compte gratuit/)).toBeTruthy();
   });
 
   it("offers a working example instead of fabricated statistics", () => {

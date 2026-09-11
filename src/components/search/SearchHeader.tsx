@@ -1,99 +1,29 @@
-import dynamic from "next/dynamic";
-import type * as React from "react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import ArrowUpDown from "lucide-react/dist/esm/icons/arrow-up-down.js";
-import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
-import BedDouble from "lucide-react/dist/esm/icons/bed-double.js";
-import Bell from "lucide-react/dist/esm/icons/bell.js";
-import Building2 from "lucide-react/dist/esm/icons/building-2.js";
+import * as Popover from "@radix-ui/react-popover";
 import CalendarDays from "lucide-react/dist/esm/icons/calendar-days.js";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.js";
-import Download from "lucide-react/dist/esm/icons/download.js";
-import Heart from "lucide-react/dist/esm/icons/heart.js";
-import Landmark from "lucide-react/dist/esm/icons/landmark.js";
-import LayoutPanelLeft from "lucide-react/dist/esm/icons/layout-panel-left.js";
-import ListFilter from "lucide-react/dist/esm/icons/list-filter.js";
-import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle.js";
-import LockKeyhole from "lucide-react/dist/esm/icons/lock-keyhole.js";
-import Map from "lucide-react/dist/esm/icons/map.js";
-import MapPin from "lucide-react/dist/esm/icons/map-pin.js";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw.js";
-import Ruler from "lucide-react/dist/esm/icons/ruler.js";
-import SearchIcon from "lucide-react/dist/esm/icons/search.js";
-import Share2 from "lucide-react/dist/esm/icons/share-2.js";
-import ShieldCheck from "lucide-react/dist/esm/icons/shield-check.js";
-import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal.js";
-import X from "lucide-react/dist/esm/icons/x.js";
-import { toast } from "sonner";
+import type * as React from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUpDown,
+  Bell,
+  Building2,
+  ChevronDown,
+  Download,
+  LayoutPanelLeft,
+  LoaderCircle,
+  LockKeyhole,
+  MapPin,
+  Search as SearchIcon,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/use-auth";
-import { useViewedSales } from "@/hooks/use-viewed-sales";
-import { supabase } from "@/integrations/supabase/client";
-import { Link, useLocation, useNavigate } from "@/lib/router-compat";
-import {
-  createWatchedZone as createWatchedZoneRequest,
-  addFavoriteSale as addFavoriteSaleRequest,
-  fetchDpeExplorer,
-  exportSalesCsv,
-  fetchFeatureEntitlements,
-  fetchSalesStatistics,
-  removeFavoriteSale as removeFavoriteSaleRequest,
-} from "@/lib/client-api";
-import { createAlert } from "@/lib/queries";
-import { DPE_CLASSES, dpeColor, extractDpe, type DpeClass } from "@/lib/dpe";
-import type { DpeExplorerResponse } from "@/lib/dpe-explorer";
-import {
-  formatDate,
-  formatPrice,
-  formatPricePerM2,
-  occupancyLabel,
-  propertyTypeLabel,
-} from "@/lib/format";
-import { geocodeAddress, pricePerM2, type GeoPoint } from "@/lib/geo";
-import { mapboxStaticImageUrl } from "@/lib/mapbox";
-import { firstPropertyImage, shouldRejectRenderedPropertyImage } from "@/lib/sale-media";
-import { cleanSaleTitle, saleDisplayTitle } from "@/lib/sale-title";
-import { getDisplaySurface, getSaleSurface } from "@/lib/surface";
-import { isNew } from "@/lib/dates";
-import type { AuctionSale } from "@/lib/types";
-import type { WatchedZoneInput } from "@/lib/watched-zones";
-import type { SalesStatisticsResponse } from "@/lib/sales-statistics";
-import {
-  DEFAULT_SEARCH_LIMIT,
-  HOME_TYPE_OPTIONS,
-  SORT_OPTIONS,
-  STATUS_OPTIONS,
-  applyClientSearchFilters,
-  compactPrice,
-  countActiveSearchFilters,
-  hasClientOnlyFilters,
-  hasCoordinates,
-  sortClientSearchResults,
-} from "@/lib/search/search-filters";
-import {
-  areMapViewportsClose,
-  shouldMapListFollowViewport,
-  visibleSalesForMapViewport,
-} from "@/lib/search/map-viewport-results";
-import {
-  mergeSalesSearch,
-  salesSearchToUrlRecord,
-  type SalesSearchParams,
-  type SalesSearchUrlRecord,
-  type SearchSortKey,
-} from "@/lib/search/search-url-state";
-import {
-  fetchSearchCount,
-  fetchSearchMapResults,
-  fetchSearchResults,
-} from "@/lib/search/search-service";
+import { Link } from "@/lib/router-compat";
+import { HOME_TYPE_OPTIONS, SORT_OPTIONS } from "@/lib/search/search-filters";
+import { resolveFrenchGeoSearch } from "@/lib/search/french-geo-search";
+import type { SalesSearchParams, SearchSortKey } from "@/lib/search/search-url-state";
 import type { MapViewportChange } from "./MapPanel";
-import { SearchPagination } from "./SearchPagination";
-import { SearchDraft } from "./search-page-state";
+import type { SearchDraft } from "./search-page-state";
 import { SaleTypeFilter } from "./SaleTypeFilter";
-import { saleTypeFilterLabel } from "@/lib/sale-types";
 export function SearchHeader({
   search,
   draft,
@@ -149,58 +79,90 @@ export function SearchHeader({
   useEffect(() => {
     const header = headerRef.current;
     const main = header?.closest("main");
-    if (!header || !main || typeof ResizeObserver === "undefined") return;
+    if (!header || !main) return;
     const update = () =>
       main.style.setProperty("--sales-header-height", `${header.getBoundingClientRect().height}px`);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(update);
     observer.observe(header);
-    update();
-    return () => {
-      observer.disconnect();
-      main.style.removeProperty("--sales-header-height");
-    };
+    return () => observer.disconnect();
   }, []);
   return (
     <header
       ref={headerRef}
-      className="top-0 z-40 border-b border-[#132238]/10 bg-[#fbfdff] shadow-[0_10px_30px_rgba(19,34,56,0.12)] lg:sticky"
+      className="sales-header sticky top-0 z-40 border-b border-[#132238]/10 bg-white"
     >
-      <div className="bg-[#071a31] text-white">
-        <div className="px-3 py-3 sm:px-5 lg:px-6">
-          <div className="grid gap-3 lg:grid-cols-[max-content_minmax(20rem,1fr)_auto] lg:items-center">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="font-display text-[2rem] font-semibold leading-none tracking-normal text-white sm:text-[2.25rem]">
-                Immo<span className="text-[#c98d45]">judis</span>
-              </div>
-              <div className="hidden h-8 w-px bg-white/20 sm:block" aria-hidden />
-              <div className="min-w-0">
-                <h1 className="text-base font-semibold text-white">Ventes immobilières</h1>
-                <p className="mt-0.5 hidden text-xs font-medium text-white/62 sm:block">
-                  Tribunal, notaire et ventes domaniales
-                </p>
-              </div>
-            </div>
-
-            <SearchInput
-              value={draft.query}
-              onChange={(value) => setDraft((current) => ({ ...current, query: value }))}
-            />
-
-            <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:pb-0 [&::-webkit-scrollbar]:hidden">
-              <SaveSearchButton saving={savingAlert} locked={alertsLocked} onClick={onSaveSearch} />
-              <CsvExportButton
-                exporting={exportingCsv}
-                locked={csvExportLocked}
-                onClick={onExportCsv}
-              />
-              <LayoutToggle wideMap={wideMap} onToggle={onToggleLayout} />
-            </div>
-          </div>
+      <div className="flex items-center justify-between gap-4 border-b border-[#132238]/10 px-4 py-3 lg:px-8">
+        <Link to="/" className="font-display text-3xl font-semibold text-[#132238]">
+          Immo<span className="text-[#9c642b]">judis</span>
+        </Link>
+        <nav
+          aria-label="Navigation du catalogue"
+          className="flex items-center gap-5 text-sm font-medium"
+        >
+          <Link
+            to="/sales"
+            aria-current="page"
+            className="hidden border-b-2 border-[#c98d45] py-2 sm:block"
+          >
+            Annonces
+          </Link>
+          <Link to="/favoris" className="py-2">
+            Favoris
+          </Link>
+          <Link to="/comparaisons" className="py-2">
+            Comparaisons
+          </Link>
+        </nav>
+        <div className="hidden lg:flex gap-2">
+          <CsvExportButton
+            exporting={exportingCsv}
+            locked={csvExportLocked}
+            onClick={onExportCsv}
+          />
+          <LayoutToggle wideMap={wideMap} onToggle={onToggleLayout} />
         </div>
       </div>
-
-      <div className="border-t border-[#132238]/10 bg-white/96 px-3 py-2.5 backdrop-blur-xl sm:px-5 lg:px-6">
-        <div className="mb-3 border-b border-[#132238]/10 pb-3">
+      <div className="px-4 py-3 lg:px-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <GeographicSearch draft={draft} setDraft={setDraft} />
+          <div className="hidden lg:flex flex-wrap items-center gap-2">
+            <HomeTypeFilter draft={draft} setDraft={setDraft} />
+            <PriceFilter draft={draft} setDraft={setDraft} />
+            <DateFilter draft={draft} setDraft={setDraft} />
+          </div>
+          <button
+            type="button"
+            aria-label="Filtres avancés"
+            aria-expanded={filtersOpen}
+            onClick={() => onFiltersOpenChange(!filtersOpen)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#cbd5df] px-3 text-sm font-medium"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">Tous les filtres</span>
+            <span className="sm:hidden">Filtres</span>
+            {activeFiltersCount > 0 && (
+              <span className="rounded-full bg-[#132238] px-2 py-0.5 text-xs text-white">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label="Créer une alerte"
+            title="Créer une alerte"
+            onClick={onSaveSearch}
+            disabled={savingAlert}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-[#132238] text-white xl:hidden"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
+          <div className="hidden xl:block">
+            <SaveSearchButton saving={savingAlert} locked={alertsLocked} onClick={onSaveSearch} />
+          </div>
+        </div>
+        <div className="mt-3 hidden items-center justify-between gap-3 lg:flex">
           <SaleTypeFilter
             value={draft.saleType}
             onChange={(saleType) =>
@@ -211,189 +173,117 @@ export function SearchHeader({
               }))
             }
           />
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="min-h-11 shrink-0 text-sm underline underline-offset-4"
+            >
+              Réinitialiser
+            </button>
+          )}
         </div>
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <FilterBar
-            draft={draft}
-            setDraft={setDraft}
-            activeFiltersCount={activeFiltersCount}
-            filtersOpen={filtersOpen}
-            onFiltersOpenChange={onFiltersOpenChange}
-            onReset={onReset}
-          />
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <SortDropdown sort={search.sort ?? "relevance"} onChange={onSortChange} />
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#55626f]">
-              <HeaderStatusPill>
-                {isLoading || isCountLoading ? "Chargement" : displayCount.toLocaleString("fr-FR")}{" "}
-                {mapListFollowsViewport ? "dans la carte" : "ventes"}
-              </HeaderStatusPill>
-              <HeaderStatusPill>
-                {loadedCount.toLocaleString("fr-FR")}{" "}
-                {mapListFollowsViewport ? "points carte" : "chargées"}
-              </HeaderStatusPill>
-              {filteredCount !== loadedCount ? (
-                <HeaderStatusPill>
-                  {filteredCount.toLocaleString("fr-FR")} affichées
-                </HeaderStatusPill>
-              ) : null}
-              {isFetching && !isLoading ? (
-                <HeaderStatusPill tone="teal">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                  Mise à jour
-                </HeaderStatusPill>
-              ) : null}
-              {geocoding ? (
-                <HeaderStatusPill tone="teal">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                  Géocodage
-                </HeaderStatusPill>
-              ) : null}
-            </div>
+        {(draft.city || draft.query || draft.department) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <button
+              type="button"
+              aria-label="Retirer la localisation"
+              onClick={() => setDraft((c) => ({ ...c, city: "", query: "", department: "" }))}
+              className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#fff7eb] px-3 text-[#80501e]"
+            >
+              <MapPin className="h-3 w-3" />
+              {draft.city || draft.query || draft.department}
+              <X className="h-3 w-3" />
+            </button>
           </div>
-        </div>
+        )}
+        {isFetching && !isLoading && (
+          <p role="status" className="sr-only">
+            Mise à jour des résultats
+          </p>
+        )}
       </div>
     </header>
   );
 }
 
-export function HeaderStatusPill({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: "neutral" | "teal";
-}) {
-  return (
-    <span
-      className={`inline-flex min-h-7 items-center gap-1.5 rounded-md border px-2.5 ${
-        tone === "teal"
-          ? "border-[#b8ddd5] bg-[#eefaf3] text-[#0f766e]"
-          : "border-[#d9e4ec] bg-white text-[#55626f]"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
-
-export function SearchInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="relative min-w-0 flex-1">
-      <span className="sr-only">Rechercher par région, département, ville ou code postal</span>
-      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667482]" />
-      <Input
-        type="search"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Région, département, ville, code postal..."
-        autoComplete="off"
-        className="h-11 rounded-md border-white/25 bg-white pl-10 pr-3 text-[15px] font-semibold text-[#132238] shadow-[0_10px_24px_rgba(0,0,0,0.18)] focus-visible:ring-[#c98d45]"
-      />
-    </label>
-  );
-}
-
-export function FilterBar({
+export function GeographicSearch({
   draft,
   setDraft,
-  activeFiltersCount,
-  filtersOpen,
-  onFiltersOpenChange,
-  onReset,
 }: {
   draft: SearchDraft;
   setDraft: React.Dispatch<React.SetStateAction<SearchDraft>>;
-  activeFiltersCount: number;
-  filtersOpen: boolean;
-  onFiltersOpenChange: (open: boolean) => void;
-  onReset: () => void;
 }) {
+  const selected = draft.city || draft.query || draft.department;
+  const [value, setValue] = useState(selected);
+  const [open, setOpen] = useState(false);
+  useEffect(() => setValue(selected), [selected]);
+  const scope = resolveFrenchGeoSearch(value);
+  const kind =
+    scope.kind === "text"
+      ? "Ville"
+      : scope.kind === "region"
+        ? "Région"
+        : scope.kind === "department"
+          ? "Département"
+          : "Code postal";
+  function apply() {
+    const text = value.trim();
+    setDraft((c) => ({
+      ...c,
+      city: scope.kind === "text" ? text : "",
+      query: scope.kind !== "text" ? text : "",
+      department: "",
+    }));
+    setOpen(false);
+  }
   return (
-    <div
-      className="flex min-w-0 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      aria-label="Filtres de recherche"
+    <form
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply();
+      }}
+      className="relative flex min-w-0 basis-0 flex-1 items-center gap-1 rounded-md border border-[#cbd5df] bg-white focus-within:ring-2 focus-within:ring-[#c98d45] sm:basis-auto sm:flex-1"
     >
-      <InlineTextFilter
-        label="Ville"
-        icon={MapPin}
-        value={draft.city}
-        placeholder="Bordeaux"
-        onChange={(value) => setDraft((current) => ({ ...current, city: value }))}
-      />
-      {!draft.saleType || draft.saleType === "tribunal" ? (
-        <InlineTextFilter
-          label="Tribunal"
-          icon={Landmark}
-          value={draft.tribunal}
-          placeholder="TJ Bordeaux"
-          onChange={(value) => setDraft((current) => ({ ...current, tribunal: value }))}
-        />
-      ) : null}
-      <PriceFilter draft={draft} setDraft={setDraft} />
-      <BedsBathsFilter draft={draft} setDraft={setDraft} />
-      <HomeTypeFilter draft={draft} setDraft={setDraft} />
-      <button
-        type="button"
-        onClick={() => onFiltersOpenChange(!filtersOpen)}
-        aria-label="Filtres avancés"
-        aria-expanded={filtersOpen}
-        title="Filtres avancés"
-        className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-[#cbd5df] bg-white px-3 text-sm font-bold text-[#132238] shadow-sm transition-colors hover:border-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e]"
-      >
-        <SlidersHorizontal className="h-4 w-4" />
-        Plus
-        {activeFiltersCount > 0 ? (
-          <span className="rounded-full bg-[#0f766e] px-1.5 py-0.5 text-[10px] text-white">
-            {activeFiltersCount}
-          </span>
-        ) : null}
-      </button>
-      {activeFiltersCount > 0 ? (
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-[#ead8c5] bg-[#fffaf2] px-3 text-sm font-bold text-[#8a5b24] transition-colors hover:border-[#c98d45] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c98d45]"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Réinitialiser
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export function InlineTextFilter({
-  label,
-  icon: Icon,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="relative inline-flex h-10 min-w-[10.5rem] shrink-0 items-center rounded-md border border-[#cbd5df] bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#0f766e]">
-      <Icon className="ml-3 h-4 w-4 text-[#667482]" />
-      <span className="sr-only">{label}</span>
+      <SearchIcon className="ml-3 h-5 w-5 shrink-0" />
       <input
+        aria-label="Ville, département ou région"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="h-full min-w-0 flex-1 bg-transparent px-2 text-sm font-bold text-[#132238] outline-none placeholder:text-[#667482]"
+        onChange={(event) => {
+          setValue(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+        placeholder="Ville, département ou région"
+        autoComplete="off"
+        className="h-11 w-full min-w-0 bg-transparent px-2 text-sm outline-none"
       />
-    </label>
+      <button
+        type="submit"
+        aria-label="Rechercher la localisation"
+        className="mr-1 grid h-10 w-10 shrink-0 place-items-center rounded hover:bg-[#eef3f8]"
+      >
+        <SearchIcon className="h-4 w-4" />
+      </button>
+      {open && value.trim() && value !== selected && (
+        <div className="absolute inset-x-0 top-full z-50 mt-2 rounded-md border bg-white p-2 shadow-lg">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={apply}
+            className="w-full rounded px-3 py-3 text-left text-sm hover:bg-[#eef3f8]"
+          >
+            <strong>{value}</strong>
+            <span className="ml-2 text-[#526170]">{kind}</span>
+          </button>
+        </div>
+      )}
+    </form>
   );
 }
 
@@ -406,7 +296,7 @@ export function PriceFilter({
 }) {
   return (
     <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
-      <span className="px-3 text-sm font-bold text-[#132238]">Prix</span>
+      <span className="px-3 text-sm font-bold text-[#132238]">Mise à prix</span>
       <input
         aria-label="Prix minimum"
         inputMode="numeric"
@@ -436,7 +326,7 @@ export function BedsBathsFilter({
 }) {
   return (
     <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-md border border-[#cbd5df] bg-white shadow-sm">
-      <span className="px-3 text-sm font-bold text-[#132238]">Pièces</span>
+      <span className="px-3 text-sm font-bold text-[#132238]">Chambres / bains</span>
       <input
         aria-label="Nombre minimum de chambres"
         inputMode="numeric"
@@ -491,9 +381,13 @@ export function HomeTypeFilter({
 }
 
 export function SortDropdown({
+  preview = false,
+  hasCenter = false,
   sort,
   onChange,
 }: {
+  preview?: boolean;
+  hasCenter?: boolean;
   sort: SearchSortKey;
   onChange: (sort: SearchSortKey) => void;
 }) {
@@ -506,7 +400,11 @@ export function SortDropdown({
         onChange={(event) => onChange(event.target.value as SearchSortKey)}
         className="h-full cursor-pointer appearance-none bg-transparent py-0 pl-2 pr-9 text-sm font-bold text-[#132238] outline-none"
       >
-        {SORT_OPTIONS.map((option) => (
+        {SORT_OPTIONS.filter(
+          (option) =>
+            !(preview && option.value === "beds_desc") &&
+            (option.value !== "distance" || hasCenter),
+        ).map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -531,7 +429,7 @@ export function SaveSearchButton({
       type="button"
       onClick={onClick}
       disabled={saving}
-      className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md bg-[#c98d45] px-3 text-sm font-extrabold text-[#132238] shadow-sm transition-colors hover:bg-[#d69d58] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c98d45] disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-md bg-[#132238] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#263c58] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c98d45] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {saving ? (
         <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -540,7 +438,7 @@ export function SaveSearchButton({
       ) : (
         <Bell className="h-4 w-4" />
       )}
-      {locked ? "Alertes Analyse" : "Enregistrer"}
+      {locked ? "Créer une alerte · Analyse" : "Créer une alerte"}
     </button>
   );
 }
@@ -594,11 +492,7 @@ export function LayoutToggle({ wideMap, onToggle }: { wideMap: boolean; onToggle
 export function ResultsSummary({
   search,
   displayCount,
-  loadedCount,
-  filteredCount,
   hasLocalFilters,
-  mapListFollowsViewport,
-  mapViewport,
   isLoading,
   geocoding,
 }: {
@@ -612,72 +506,123 @@ export function ResultsSummary({
   isLoading: boolean;
   geocoding: boolean;
 }) {
-  const location = search.city || search.department || search.tribunal || search.query || "France";
-  const sortLabel =
-    SORT_OPTIONS.find((option) => option.value === (search.sort ?? "relevance"))?.label ??
-    "Pertinence";
-
+  const location = search.city || search.department || search.query || "France entière";
   return (
-    <div className="border-b border-[#132238]/10 bg-[#fbfdff] px-4 py-3 backdrop-blur sm:px-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-lg font-extrabold leading-tight text-[#132238]">
-            {isLoading
-              ? "Recherche des dossiers"
-              : `${displayCount.toLocaleString("fr-FR")} ventes trouvées`}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-[#667482]">
-            <span>
-              {mapListFollowsViewport
-                ? "zone visible sur la carte"
-                : hasLocalFilters
-                  ? `${location} · filtres locaux actifs`
-                  : `${location} · ${search.saleType ? saleTypeFilterLabel(search.saleType).toLowerCase() : "tous types de ventes"}`}
-            </span>
-            <span aria-hidden>·</span>
-            <span>tri {sortLabel.toLowerCase()}</span>
-            <span aria-hidden>·</span>
-            <span>
-              {loadedCount.toLocaleString("fr-FR")}{" "}
-              {mapListFollowsViewport ? "points carte" : "chargés"}
-            </span>
-            {filteredCount !== loadedCount ? (
-              <>
-                <span aria-hidden>·</span>
-                <span>{filteredCount.toLocaleString("fr-FR")} affichés</span>
-              </>
-            ) : null}
-            {mapListFollowsViewport && mapViewport ? (
-              <>
-                <span aria-hidden>·</span>
-                <span>zoom {mapViewport.zoom}</span>
-              </>
-            ) : null}
-          </div>
-        </div>
-        {search.viewport || mapListFollowsViewport || geocoding ? (
-          <div className="flex flex-wrap gap-2 text-xs font-bold">
-            {mapListFollowsViewport ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-[#cbded8] bg-[#eefaf3] px-2.5 py-1 text-[#0f766e]">
-                <Map className="h-3.5 w-3.5" />
-                liste liée à la carte
-              </span>
-            ) : null}
-            {search.viewport ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-[#cbded8] bg-[#eefaf3] px-2.5 py-1 text-[#0f766e]">
-                <Map className="h-3.5 w-3.5" />
-                URL bbox active
-              </span>
-            ) : null}
-            {geocoding ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-[#cbded8] bg-[#eefaf3] px-2.5 py-1 text-[#0f766e]">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                géocodage
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+    <div className="px-4 py-3 sm:px-5" aria-live="polite">
+      <h1 className="font-display text-2xl font-semibold">Ventes immobilières</h1>
+      <p className="mt-1 text-sm text-[#526170]">
+        {isLoading
+          ? "Recherche en cours…"
+          : `${displayCount.toLocaleString("fr-FR")} annonce${displayCount === 1 ? "" : "s"}`}
+        {" · "}
+        {search.viewport ? "Zone sélectionnée" : location}
+        {hasLocalFilters ? " · filtres sur la page affichée" : ""}
+        {geocoding ? " · localisation en cours" : ""}
+      </p>
     </div>
+  );
+}
+
+export function InlineTextFilter({
+  label,
+  icon: Icon,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-md border border-[#cbd5df] px-3">
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="sr-only">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+      />
+    </label>
+  );
+}
+
+export function DateRangeFields({
+  draft,
+  setDraft,
+}: {
+  draft: SearchDraft;
+  setDraft: React.Dispatch<React.SetStateAction<SearchDraft>>;
+}) {
+  return (
+    <div className="grid gap-3">
+      <label className="grid gap-1 text-sm">
+        À partir du
+        <input
+          type="date"
+          aria-label="Date de vente minimum"
+          value={draft.minSaleDate}
+          max={draft.maxSaleDate || undefined}
+          onChange={(e) =>
+            setDraft((c) => ({
+              ...c,
+              minSaleDate: e.target.value,
+              maxSaleDate: c.maxSaleDate && e.target.value > c.maxSaleDate ? "" : c.maxSaleDate,
+            }))
+          }
+          className="h-11 min-w-0 rounded border px-2"
+        />
+      </label>
+      <label className="grid gap-1 text-sm">
+        Jusqu’au
+        <input
+          type="date"
+          aria-label="Date de vente maximum"
+          value={draft.maxSaleDate}
+          min={draft.minSaleDate || undefined}
+          onChange={(e) =>
+            setDraft((c) => ({
+              ...c,
+              maxSaleDate: e.target.value,
+              minSaleDate: c.minSaleDate && e.target.value < c.minSaleDate ? "" : c.minSaleDate,
+            }))
+          }
+          className="h-11 min-w-0 rounded border px-2"
+        />
+      </label>
+      <button
+        type="button"
+        className="min-h-9 text-sm underline"
+        onClick={() => setDraft((c) => ({ ...c, minSaleDate: "", maxSaleDate: "" }))}
+      >
+        Effacer les dates
+      </button>
+    </div>
+  );
+}
+export function DateFilter(props: {
+  draft: SearchDraft;
+  setDraft: React.Dispatch<React.SetStateAction<SearchDraft>>;
+}) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger className="inline-flex h-10 items-center gap-2 rounded-md border border-[#cbd5df] px-3 text-sm font-medium">
+        <CalendarDays className="h-4 w-4" />
+        Date de vente{props.draft.minSaleDate || props.draft.maxSaleDate ? " · 1" : ""}
+        <ChevronDown className="h-4 w-4" />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={8}
+          className="z-50 w-64 rounded-md border bg-white p-4 shadow-lg"
+        >
+          <DateRangeFields {...props} />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

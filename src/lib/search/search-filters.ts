@@ -3,6 +3,7 @@ import { getSaleProcedure } from "@/lib/sale-procedure";
 import { saleVenueMatchesType } from "@/lib/sale-types";
 import { isHouseWithLand } from "@/lib/alerts";
 import { dpeMatches, extractDpe } from "@/lib/dpe";
+import { listingVisits } from "@/lib/sale-listing";
 import { getSaleSurface } from "@/lib/surface";
 import { estimateGrossYieldPct, haversineKm, pricePerM2, type GeoPoint } from "@/lib/geo";
 import {
@@ -40,9 +41,10 @@ export const STATUS_OPTIONS = [
 
 export const SORT_OPTIONS: Array<{ label: string; value: SearchSortKey }> = [
   { label: "Pertinence", value: "relevance" },
+  { label: "Date de vente croissante", value: "sale_date_asc" },
   { label: "Prix décroissant", value: "price_desc" },
   { label: "Prix croissant", value: "price_asc" },
-  { label: "Date de publication", value: "newest" },
+  { label: "Date de vente décroissante", value: "newest" },
   { label: "Surface", value: "sqft_desc" },
   { label: "Nombre de chambres", value: "beds_desc" },
   { label: "Distance", value: "distance" },
@@ -54,6 +56,8 @@ export function dataSortFromSearch(sort: SearchSortKey | undefined): SortKey {
       return "price_desc";
     case "price_asc":
       return "price_asc";
+    case "sale_date_asc":
+      return "date_asc";
     case "newest":
       return "date_desc";
     case "sqft_desc":
@@ -84,6 +88,8 @@ export function dataFiltersFromSearch(search: SalesSearchParams): SaleFilters {
       .join(" ") || undefined;
 
   return {
+    min_sale_date: search.minSaleDate,
+    max_sale_date: search.maxSaleDate,
     department:
       departmentScope.kind === "text" && search.department ? search.department : undefined,
     departments,
@@ -116,6 +122,7 @@ function statusValuesForSearch(search: SalesSearchParams): string[] | undefined 
 
 export function countActiveSearchFilters(search: SalesSearchParams): number {
   return [
+    search.minSaleDate || search.maxSaleDate,
     search.city,
     search.department,
     search.tribunal,
@@ -183,7 +190,7 @@ export function applyClientSearchFilters(
     }
     if (search.minSqft != null && (surface == null || surface < search.minSqft)) return false;
     if (search.maxSqft != null && (surface == null || surface > search.maxSqft)) return false;
-    if (search.minBeds != null && (sale.bedrooms_count ?? sale.rooms_count ?? 0) < search.minBeds) {
+    if (search.minBeds != null && (sale.bedrooms_count ?? 0) < search.minBeds) {
       return false;
     }
     if (search.minBaths != null && (sale.bathrooms_count ?? 0) < search.minBaths) return false;
@@ -210,7 +217,7 @@ export function applyClientSearchFilters(
       if (distance > search.aroundRadius) return false;
     }
     if (search.viewport && !saleIsInViewport(sale, search.viewport)) return false;
-    if (search.openHouse && !sale.sale_date) return false;
+    if (search.openHouse && listingVisits(sale).length === 0) return false;
 
     return true;
   });

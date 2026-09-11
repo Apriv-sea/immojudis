@@ -1,12 +1,16 @@
 import { getSales, getSalesCount, getSalesWithCoords } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { geocodeAddress } from "@/lib/geo";
 import type { AuctionSale } from "@/lib/types";
 import { excludeHomepageExampleSales } from "@/lib/example-sale-identity";
 import { isLikelyPropertyImageUrl } from "@/lib/sale-media";
 import { departmentSearchValues, frenchSearchTerms } from "./french-geo-search";
 import type { SalesSearchParams } from "./search-url-state";
 import {
+  applyClientSearchFilters,
+  sortClientSearchResults,
+  hasClientOnlyFilters,
   DEFAULT_SEARCH_LIMIT,
   MAX_MAP_RESULTS,
   dataFiltersFromSearch,
@@ -34,6 +38,11 @@ export async function fetchSearchResults({
 }): Promise<AuctionSale[]> {
   if (preview) return excludeHomepageExampleSales((await fetchPreviewSearch(search)).items);
 
+  if (hasClientOnlyFilters(search)) {
+    const rows = await fetchCompleteFilteredSearch(search, discovery);
+    const start = ((search.page ?? 1) - 1) * (search.limit ?? DEFAULT_SEARCH_LIMIT);
+    return rows.slice(start, start + (search.limit ?? DEFAULT_SEARCH_LIMIT));
+  }
   const page = search.page ?? 1;
   const perPage = search.limit ?? DEFAULT_SEARCH_LIMIT;
   const offset = (page - 1) * perPage;
@@ -59,6 +68,8 @@ export async function fetchSearchCount({
 }): Promise<number> {
   if (preview) return (await fetchPreviewSearch(search)).count;
 
+  if (hasClientOnlyFilters(search))
+    return (await fetchCompleteFilteredSearch(search, discovery)).length;
   const filters = dataFiltersFromSearch(search);
   return getSalesCount(filters, { discovery });
 }
@@ -67,6 +78,10 @@ export async function fetchSearchMapResults(
   search: SalesSearchParams,
   options: { discovery?: boolean } = {},
 ): Promise<AuctionSale[]> {
+  if (hasClientOnlyFilters(search))
+    return (await fetchCompleteFilteredSearch(search, options.discovery ?? false))
+      .filter((sale) => sale.latitude != null && sale.longitude != null)
+      .slice(0, MAX_MAP_RESULTS);
   return excludeHomepageExampleSales(
     await getSalesWithCoords(
       dataFiltersFromSearch(search),
@@ -117,11 +132,19 @@ async function fetchPreviewSearch(search: SalesSearchParams): Promise<PreviewSea
     p_limit: perPage,
     p_offset: (page - 1) * perPage,
   };
-  const requestKey = JSON.stringify(args);
+  const requestKey = JSON.stringify([args, search.minSaleDate, search.maxSaleDate]);
   const currentRequest = inFlightPreviewSearches.get(requestKey);
   if (currentRequest) return currentRequest;
 
-  const request = Promise.resolve(supabase.rpc("search_auction_sales_preview_v3", args))
+  const request = Promise.resolve(
+    search.minSaleDate || search.maxSaleDate
+      ? supabase.rpc("search_auction_sales_preview_v4", {
+          ...args,
+          p_min_sale_date: search.minSaleDate ?? null,
+          p_max_sale_date: search.maxSaleDate ?? null,
+        })
+      : supabase.rpc("search_auction_sales_preview_v3", args),
+  )
     .then(({ data, error }) => {
       if (error) throw error;
       const rows = (data ?? []) as PreviewSearchRow[];
@@ -152,5 +175,43 @@ async function fetchPreviewSearch(search: SalesSearchParams): Promise<PreviewSea
     .finally(() => inFlightPreviewSearches.delete(requestKey));
 
   inFlightPreviewSearches.set(requestKey, request);
+  return request;
+}
+
+// Share one complete, bounded scan between the list, count and map. Filtering
+// precedes pagination so an advanced criterion cannot hide matches on later pages.
+const completeSearches = new Map<string, Promise<AuctionSale[]>>();
+async function fetchCompleteFilteredSearch(search: SalesSearchParams, discovery: boolean) {
+  const criteria = { ...search, page: undefined, limit: undefined };
+  const key = JSON.stringify([criteria, discovery]);
+  const existing = completeSearches.get(key);
+  if (existing) return existing;
+  const request = (async () => {
+    const center = search.aroundAddress ? await geocodeAddress(search.aroundAddress) : null;
+    if (search.aroundAddress && !center)
+      throw new Error("Localisation introuvable. Précisez la ville ou l’adresse.");
+    const rows: AuctionSale[] = [];
+    const batchSize = 100;
+    for (let offset = 0; offset < 10000; offset += batchSize) {
+      const batch = await getSales(
+        dataFiltersFromSearch(criteria),
+        batchSize,
+        dataSortFromSearch(search.sort),
+        offset,
+        { discovery },
+      );
+      rows.push(...batch);
+      if (batch.length < batchSize)
+        return sortClientSearchResults(
+          applyClientSearchFilters(excludeHomepageExampleSales(rows), search, center),
+          search,
+          center,
+        );
+    }
+    throw new Error(
+      "Cette recherche est trop large. Choisissez une région ou un département pour appliquer les filtres avancés.",
+    );
+  })().finally(() => completeSearches.delete(key));
+  completeSearches.set(key, request);
   return request;
 }

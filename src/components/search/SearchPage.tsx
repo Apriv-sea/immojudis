@@ -1,5 +1,7 @@
 "use client";
 
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -96,7 +98,13 @@ import {
 import type { MapViewportChange } from "./MapPanel";
 import { SearchPagination } from "./SearchPagination";
 import { Footer, MapPanelSkeleton, MobileMapToggle, MoreFiltersModal } from "./SearchFilters";
-import { ResultsSummary, SearchHeader } from "./SearchHeader";
+import {
+  ResultsSummary,
+  SearchHeader,
+  SortDropdown,
+  SaveSearchButton,
+  CsvExportButton,
+} from "./SearchHeader";
 import { SearchResultsList, SearchStatisticsPanel } from "./SearchResults";
 import { SaleComparisonBar } from "./SaleComparisonBar";
 import {
@@ -139,8 +147,24 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   const latestSearchDraftRef = useRef<SearchDraft>(searchToDraft(search));
   const firstSearchDraftSync = useRef(true);
   const firstDraftSync = useRef(true);
+  const mapTriggerRef = useRef<HTMLElement | null>(null);
   const [center, setCenter] = useState<GeoPoint | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [locationCenter, setLocationCenter] = useState<GeoPoint | null>(null);
+  const geographicLabel = search.city || search.department || search.query || "";
+  useEffect(() => {
+    let cancelled = false;
+    if (!geographicLabel) {
+      setLocationCenter(null);
+      return;
+    }
+    geocodeAddress(geographicLabel).then((point) => {
+      if (!cancelled) setLocationCenter(point);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [geographicLabel]);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const page = search.page ?? 1;
   const pageSize = search.limit ?? DEFAULT_SEARCH_LIMIT;
@@ -155,6 +179,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
   }, [search.map]);
 
   const draftSignature = useMemo(() => JSON.stringify(draft), [draft]);
+  const ownDraftNavigations = useRef(new Set<string>());
   const searchDraftSignature = useMemo(() => JSON.stringify(searchToDraft(search)), [search]);
 
   useEffect(() => {
@@ -167,6 +192,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
       return;
     }
 
+    if (ownDraftNavigations.current.delete(searchDraftSignature)) return;
     setDraft(latestSearchDraftRef.current);
   }, [searchDraftSignature]);
 
@@ -178,9 +204,18 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
 
     const timeout = window.setTimeout(() => {
       const nextSearch = draftToSearch(draft, searchRef.current);
+      if (
+        draft.city !== (searchRef.current.city ?? "") ||
+        draft.query !== (searchRef.current.query ?? "") ||
+        draft.department !== (searchRef.current.department ?? "")
+      ) {
+        nextSearch.viewport = undefined;
+        nextSearch.searchAsMove = false;
+      }
       const currentRecord = salesSearchToUrlRecord(searchRef.current);
       const nextRecord = salesSearchToUrlRecord(nextSearch);
       if (stableUrlRecord(currentRecord) === stableUrlRecord(nextRecord)) return;
+      ownDraftNavigations.current.add(JSON.stringify(searchToDraft(nextSearch)));
       navigate({ search: nextRecord, replace: true });
     }, 320);
 
@@ -290,16 +325,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
     [deferredMapViewport, mapSales],
   );
 
-  const mapListFollowsViewport =
-    !isPreview &&
-    shouldMapListFollowViewport({
-      isDesktop,
-      mobileMapOpen,
-      viewport: deferredMapViewport,
-      mapSalesCount: mapSales.length,
-    });
+  const mapListFollowsViewport = false;
   const displayedSales = mapListFollowsViewport ? mapViewportResults.sales : filteredSales;
-  const hasLocalFilters = !isPreview && hasClientOnlyFilters(search);
+  const hasLocalFilters = false;
   const isInitialLoading = authLoading || entitlementsLoading || isLoading;
   const activeFiltersCount = countActiveSearchFilters(search);
   const searchDisplayCount = hasLocalFilters
@@ -316,8 +344,8 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
     rawSales.length >= pageSize;
   const hasPrevious = !mapListFollowsViewport && page > 1;
   const splitClass = wideMap
-    ? "lg:grid-cols-[minmax(0,1.7fr)_minmax(390px,30vw)]"
-    : "lg:grid-cols-[minmax(0,1.25fr)_minmax(430px,36vw)]";
+    ? "lg:grid-cols-[minmax(390px,40%)_minmax(0,1fr)]"
+    : "lg:grid-cols-[minmax(0,52%)_minmax(0,48%)]";
   const localSearchStatistics = useMemo(
     () => buildSearchStatistics(displayedSales),
     [displayedSales],
@@ -383,6 +411,15 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
       replace: true,
     });
   }, [navigate, search.sort]);
+
+  const previousPageRef = useRef(page);
+  useEffect(() => {
+    if (previousPageRef.current === page || isFetching || isInitialLoading) return;
+    previousPageRef.current = page;
+    const results = document.getElementById("sales-results");
+    results?.scrollIntoView({ block: "start", behavior: "instant" });
+    results?.focus({ preventScroll: true });
+  }, [page, isFetching, isInitialLoading]);
 
   const loadNextPage = useCallback(() => {
     if (!hasMore || isFetching) return;
@@ -475,6 +512,8 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         watched_zone_id: watchedZoneResponse?.zone.id ?? null,
         advanced_criteria: {
           source: "sales_search",
+          min_sale_date: search.minSaleDate ?? null,
+          max_sale_date: search.maxSaleDate ?? null,
           sale_type: search.saleType ?? null,
           query: search.query ?? null,
           around_address: search.aroundAddress ?? null,
@@ -557,36 +596,52 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
       >
         <section
           id="sales-results"
-          className="min-w-0 border-t border-[#132238]/10 bg-[#f8fbfd] lg:order-2 lg:border-l"
+          tabIndex={-1}
+          style={{ scrollMarginTop: "calc(var(--sales-header-height) + 12px)" }}
+          className="min-w-0 border-t border-[#132238]/10 bg-white lg:order-1 lg:border-r"
           aria-label="Résultats de recherche"
         >
-          <ResultsSummary
-            search={search}
-            displayCount={displayCount}
-            loadedCount={loadedCount}
-            filteredCount={filteredCount}
-            hasLocalFilters={hasLocalFilters}
-            mapListFollowsViewport={mapListFollowsViewport}
-            mapViewport={deferredMapViewport}
-            isLoading={isInitialLoading || isCountLoading}
-            geocoding={geocoding}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-1 pr-4">
+            <ResultsSummary
+              search={search}
+              displayCount={displayCount}
+              loadedCount={loadedCount}
+              filteredCount={filteredCount}
+              hasLocalFilters={hasLocalFilters}
+              mapListFollowsViewport={mapListFollowsViewport}
+              mapViewport={deferredMapViewport}
+              isLoading={isInitialLoading || isCountLoading}
+              geocoding={geocoding}
+            />
 
-          <SearchStatisticsPanel
-            statistics={searchStatistics}
-            locked={statisticsLocked}
-            dpeLocked={dpeLocked}
-            loading={entitlementsLoading || statisticsLoading}
-            dpeExplorer={dpeExplorerData}
-            dpeExplorerLoading={dpeExplorerLoading}
-            dpeExplorerError={dpeExplorerError instanceof Error ? dpeExplorerError.message : null}
-            dpeExplorerRequested={dpeExplorerOpen}
-            onLoadDpeExplorer={() => {
-              setDpeExplorerOpen(true);
-              if (dpeExplorerOpen) void refetchDpeExplorer();
-            }}
-          />
-
+            <div className="flex flex-wrap items-center gap-2 px-4 pb-2 sm:px-0">
+              <SortDropdown
+                preview={isPreview}
+                hasCenter={Boolean(center)}
+                sort={search.sort ?? "relevance"}
+                onChange={(sort) => updateSearch({ sort })}
+              />
+            </div>
+          </div>
+          <details className="mx-4 mb-2 rounded-md border border-[#dce3eb] sm:mx-5">
+            <summary className="cursor-pointer px-4 py-2 text-sm font-medium">
+              Repères sur cette recherche
+            </summary>
+            <SearchStatisticsPanel
+              statistics={searchStatistics}
+              locked={statisticsLocked}
+              dpeLocked={dpeLocked}
+              loading={entitlementsLoading || statisticsLoading}
+              dpeExplorer={dpeExplorerData}
+              dpeExplorerLoading={dpeExplorerLoading}
+              dpeExplorerError={dpeExplorerError instanceof Error ? dpeExplorerError.message : null}
+              dpeExplorerRequested={dpeExplorerOpen}
+              onLoadDpeExplorer={() => {
+                setDpeExplorerOpen(true);
+                if (dpeExplorerOpen) void refetchDpeExplorer();
+              }}
+            />
+          </details>
           <SaleComparisonBar
             key={comparisonScope ?? "loading"}
             items={comparison.items}
@@ -595,6 +650,7 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
             onRemove={comparison.remove}
             onClear={comparison.clear}
             onRestore={comparison.replace}
+            hideWhenEmpty
           />
 
           <SearchResultsList
@@ -630,10 +686,12 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         </section>
 
         {isDesktop ? (
-          <aside className="relative min-h-[calc(100svh_-_var(--sales-header-height))] bg-[#dfe7eb] lg:order-1">
+          <aside className="relative min-h-[calc(100svh_-_var(--sales-header-height))] bg-[#dfe7eb] lg:order-2">
             <div className="sticky top-[var(--sales-header-height)] h-[calc(100svh_-_var(--sales-header-height))]">
               <LazyMapPanel
                 sales={mapSales}
+                locationCenter={locationCenter}
+                totalCount={totalCount}
                 hoveredSaleId={hoveredSaleId}
                 selectedSaleId={selectedSaleId}
                 isLoading={isInitialLoading || isMapLoading}
@@ -657,6 +715,8 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
 
       <MoreFiltersModal
         open={filtersOpen}
+        analysisLocked={isPreview || isDiscovery}
+        preview={isPreview}
         draft={draft}
         setDraft={setDraft}
         activeFiltersCount={activeFiltersCount}
@@ -670,9 +730,25 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
         onOpenMap={() => updateSearch({ map: true })}
       />
 
-      <>
-        {mobileMapOpen ? (
-          <div className={`${entryMotion.fadeIn} fixed inset-0 z-50 bg-[#e7f4ef] lg:hidden`}>
+      <DialogPrimitive.Root
+        open={mobileMapOpen && !isDesktop}
+        onOpenChange={(open) => {
+          if (!open) updateSearch({ map: false });
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            onOpenAutoFocus={() => {
+              mapTriggerRef.current = document.activeElement as HTMLElement;
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              mapTriggerRef.current?.focus();
+            }}
+            className="fixed inset-0 z-50 bg-[#e7f4ef] outline-none"
+          >
+            <DialogPrimitive.Title className="sr-only">Carte des annonces</DialogPrimitive.Title>
             <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between border-b border-[#132238]/10 bg-white/95 px-3 backdrop-blur">
               <button
                 type="button"
@@ -689,6 +765,8 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
             <div className="h-full pt-14">
               <LazyMapPanel
                 sales={mapSales}
+                locationCenter={locationCenter}
+                totalCount={totalCount}
                 hoveredSaleId={hoveredSaleId}
                 selectedSaleId={selectedSaleId}
                 isLoading={isInitialLoading || isMapLoading}
@@ -706,9 +784,9 @@ export function SearchPage({ search }: { search: SalesSearchParams }) {
                 }
               />
             </div>
-          </div>
-        ) : null}
-      </>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </main>
   );
 }
