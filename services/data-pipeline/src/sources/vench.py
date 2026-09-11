@@ -314,7 +314,11 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
         LOGGER.warning("Vench detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
         return
-    sale["source_detail_status"] = "restricted" if "abonn" in html.lower() and ("réserv" in html.lower() or "devez être abonné" in html.lower()) else "complete"
+    access_text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
+    restricted = re.search(
+        r"(?:r[ée]serv[ée]e?\s+aux\s+abonn[ée]s|vous\s+devez\s+[êe]tre\s+abonn[ée])", access_text, re.I,
+    )
+    sale["source_detail_status"] = "restricted" if restricted else "complete"
     details = parse_vench_detail_html(html, source_url)
     for key, value in details.items():
         if value in (None, "", []):

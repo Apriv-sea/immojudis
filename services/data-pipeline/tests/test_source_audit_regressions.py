@@ -170,3 +170,15 @@ def test_info_encheres_uses_audience_hour_not_office_opening_hours():
     assert info_encheres._sale_date_with_audience_time("03/09/2026", text) == "03/09/2026 à 13h30"
     assert info_encheres._sale_date_with_audience_time("02/09/2026", "L'AUDIENCE DES VENTES DÉBUTE À 9H.") == "02/09/2026 à 9h00"
     assert info_encheres._sale_date_with_audience_time("03/09/2026", "Cabinet ouvert de 10h à 12h.") == "03/09/2026"
+
+
+@pytest.mark.parametrize("module", [vench, petites_affiches])
+@pytest.mark.parametrize("restricted", [True, False])
+def test_subscription_footer_alone_does_not_mark_the_detail_restricted(module, restricted):
+    class Client:
+        def get(self, url):
+            return ("<p>Consultation r&eacute;serv&eacute;e aux abonn&eacute;s.</p>" if restricted else
+                    "<h1>Appartement</h1><footer>Tous droits réservés. Abonnez-vous au journal.</footer>")
+    sale = {"source_url": module.BASE_URL + "/test"}
+    module._enrich_sale_from_detail(Client(), sale, [])
+    assert sale["source_detail_status"] == ("restricted" if restricted else "complete")

@@ -15,7 +15,7 @@
 
 ## Vérifications
 
-- Python : 1 070 tests passants, 21 ignorés (intégrations non configurées).
+- Python : 1 074 tests passants, 21 ignorés (intégrations non configurées).
 - PostgreSQL/Supabase local isolé : 745 assertions pgTAP passantes, dont permissions, lot borné, précision monétaire, reprise, curseur et validation des fuseaux. Projet/volumes distincts de la base locale existante.
 - Benchmark local annulé : 1 000 annonces synthétiques, 40 lots, maximum 0,053 s par lot, total 1,015 s sous `statement_timeout=8s`.
 - Relecture des captures publiques : Avoventes, description 1 003 caractères ; Cessions État, adjudication le 05/11/2026 à 15h30 Paris et trois PDF ; Info Enchères, lot lyonnais classé libre et zéro icône importée.
