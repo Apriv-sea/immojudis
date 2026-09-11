@@ -1,5 +1,5 @@
-from src.sources.linked_pages import LinkedPages
 from src.sources.info_encheres import _list_urls
+from src.sources.linked_pages import LinkedPages
 
 
 def test_info_does_not_skip_second_page():
@@ -52,4 +52,20 @@ def test_cessions_stops_after_first_failed_listing(monkeypatch):
     monkeypatch.setattr(source, 'PoliteHttpClient', Client)
     result = source.scrape_cessions_etat_aquitaine_result(max_pages=100)
     assert len(calls) == 1
+    assert result.errors and result.coverage['coverage_complete'] is False
+
+
+def test_notaires_missing_rows_cannot_certify_zero_inventory(monkeypatch):
+    from src.sources import notaires as source
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            return '{"nbTotalAnnonces":0,"nbPages":0}'
+
+    monkeypatch.setattr(source, 'PoliteHttpClient', Client)
+    monkeypatch.setattr(source, '_department_filters', lambda: (None,))
+    result = source.scrape_notaires_aquitaine_result(max_pages=1)
     assert result.errors and result.coverage['coverage_complete'] is False

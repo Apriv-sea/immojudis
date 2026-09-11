@@ -66,7 +66,9 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                     payload = client.get(url)
                 except httpx.HTTPStatusError as exc:
                     if _is_page_out_of_range_error(exc, page):
-                        pagination.exhausted = bool(pagination.seen)
+                        pagination.exhausted = bool(pagination.seen and not pagination.total_changed and
+                                                    (pagination.expected_total is None or
+                                                     len(pagination.seen) == pagination.expected_total))
                         LOGGER.info("Notaires pagination ended at %s", url)
                         break
                     LOGGER.error("Notaires API fetch failed for %s: %s", url, exc)
@@ -77,7 +79,14 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                     errors.append(f"{url}: {exc}")
                     continue
                 sales = parse_notaires_json(payload)
-                metadata = json.loads(payload)
+                try:
+                    metadata = json.loads(payload)
+                except ValueError:
+                    errors.append(f"{url}: invalid JSON inventory")
+                    break
+                if not isinstance(metadata, dict) or not isinstance(metadata.get("annonceResumeDto"), list):
+                    errors.append(f"{url}: missing inventory rows")
+                    break
                 total = metadata.get("nbTotalAnnonces") if isinstance(metadata, dict) else None
                 pages = metadata.get("nbPages") if isinstance(metadata, dict) else None
                 terminal = type(pages) is int and pages >= 0 and page >= pages
