@@ -1,0 +1,769 @@
+{
+  "date": "2026-09-11",
+  "scope": "Listing-only audits: no database write, document download or paid AI generation. Existing summaries inspected read-only.",
+  "github_audits": [
+    "https://github.com/Aprivi-dev/immojudis/actions/runs/34597054340",
+    "https://github.com/Aprivi-dev/immojudis/actions/runs/34598130029"
+  ],
+  "reports": [
+    {
+      "environment": "github_before",
+      "source": "agrasc",
+      "utc": "2026-09-11T12:08:16.831233+00:00",
+      "unique_listing_urls": 3,
+      "details_skipped": 3,
+      "coverage": {
+        "requests_attempted": 1,
+        "requests_succeeded": 1,
+        "requests_failed": 0,
+        "unique_urls_visited": 1,
+        "operator_details": {
+          "complete": 0,
+          "partial": 0,
+          "failed": 0,
+          "unsupported": 0
+        },
+        "listings_emitted": 3,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 2,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "avoventes",
+      "utc": "2026-09-11T12:04:45.956135+00:00",
+      "unique_listing_urls": 264,
+      "details_skipped": 264,
+      "coverage": {
+        "listings_emitted": 264,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 1,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "cessions_etat",
+      "utc": "2026-09-11T12:09:14.723057+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 100,
+        "requests_succeeded": 0,
+        "requests_failed": 100,
+        "unique_urls_visited": 0,
+        "pages_fetched": 0,
+        "coverage_complete": false,
+        "unique_listings_seen": 0,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "source_errors",
+        "listings_emitted": 0,
+        "errors": 100
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "https://cessions.immobilier-etat.gouv.fr/: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=1: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=1'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=2: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=2'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=3: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=3'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=4: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=4'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=5: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=5'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=6: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=6'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=7: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=7'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=8: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=8'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=9: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=9'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=10: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=10'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=11: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=11'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=12: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=12'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=13: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=13'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=14: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=14'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=15: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=15'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=16: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=16'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=17: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=17'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=18: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=18'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+        "https://cessions.immobilier-etat.gouv.fr/?page=19: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/?page=19'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 101,
+      "http_statuses": [
+        403
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "encheres_immobilieres",
+      "utc": "2026-09-11T12:09:03.215919+00:00",
+      "unique_listing_urls": 242,
+      "details_skipped": 242,
+      "coverage": {
+        "requests_attempted": 18,
+        "requests_succeeded": 18,
+        "requests_failed": 0,
+        "unique_urls_visited": 18,
+        "pages_fetched": 18,
+        "coverage_complete": false,
+        "unique_listings_seen": 242,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "empty_page_unverified",
+        "listings_emitted": 242,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 19,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "encheres_publiques",
+      "utc": "2026-09-11T12:06:08.215537+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 1,
+        "requests_succeeded": 0,
+        "requests_failed": 1,
+        "unique_urls_visited": 0,
+        "listings_emitted": 0,
+        "errors": 1,
+        "coverage_complete": false,
+        "stop_reason": "source_errors"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "https://www.encheres-publiques.com/ventes/immobilier: Client error '403 Forbidden' for url 'https://www.encheres-publiques.com/ventes/immobilier'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 3,
+      "http_statuses": [
+        200,
+        301,
+        403
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "info_encheres",
+      "utc": "2026-09-11T12:05:43.280648+00:00",
+      "unique_listing_urls": 65,
+      "details_skipped": 65,
+      "coverage": {
+        "requests_attempted": 5,
+        "requests_succeeded": 5,
+        "requests_failed": 0,
+        "unique_urls_visited": 5,
+        "pages_fetched": 5,
+        "coverage_complete": false,
+        "unique_listings_seen": 65,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "empty_page_unverified",
+        "listings_emitted": 65,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 6,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "licitor",
+      "utc": "2026-09-11T12:07:50.563608+00:00",
+      "unique_listing_urls": 653,
+      "details_skipped": 0,
+      "coverage": {
+        "listings_emitted": 653,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 138,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "notaires",
+      "utc": "2026-09-11T12:10:14.646743+00:00",
+      "unique_listing_urls": 821,
+      "details_skipped": 821,
+      "coverage": {
+        "requests_attempted": 35,
+        "requests_succeeded": 35,
+        "requests_failed": 0,
+        "unique_urls_visited": 35,
+        "coverage_complete": true,
+        "partitions": [
+          {
+            "pages_fetched": 1,
+            "coverage_complete": true,
+            "unique_listings_seen": 9,
+            "advertised_total": 9,
+            "total_changed_during_scan": false,
+            "stop_reason": "exhausted"
+          },
+          {
+            "pages_fetched": 34,
+            "coverage_complete": true,
+            "unique_listings_seen": 812,
+            "advertised_total": 812,
+            "total_changed_during_scan": false,
+            "stop_reason": "exhausted"
+          }
+        ],
+        "listings_emitted": 821,
+        "errors": 0,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": true,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 36,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "petites_affiches",
+      "utc": "2026-09-11T12:06:33.731327+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 2,
+        "requests_succeeded": 0,
+        "requests_failed": 2,
+        "unique_urls_visited": 0,
+        "listings_emitted": 0,
+        "errors": 1,
+        "coverage_complete": false,
+        "stop_reason": "source_errors"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "department None: Client error '403 Forbidden' for url 'https://www.petitesaffiches.fr/encheres-immobilieres/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 3,
+      "http_statuses": [
+        403
+      ]
+    },
+    {
+      "environment": "github_before",
+      "source": "vench",
+      "utc": "2026-09-11T12:05:13.428336+00:00",
+      "unique_listing_urls": 5,
+      "details_skipped": 12,
+      "coverage": {
+        "requests_attempted": 1,
+        "requests_succeeded": 1,
+        "requests_failed": 0,
+        "unique_urls_visited": 1,
+        "listings_emitted": 5,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 2,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "agrasc",
+      "utc": "2026-09-11T12:21:51.951528+00:00",
+      "unique_listing_urls": 6,
+      "details_skipped": 6,
+      "coverage": {
+        "requests_attempted": 9,
+        "requests_succeeded": 9,
+        "requests_failed": 0,
+        "unique_urls_visited": 9,
+        "pages_fetched": 9,
+        "linked_pages_complete": true,
+        "pending_pages": 0,
+        "coverage_complete": null,
+        "coverage_basis": "published pagination links; no independent inventory total",
+        "stop_reason": "published_links_exhausted",
+        "operator_details": {
+          "complete": 0,
+          "partial": 0,
+          "failed": 0,
+          "unsupported": 0
+        },
+        "listings_emitted": 6,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 10,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "avoventes",
+      "utc": "2026-09-11T12:17:45.024399+00:00",
+      "unique_listing_urls": 264,
+      "details_skipped": 264,
+      "coverage": {
+        "listings_emitted": 264,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 1,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "cessions_etat",
+      "utc": "2026-09-11T12:21:15.563895+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 1,
+        "requests_succeeded": 0,
+        "requests_failed": 1,
+        "unique_urls_visited": 0,
+        "pages_fetched": 0,
+        "coverage_complete": false,
+        "unique_listings_seen": 0,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "source_errors",
+        "listings_emitted": 0,
+        "errors": 1
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "https://cessions.immobilier-etat.gouv.fr/: Client error '403 Forbidden' for url 'https://cessions.immobilier-etat.gouv.fr/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 2,
+      "http_statuses": [
+        403
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "encheres_immobilieres",
+      "utc": "2026-09-11T12:22:11.224189+00:00",
+      "unique_listing_urls": 242,
+      "details_skipped": 242,
+      "coverage": {
+        "requests_attempted": 18,
+        "requests_succeeded": 18,
+        "requests_failed": 0,
+        "unique_urls_visited": 18,
+        "pages_fetched": 18,
+        "coverage_complete": false,
+        "unique_listings_seen": 242,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "empty_page_unverified",
+        "listings_emitted": 242,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 19,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "encheres_publiques",
+      "utc": "2026-09-11T12:20:35.728156+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 1,
+        "requests_succeeded": 0,
+        "requests_failed": 1,
+        "unique_urls_visited": 0,
+        "listings_emitted": 0,
+        "errors": 1,
+        "coverage_complete": false,
+        "stop_reason": "source_errors"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "https://www.encheres-publiques.com/ventes/immobilier: Client error '403 Forbidden' for url 'https://www.encheres-publiques.com/ventes/immobilier'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 3,
+      "http_statuses": [
+        200,
+        301,
+        403
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "info_encheres",
+      "utc": "2026-09-11T12:20:10.960246+00:00",
+      "unique_listing_urls": 85,
+      "details_skipped": 85,
+      "coverage": {
+        "requests_attempted": 5,
+        "requests_succeeded": 5,
+        "requests_failed": 0,
+        "unique_urls_visited": 5,
+        "pages_fetched": 5,
+        "linked_pages_complete": true,
+        "pending_pages": 0,
+        "coverage_complete": null,
+        "coverage_basis": "published pagination links; no independent inventory total",
+        "stop_reason": "published_links_exhausted",
+        "listings_emitted": 85,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 6,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "licitor",
+      "utc": "2026-09-11T12:20:40.392516+00:00",
+      "unique_listing_urls": 653,
+      "details_skipped": 0,
+      "coverage": {
+        "listings_emitted": 653,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 138,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "notaires",
+      "utc": "2026-09-11T12:23:02.295037+00:00",
+      "unique_listing_urls": 821,
+      "details_skipped": 821,
+      "coverage": {
+        "requests_attempted": 35,
+        "requests_succeeded": 35,
+        "requests_failed": 0,
+        "unique_urls_visited": 35,
+        "coverage_complete": true,
+        "partitions": [
+          {
+            "pages_fetched": 1,
+            "coverage_complete": true,
+            "unique_listings_seen": 9,
+            "advertised_total": 9,
+            "total_changed_during_scan": false,
+            "stop_reason": "exhausted"
+          },
+          {
+            "pages_fetched": 34,
+            "coverage_complete": true,
+            "unique_listings_seen": 812,
+            "advertised_total": 812,
+            "total_changed_during_scan": false,
+            "stop_reason": "exhausted"
+          }
+        ],
+        "listings_emitted": 821,
+        "errors": 0,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": true,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 36,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "petites_affiches",
+      "utc": "2026-09-11T12:21:03.888954+00:00",
+      "unique_listing_urls": 0,
+      "details_skipped": 0,
+      "coverage": {
+        "requests_attempted": 2,
+        "requests_succeeded": 0,
+        "requests_failed": 2,
+        "unique_urls_visited": 0,
+        "listings_emitted": 0,
+        "errors": 1,
+        "coverage_complete": false,
+        "stop_reason": "source_errors"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [
+        "department None: Client error '403 Forbidden' for url 'https://www.petitesaffiches.fr/encheres-immobilieres/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+      ],
+      "http_requests": 3,
+      "http_statuses": [
+        403
+      ]
+    },
+    {
+      "environment": "github_after",
+      "source": "vench",
+      "utc": "2026-09-11T12:19:33.443339+00:00",
+      "unique_listing_urls": 381,
+      "details_skipped": 686,
+      "coverage": {
+        "requests_attempted": 58,
+        "requests_succeeded": 58,
+        "requests_failed": 0,
+        "unique_urls_visited": 58,
+        "partitions": [
+          {
+            "department": null,
+            "pages_fetched": 58,
+            "linked_pages_complete": true,
+            "pending_pages": 0,
+            "coverage_complete": null,
+            "coverage_basis": "published pagination links; no independent inventory total",
+            "stop_reason": "published_links_exhausted"
+          }
+        ],
+        "linked_pages_complete": true,
+        "inventory_before_catalog_filter": 686,
+        "catalog_filter_excluded": 305,
+        "listings_emitted": 381,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 59,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "local_after",
+      "source": "avoventes",
+      "utc": "2026-09-11T12:26:43.303698+00:00",
+      "unique_listing_urls": 269,
+      "details_skipped": 269,
+      "coverage": {
+        "inventory_before_department_filter": 273,
+        "unresolved_location_count": 4,
+        "unresolved_location_urls": [
+          "https://avoventes.fr/enchere/un-appartement-avec-cave-et-parking-a-rouen",
+          "https://avoventes.fr/enchere/appartement-cave-a-marseille-12",
+          "https://avoventes.fr/enchere/vente-en-9-lots-nice-st-laurent-du-var-cagnes-sur-mer-guillaumes",
+          "https://avoventes.fr/enchere/appartement-cave-a-villiers-le-bel"
+        ],
+        "listings_emitted": 269,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 1,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "local_after",
+      "source": "cessions_etat",
+      "utc": "2026-09-11T12:21:44.021336+00:00",
+      "unique_listing_urls": 232,
+      "details_skipped": 342,
+      "coverage": {
+        "requests_attempted": 23,
+        "requests_succeeded": 23,
+        "requests_failed": 0,
+        "unique_urls_visited": 23,
+        "pages_fetched": 23,
+        "coverage_complete": false,
+        "unique_listings_seen": 238,
+        "advertised_total": null,
+        "total_changed_during_scan": false,
+        "stop_reason": "repeated_page",
+        "listings_emitted": 232,
+        "errors": 0
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 24,
+      "http_statuses": [
+        200
+      ]
+    },
+    {
+      "environment": "local_after",
+      "source": "petites_affiches",
+      "utc": "2026-09-11T12:24:42.105356+00:00",
+      "unique_listing_urls": 658,
+      "details_skipped": 658,
+      "coverage": {
+        "requests_attempted": 70,
+        "requests_succeeded": 70,
+        "requests_failed": 0,
+        "unique_urls_visited": 70,
+        "partitions": [
+          {
+            "department": null,
+            "pages_fetched": 70,
+            "linked_pages_complete": true,
+            "pending_pages": 0,
+            "coverage_complete": null,
+            "coverage_basis": "published pagination links; no independent inventory total",
+            "stop_reason": "published_links_exhausted"
+          }
+        ],
+        "linked_pages_complete": true,
+        "listings_emitted": 658,
+        "errors": 0,
+        "coverage_complete": null,
+        "stop_reason": "source_finished"
+      },
+      "inventory_certified": false,
+      "budget_exhausted": false,
+      "errors": [],
+      "http_requests": 71,
+      "http_statuses": [
+        200
+      ]
+    }
+  ],
+  "summary_sample": {
+    "checked": 31,
+    "sources": 8,
+    "flagged": 7,
+    "semantic_completeness_certified": false,
+    "alerts": [
+      {
+        "source": "agrasc",
+        "url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/appartement/appartement-loue-117-m-choisy-le-roi-94-412224.aspx",
+        "issues": [
+          {
+            "code": "promotional_claim",
+            "claim": "exceptionnelle"
+          }
+        ]
+      },
+      {
+        "source": "avoventes",
+        "url": "https://avoventes.fr/enchere/appartement-a-saint-maurice-de-beynost",
+        "issues": [
+          {
+            "code": "unsupported_date",
+            "claim": "5 janvier 2024"
+          }
+        ]
+      },
+      {
+        "source": "encheres_immobilieres",
+        "url": "https://encheresimmobilieres.fr/ventes/9191-un-appartement-en-rez-de-chaussee-une-cave-et-un-emplacement-de-parking-",
+        "issues": [
+          {
+            "code": "unsupported_bedrooms",
+            "claim": "deux chambres"
+          }
+        ]
+      },
+      {
+        "source": "encheres_immobilieres",
+        "url": "https://encheresimmobilieres.fr/ventes/9348-des-parcelles-de-terrain-a-bessenay-69",
+        "issues": [
+          {
+            "code": "scientific_surface_notation",
+            "claim": "2,2E+3 m²"
+          }
+        ]
+      },
+      {
+        "source": "encheres_publiques",
+        "url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/nice-06/appartement-situe-rue-barberis-nice_129494",
+        "issues": [
+          {
+            "code": "unsupported_money",
+            "claim": "60 000 €"
+          }
+        ]
+      },
+      {
+        "source": "info_encheres",
+        "url": "https://www.info-encheres.com/108250-d-vente-encheres-immobilieres-maison-d-habitation-avec-dacpendances-balbigny-42-ref-6014.html",
+        "issues": [
+          {
+            "code": "unsupported_area",
+            "claim": "2900 m²"
+          }
+        ]
+      },
+      {
+        "source": "notaires",
+        "url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/avignon-84/2050993",
+        "issues": [
+          {
+            "code": "unsupported_area",
+            "claim": "76 m²"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -104,3 +104,9 @@ def test_cessions_enriches_promoted_listing_only_once(monkeypatch):
     monkeypatch.setattr(source, 'validate_raw_sales', lambda source, sales, errors: sales)
     source.scrape_cessions_etat_aquitaine_result(max_pages=2)
     assert enriched.count('https://example.test/promoted') == 1
+
+
+def test_avoventes_postal_code_after_city_is_not_dropped():
+    from src.sources.avoventes import _extract_location
+    assert _extract_location('STUDIO À BIARRITZ (64200)', '') == ('64200', None)
+    assert _extract_location('Maison sans adresse', '') == (None, None)
