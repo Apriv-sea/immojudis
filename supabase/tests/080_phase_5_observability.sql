@@ -24,6 +24,7 @@ from unnest(array[
   'sale-change-monitor',
   'precompute-valuations',
   'data-retention',
+  'sale-retention',
   'cnb-lawyer-directory'
 ]) as job_name;
 
