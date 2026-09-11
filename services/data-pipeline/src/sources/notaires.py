@@ -77,7 +77,11 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                     errors.append(f"{url}: {exc}")
                     continue
                 sales = parse_notaires_json(payload)
-                if not pagination.accept(sales):
+                metadata = json.loads(payload)
+                total = metadata.get("nbTotalAnnonces") if isinstance(metadata, dict) else None
+                pages = metadata.get("nbPages") if isinstance(metadata, dict) else None
+                terminal = type(pages) is int and pages >= 0 and page >= pages
+                if not pagination.accept(sales, terminal=terminal, expected_total=total):
                     break
                 for sale in sales:
                     if not _enrich_sale_from_detail(client, sale, errors):
@@ -87,6 +91,8 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                         sale["source_detail_status"] = "complete"
                     if sale.get("department") in TARGET_DEPARTMENTS:
                         raw_sales.append(sale)
+                if pagination.exhausted:
+                    break
 
     return ScrapeResult(
         validate_raw_sales("notaires", unique_dicts(raw_sales, "source_url"), errors),

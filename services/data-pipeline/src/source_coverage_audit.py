@@ -1,0 +1,134 @@
+"""Manual, read-only inventory audit: no database, documents, or LLM calls."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib
+import inspect
+import json
+import os
+import time
+from contextlib import ExitStack
+from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import patch
+from urllib.parse import urljoin
+
+import httpx
+from bs4 import BeautifulSoup
+
+SOURCES = ('avoventes', 'licitor', 'vench', 'info_encheres', 'encheres_publiques',
+           'petites_affiches', 'cessions_etat', 'agrasc', 'encheres_immobilieres', 'notaires')
+
+
+def page_evidence(body: str, url: str) -> dict:
+    try:
+        data = json.loads(body)
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and 'nbTotalAnnonces' in data:
+        return {'kind': 'api', 'advertised_total': data.get('nbTotalAnnonces'),
+                'advertised_pages': data.get('nbPages'), 'page': data.get('page'),
+                'raw_rows': len(data.get('annonceResumeDto') or [])}
+    soup = BeautifulSoup(body, 'html.parser')
+    pagination = []
+    for a in soup.select('a[href]'):
+        href = str(a['href'])
+        if ('next' in (a.get('rel') or []) or any(marker in href for marker in ('?page=', '&page=', 'snr=', 'debut_', '/page/'))):
+            pagination.append(urljoin(url, href))
+    return {'kind': 'html', 'pagination_links': sorted(set(pagination)),
+            'title': soup.title.get_text(' ', strip=True) if soup.title else None,
+            'body_text_preview': soup.get_text(' ', strip=True)[:300]}
+
+
+def run_audit(source: str, output: Path, *, max_pages: int = 100,
+              max_requests: int = 300, max_seconds: int = 600) -> dict:
+    if source not in SOURCES or not 1 <= max_pages <= 150 or not 1 <= max_requests <= 500 or not 1 <= max_seconds <= 900:
+        raise ValueError('Invalid source or audit budget')
+    # Configuration is read after clearing credentials. No enrichment runner is imported.
+    for key in ('SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_URL', 'REPLICATE_API_TOKEN'):
+        os.environ[key] = ''
+    os.environ.update(LLM_ENABLED='false', TARGET_DEPARTMENTS='all', REQUEST_TIMEOUT_SECONDS='15', REQUEST_DELAY_SECONDS='1')
+    module = importlib.import_module('src.sources.' + source)
+    collector = getattr(module, 'scrape_' + source + '_aquitaine_result')
+    started = time.monotonic()
+    trace: list[dict] = []
+    skipped_details = 0
+    budget_exhausted = False
+    original_send = httpx.Client.send
+
+    def send(client, request, **kwargs):
+        nonlocal budget_exhausted
+        if len(trace) >= max_requests or time.monotonic() - started >= max_seconds:
+            budget_exhausted = True
+            raise RuntimeError('AUDIT_BUDGET_EXHAUSTED')
+        entry = {'url': str(request.url), 'method': request.method}
+        trace.append(entry)
+        try:
+            response = original_send(client, request, **kwargs)
+            entry['status'] = response.status_code
+            if not kwargs.get('stream'):
+                entry['sha256'] = hashlib.sha256(response.content).hexdigest()
+                entry['bytes'] = len(response.content)
+                if response.status_code == 200 and not request.url.path.endswith('/robots.txt'):
+                    entry['evidence'] = page_evidence(response.text, str(request.url))
+            return response
+        except Exception as exc:
+            entry['error'] = str(exc)[:250]
+            raise
+
+    def skip_detail(*args, **kwargs):
+        nonlocal skipped_details
+        skipped_details += 1
+        return True
+
+    result = None
+    fatal = None
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(httpx.Client, 'send', send))
+        for name in ('_enrich_sale_from_detail', 'enrich_agrasc_operator'):
+            if hasattr(module, name):
+                stack.enter_context(patch.object(module, name, skip_detail))
+        arguments = {'max_pages': max_pages} if 'max_pages' in inspect.signature(collector).parameters else {}
+        if source == 'licitor':
+            arguments['fetch_details'] = False
+        try:
+            result = collector(**arguments)
+        except Exception as exc:
+            fatal = str(exc)[:500]
+    sales = result.sales if result else []
+    coverage = result.coverage if result else {}
+    errors = result.errors if result else [fatal]
+    report = {
+        'source': source, 'utc': datetime.now(UTC).isoformat(),
+        'scope': 'national configured inventory; listing pages only; no DB, PDF or AI',
+        'budgets': {'pages_per_partition': max_pages, 'requests': max_requests, 'seconds': max_seconds},
+        'budget_exhausted': budget_exhausted, 'duration_seconds': round(time.monotonic() - started, 2),
+        'listings_emitted': len(sales), 'unique_listing_urls': len({s.get('source_url') for s in sales}),
+        'details_skipped': skipped_details, 'coverage': coverage,
+        'audit_status': 'budget_exhausted' if budget_exhausted else 'source_error' if errors else 'inspected',
+        'inventory_certified': bool(coverage.get('coverage_complete') is True and not errors and not budget_exhausted),
+        'error_count': len(errors), 'errors': errors[:20], 'requests': trace,
+        'inventory': [{'url': s.get('source_url'), 'external_id': s.get('external_id'),
+                       'department': s.get('department'), 'sale_date': s.get('sale_date')} for s in sales],
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+    print(json.dumps({k: v for k, v in report.items() if k not in ('requests', 'inventory', 'errors')}, ensure_ascii=False))
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', choices=SOURCES, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--max-pages', type=int, default=100)
+    parser.add_argument('--max-requests', type=int, default=300)
+    parser.add_argument('--max-seconds', type=int, default=600)
+    args = parser.parse_args()
+    run_audit(args.source, args.output, max_pages=args.max_pages,
+              max_requests=args.max_requests, max_seconds=args.max_seconds)
+
+
+if __name__ == '__main__':
+    main()

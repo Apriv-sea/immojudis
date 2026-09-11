@@ -43,22 +43,37 @@ class PaginationCoverage:
     exhausted: bool = False
     repeated: bool = False
     seen: set[str] = field(default_factory=set)
+    expected_total: int | None = None
+    total_changed: bool = False
+    empty_unverified: bool = False
 
-    def accept(self, sales: list[dict[str, Any]]) -> bool:
+    def accept(self, sales: list[dict[str, Any]], *, terminal: bool = False,
+               expected_total: int | None = None) -> bool:
         self.pages_fetched += 1
+        if type(expected_total) is int and expected_total >= 0:
+            if self.expected_total is not None and expected_total != self.expected_total:
+                self.total_changed = True
+            self.expected_total = expected_total
         urls = {str(sale.get("source_url")) for sale in sales if sale.get("source_url")}
         if not urls:
-            self.exhausted = bool(self.seen)
+            self.empty_unverified = not terminal
+            self.exhausted = bool(terminal and not self.total_changed and
+                                  (self.expected_total is None or len(self.seen) == self.expected_total))
             return False
         if urls <= self.seen:
             self.repeated = True
             return False
         self.seen.update(urls)
+        self.exhausted = bool(terminal and not self.total_changed and
+                              (self.expected_total is None or len(self.seen) == self.expected_total))
         return True
 
     def metrics(self) -> dict[str, Any]:
         return {"pages_fetched": self.pages_fetched, "coverage_complete": self.exhausted,
-                "stop_reason": "exhausted" if self.exhausted else "repeated_page" if self.repeated else "page_limit_or_empty_source"}
+                "unique_listings_seen": len(self.seen), "advertised_total": self.expected_total,
+                "total_changed_during_scan": self.total_changed,
+                "stop_reason": "exhausted" if self.exhausted else "repeated_page" if self.repeated
+                else "empty_page_unverified" if self.empty_unverified else "page_limit_or_count_mismatch"}
 
 
 @dataclass
@@ -72,6 +87,9 @@ class ScrapeResult:
         self.coverage.setdefault("errors", len(self.errors))
         self.coverage.setdefault("coverage_complete", None)
         self.coverage.setdefault("stop_reason", "source_finished")
+        if self.errors:
+            self.coverage["coverage_complete"] = False
+            self.coverage["stop_reason"] = "source_errors"
 
 
 @dataclass
