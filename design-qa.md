@@ -40,12 +40,13 @@ Aucun P0/P1/P2 ouvert après comparaison et recette. Les différences intentionn
 - Pagination : page 2, positions 25–48 / 935 ; focus sur les résultats et retour en haut. Retour page 1.
 - Comparaison : sélection de deux biens, tableau comparatif, fermeture et effacement.
 - Mobile : carte plein écran, retour liste, ouverture/fermeture des filtres, boutons visibles.
+- Fiche sans aperçu public : accès à la connexion avec destination conservée, sans diagnostic erroné de suppression.
 - Console de la recette finale : aucune erreur.
 - Données privées : refus de l’occupation avec rôle anon sur la nouvelle RPC. Recette interactive effectuée en visiteur ; export CSV, enregistrement d’alerte et favoris payants couverts par les tests existants, sans création de données utilisateur pendant la recette.
 
 ## Validation technique
 
-932 tests unitaires réussis, 3 ignorés ; typage, lint, invariants de sécurité, collecte manuelle, build et budgets vérifiés. Migration additive `20260911081621_sales_search_date_range.sql`, ancienne RPC v3 conservée. Compteur SQL public de période comparé directement aux données : 265.
+933 tests unitaires réussis, 3 ignorés ; typage, lint, invariants de sécurité, collecte manuelle, build et budgets vérifiés. Migration additive `20260911081621_sales_search_date_range.sql`, ancienne RPC v3 conservée. Compteur SQL public de période comparé directement aux données : 265.
 
 ## Ajustements facultatifs
 
