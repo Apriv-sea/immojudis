@@ -1,0 +1,31 @@
+begin;
+select plan(18);
+select is(app_private.sale_retention_deadline('2000-01-01 12:00Z','upcoming','{}','{}'),'2000-01-02 12:00Z'::timestamptz,'exactly 24 hours');
+select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"sale_date":"10/09/2026"}'),'2026-09-10 22:00Z'::timestamptz,'date-only Paris midnight plus 24 hours');
+select is(app_private.sale_retention_deadline('2026-03-29 00:00Z','upcoming','{}','{"sale_date":"2026-03-29"}'),'2026-03-29 23:00Z'::timestamptz,'DST uses 24 elapsed hours');
+select is(app_private.sale_retention_deadline(null,'upcoming','{}','{}'),null::timestamptz,'unknown date retained');
+select is(app_private.sale_retention_deadline('2000-01-01','postponed','{}','{}'),null::timestamptz,'postponed sale retained');
+select is(app_private.sale_retention_deadline('2000-01-01','upcoming','{"sale_window":{"opens_at":"2000-01-01T12:00:00Z","closes_at":"2000-01-05T12:00:00Z"}}','{}'),'2000-01-06 12:00Z'::timestamptz,'online closing date takes precedence');
+select is(app_private.sale_retention_deadline('2000-01-01','upcoming','{"sale_window":{"opens_at":"bad","closes_at":"bad"}}','{}'),null::timestamptz,'malformed explicit window retained');
+select ok(not has_function_privilege('authenticated','public.purge_expired_auction_sales(timestamptz,integer)','execute'),'users cannot purge');
+select ok(not has_table_privilege('anon','public.sale_retention_storage_queue','select'),'outbox private');
+insert into auth.users(id) values ('ffffffff-ffff-ffff-ffff-ffffffffff70');
+insert into public.auction_sales(id,source_name,source_url,status,starting_price_eur,sale_date) values
+('ffffffff-ffff-ffff-ffff-ffffffffff71','retention-test','https://example.test/retention/1','upcoming',10000,'2000-01-01 12:00Z'),
+('ffffffff-ffff-ffff-ffff-ffffffffff72','retention-test','https://example.test/retention/2','upcoming',10000,'2000-01-02 12:00Z');
+insert into public.saved_property_reports(user_id,sale_id,title,report_kind) values ('ffffffff-ffff-ffff-ffff-ffffffffff70','ffffffff-ffff-ffff-ffff-ffffffffff71','Personal simulation','bid_ceiling');
+insert into public.sale_workspaces(user_id,sale_id,user_max_bid_eur) values ('ffffffff-ffff-ffff-ffff-ffffffffff70','ffffffff-ffff-ffff-ffff-ffffffffff71',50000);
+insert into public.valuation_estimates(auction_sale_id,engine_version,engine_kind,segment) values ('ffffffff-ffff-ffff-ffff-ffffffffff71','test','comparable_ensemble','house');
+set local role service_role;
+select is((public.purge_expired_auction_sales('2000-01-02 11:59:59Z',25)->>'deleted')::integer,0,'not deleted before boundary');
+select is((public.purge_expired_auction_sales('2000-01-02 12:00Z',25)->>'deleted')::integer,1,'deleted at boundary as service role');
+reset role;
+select is((select count(*) from public.auction_sales where source_name='retention-test'),1::bigint,'younger sale retained');
+select is((select count(*) from public.saved_property_reports where user_id='ffffffff-ffff-ffff-ffff-ffffffffff70'),0::bigint,'personal reports removed');
+select is((select count(*) from public.sale_workspaces where user_id='ffffffff-ffff-ffff-ffff-ffffffffff70'),0::bigint,'simulation workspace removed');
+select is((select count(*) from public.valuation_estimates where engine_version='test' and auction_sale_id='ffffffff-ffff-ffff-ffff-ffffffffff71'),0::bigint,'valuation snapshot removed');
+select is((select count(*) from public.auction_sale_outcome_bridges where source_url_snapshot='https://example.test/retention/1' and auction_sale_id is null),1::bigint,'statistical history preserved');
+select is((public.purge_expired_auction_sales('2000-01-02 12:00Z',25)->>'deleted')::integer,0,'replay idempotent');
+select throws_ok($$select public.purge_expired_auction_sales(now(),26)$$,'22023','Retention requires a timestamp and batch size between 1 and 25.','batch bounded');
+select * from finish();
+rollback;

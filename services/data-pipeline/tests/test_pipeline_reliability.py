@@ -103,7 +103,7 @@ def test_publication_failure_rolls_back_without_rest_fallback(monkeypatch):
     monkeypatch.setattr(storage, "_sync_normalized_sale_tables_with_rest", lambda *args, **kwargs: None)
     monkeypatch.setattr(storage, "_upsert_asset_tables_with_rest", lambda *args: (_ for _ in ()).throw(ValueError("broken child table")))
     monkeypatch.setattr(storage, "_upsert_with_rest", lambda *args: events.append("REST"))
-    sale = normalize_sale({"source_name": "avoventes", "source_url": "https://example.test/a"})
+    sale = normalize_sale({"source_name": "avoventes", "starting_price_eur": 10000, "source_url": "https://example.test/a"})
     with pytest.raises(ValueError, match="broken child"):
         storage.upsert_sales_to_supabase([sale])
     assert events == ["begin", "write", "rollback"]

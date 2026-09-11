@@ -22,6 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - GitHub Actions installs psycop
     sql = None
     Jsonb = None
 
+from src.admission import has_price_or_surface
 from src.asset_normalization import (
     build_auction_features_row,
     build_auction_risk_rows_from_occurrences,
@@ -303,6 +304,9 @@ def upsert_sales_to_supabase(
     *,
     refresh_last_seen: bool = True,
 ) -> int:
+    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    if not sales:
+        return 0
     settings = load_settings()
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
@@ -777,6 +781,9 @@ def update_run_progress_in_supabase(
 
 
 def upsert_documents_to_supabase(sales: list[AuctionSale]) -> int:
+    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    if not sales:
+        return 0
     settings = load_settings()
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
@@ -791,6 +798,9 @@ def upsert_documents_to_supabase(sales: list[AuctionSale]) -> int:
 
 
 def upsert_extractions_to_supabase(sales: list[AuctionSale]) -> int:
+    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    if not sales:
+        return 0
     settings = load_settings()
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
@@ -804,6 +814,9 @@ def upsert_extractions_to_supabase(sales: list[AuctionSale]) -> int:
 
 
 def upsert_observations_to_supabase(sales: list[AuctionSale]) -> int:
+    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    if not sales:
+        return 0
     settings = load_settings()
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
@@ -1407,20 +1420,26 @@ def mark_past_sales_in_supabase() -> int:
 
 
 def delete_expired_sales_in_supabase(now: datetime | None = None) -> int:
+    """Use the same atomic 24-hour policy as the independent scheduled job."""
     settings = load_settings()
-    url = settings["supabase_url"]
-    key = settings["supabase_service_role_key"]
+    url, key = settings["supabase_url"], settings["supabase_service_role_key"]
     if not url or not key:
         return 0
-
-    cutoff = now or datetime.now(UTC)
-    if cutoff.tzinfo is None:
-        cutoff = cutoff.replace(tzinfo=UTC)
-    cutoff_iso = cutoff.astimezone(UTC).isoformat()
-
+    current = now or datetime.now(UTC)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=UTC)
     deleted = 0
-    while source_urls := _fetch_expired_sale_urls(str(url), str(key), cutoff_iso):
-        deleted += _delete_sale_rows_by_source_urls(str(url), str(key), source_urls)
+    for _ in range(40):
+        response = httpx.post(
+            f"{str(url).rstrip('/')}/rest/v1/rpc/purge_expired_auction_sales",
+            headers=_rest_headers(str(key), prefer="return=representation"),
+            json={"p_now": current.isoformat(), "p_limit": 25}, timeout=120,
+        )
+        response.raise_for_status()
+        result = response.json()
+        deleted += int(result["deleted"])
+        if result.get("busy") or not result.get("remaining") or not result["deleted"]:
+            break
     return deleted
 
 
@@ -1437,28 +1456,6 @@ def delete_vench_sales_without_surface_in_supabase() -> int:
         deleted += len(source_urls)
     return deleted
 
-
-def _fetch_expired_sale_urls(supabase_url: str, api_key: str, cutoff_iso: str) -> list[str]:
-    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/auction_sales"
-    try:
-        response = httpx.get(
-            endpoint,
-            params={
-                "select": "source_url",
-                "sale_date": f"lt.{cutoff_iso}",
-                "order": "sale_date.asc.nullslast",
-                "limit": "1000",
-            },
-            headers=_rest_headers(api_key, prefer="count=none"),
-            timeout=30,
-        )
-    except httpx.HTTPError as exc:
-        LOGGER.warning("Supabase expired sale cleanup lookup failed: %s", exc)
-        return []
-    if response.is_error:
-        LOGGER.warning("Supabase expired sale cleanup lookup failed (%s): %s", response.status_code, response.text[:200])
-        return []
-    return [str(row["source_url"]) for row in response.json() if row.get("source_url")]
 
 
 def _delete_sale_rows_by_source_urls(supabase_url: str, api_key: str, source_urls: list[str]) -> int:

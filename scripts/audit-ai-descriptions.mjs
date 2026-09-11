@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { displayAuditIssues } from "./lib/ai-description-audit.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
@@ -54,7 +55,7 @@ if (jsonOutput) {
   printHumanReport(report);
 }
 
-if (!noFail && (report.missingDescription > 0 || report.promptVersionMismatch > 0)) {
+if (!noFail && !report.ok) {
   process.exit(1);
 }
 
@@ -96,18 +97,18 @@ function buildReport(rows) {
       missingDescription: 0,
       promptVersionMismatch: 0,
       tooShort: 0,
+      invalidDisplay: 0,
     };
     sourceStats.total += 1;
 
     const description = clean(payload.llm_display_description);
     const promptVersion = clean(payload.llm_prompt_version);
-    const reasons = [];
+    const reasons = displayAuditIssues(payload);
+    if (reasons.length) sourceStats.invalidDisplay += 1;
     if (!description) {
       sourceStats.missingDescription += 1;
-      reasons.push("missing_llm_display_description");
     } else if (description.length < 80) {
       sourceStats.tooShort += 1;
-      reasons.push("short_llm_display_description");
     }
     if (promptVersion !== expectedPromptVersion) {
       sourceStats.promptVersionMismatch += 1;
@@ -144,7 +145,8 @@ function buildReport(rows) {
     expectedPromptVersion,
     scope: activeOnly ? "active_or_upcoming" : "all",
     total: rows.length,
-    ok: missingDescription === 0 && promptVersionMismatch === 0,
+    ok: gaps.length === 0,
+    invalidDisplay: [...bySource.values()].reduce((sum, source) => sum + source.invalidDisplay, 0),
     missingDescription,
     promptVersionMismatch,
     tooShort,
@@ -167,6 +169,7 @@ function printHumanReport(report) {
   console.log(`- total_sales: ${report.total}`);
   console.log(`- missing_llm_display_description: ${report.missingDescription}`);
   console.log(`- prompt_version_mismatch: ${report.promptVersionMismatch}`);
+  console.log(`- invalid_display: ${report.invalidDisplay}`);
   console.log(`- short_llm_display_description: ${report.tooShort}`);
 
   if (report.bySource.length) {

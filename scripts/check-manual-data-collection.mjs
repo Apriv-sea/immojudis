@@ -17,6 +17,7 @@ const allowedVercelCronPaths = new Set([
   "/api/cron/alert-notifications",
   "/api/cron/sale-change-monitor",
   "/api/cron/data-retention",
+  "/api/cron/sale-retention",
   "/api/cron/operational-health",
 ]);
 const allowedDatabaseCronJobs = new Set([
