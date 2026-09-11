@@ -1,1 +1,5 @@
 project_id = "sgpakxtyvenlpeihuucm"
+
+[functions.source-fetch-relay]
+# Authentication is enforced by the function using a dedicated fetch-only token.
+verify_jwt = false

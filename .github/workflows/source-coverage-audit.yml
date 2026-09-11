@@ -1,6 +1,12 @@
 name: Manual source coverage audit
 on:
   workflow_dispatch:
+    inputs:
+      source_group:
+        description: "Sources to audit (read-only)"
+        type: choice
+        default: all
+        options: [all, cloud]
 permissions:
   contents: read
 jobs:
@@ -9,7 +15,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        source: [avoventes, licitor, vench, info_encheres, encheres_publiques, petites_affiches, cessions_etat, agrasc, encheres_immobilieres, notaires]
+        source: ${{ fromJSON(inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,6 +31,8 @@ jobs:
         working-directory: services/data-pipeline
         env:
           AUDIT_SOURCE: ${{ matrix.source }}
+          SOURCE_FETCH_RELAY_URL: ${{ vars.SOURCE_FETCH_RELAY_URL }}
+          SOURCE_FETCH_RELAY_TOKEN: ${{ secrets.SOURCE_FETCH_RELAY_TOKEN }}
         run: python -m src.source_coverage_audit --source "$AUDIT_SOURCE" --output "data/audits/$AUDIT_SOURCE.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()

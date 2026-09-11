@@ -12,6 +12,7 @@ import FileSearch from "lucide-react/dist/esm/icons/file-search.js";
 import Play from "lucide-react/dist/esm/icons/play.js";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw.js";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text.js";
+import { collectionSourceResults, collectionTransportNote } from "@/lib/admin-source-collection";
 import XCircle from "lucide-react/dist/esm/icons/x-circle.js";
 import type * as React from "react";
 import { useState } from "react";
@@ -68,8 +69,8 @@ const SOURCE_OPTIONS: Array<{ value: AdminScrollSource; label: string }> = [
   { value: "vench", label: "Vench" },
   { value: "info_encheres", label: "Info Enchères" },
   { value: "encheres_publiques", label: "Enchères-Publiques" },
-  { value: "petites_affiches", label: "Petites Affiches" },
-  { value: "cessions_etat", label: "Cessions État" },
+  { value: "petites_affiches", label: "Petites Affiches · Supabase" },
+  { value: "cessions_etat", label: "Cessions État · Supabase" },
   { value: "agrasc", label: "AGRASC" },
   { value: "encheres_immobilieres", label: "Enchères Immobilières" },
   { value: "notaires", label: "Notaires" },
@@ -718,6 +719,11 @@ function AdminOperations({
               Lancer
             </AdminPrimaryButton>
           </div>
+          {collectionTransportNote(source) ? (
+            <p className="mt-3 text-sm text-[#132238]/70" role="status">
+              {collectionTransportNote(source)}
+            </p>
+          ) : null}
         </AdminPanel>
 
         <AdminPanel className="flex items-center gap-4 p-5">
@@ -1269,6 +1275,28 @@ function RunDetails({
           </div>
         ) : null}
       </div>
+      {collectionSourceResults(run.summary).length > 0 ? (
+        <div className="mt-5 space-y-2 text-sm" aria-label="Résultats par source">
+          <h3 className="font-semibold text-[#132238]">Résultats par source</h3>
+          {collectionSourceResults(run.summary).map((result) => (
+            <div
+              key={result.source}
+              className="flex flex-wrap justify-between gap-2 border-t border-[#132238]/10 pt-2"
+            >
+              <span>
+                {SOURCE_OPTIONS.find((option) => option.value === result.source)?.label.replace(
+                  " · Supabase",
+                  "",
+                ) ?? result.source}
+              </span>
+              <span className={result.failed ? "text-amber-700" : "text-[#132238]/65"}>
+                {result.transport} · {result.listings ?? "—"} annonce(s) extraite(s)
+                {result.failed ? " · Erreur signalée" : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-6 grid grid-cols-2 gap-3">
         <button
           type="button"
