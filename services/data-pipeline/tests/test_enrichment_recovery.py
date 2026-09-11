@@ -11,7 +11,7 @@ from src.models import AuctionSale
 
 def test_backfill_commits_before_next_result_even_if_interrupted(monkeypatch):
     monkeypatch.delenv("GITHUB_ENV", raising=False)
-    sales = [AuctionSale(source_name="avoventes", source_url=f'https://example.test/{i}', description='Maison à Bordeaux.', last_seen_at=datetime(2026, 1, 1, tzinfo=UTC)) for i in range(2)]
+    sales = [AuctionSale(source_name="avoventes", source_url=f'https://example.test/{i}', description='Maison à Bordeaux.', starting_price_eur=10000, last_seen_at=datetime(2026, 1, 1, tzinfo=UTC)) for i in range(2)]
     stored = []
     monkeypatch.setattr(main, 'fetch_sales_needing_llm_descriptions', lambda **kw: sales)
     monkeypatch.setattr(main, 'create_run_in_supabase', lambda *a, **kw: 'run')

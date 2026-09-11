@@ -9,6 +9,8 @@ describe("admin dashboard AI description stats", () => {
         raw_payload: {
           llm_display_description: "Synthèse prête.",
           llm_prompt_version: "auction_llm_v9_qwen2_7b_scan_display",
+          llm_display_quality_version: "display_quality_20260911_v3",
+          llm_display_status: "accepted",
         },
       },
       {
@@ -55,6 +57,8 @@ describe("admin dashboard AI description stats", () => {
         raw_payload: {
           llm_display_description: "Synthèse active.",
           llm_prompt_version: "auction_llm_v9_qwen2_7b_scan_display",
+          llm_display_quality_version: "display_quality_20260911_v3",
+          llm_display_status: "accepted",
         },
       },
     ];

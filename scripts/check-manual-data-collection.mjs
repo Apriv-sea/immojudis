@@ -23,6 +23,7 @@ const allowedVercelCronPaths = new Set([
 const allowedDatabaseCronJobs = new Set([
   "immojudis-operational-health",
   "immojudis-operational-history-retention",
+  "immojudis-sale-retention",
 ]);
 // Keep immutable migration history, but forbid reintroducing these schedules.
 // The terminal migration disables both; pgTAP checks the resulting database state.

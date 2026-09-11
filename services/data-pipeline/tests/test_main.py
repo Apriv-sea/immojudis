@@ -801,12 +801,14 @@ def test_run_llm_description_backfill_marks_failed_sales(monkeypatch) -> None:
     )
     stale = AuctionSale(
         source_name="notaires",
+        starting_price_eur=10000,
         source_url="https://example.test/stale",
         title="Maison 85 m²",
         raw_payload={"source_blocks": {"description": "Maison avec jardin."}},
     )
     failed = AuctionSale(
         source_name="notaires",
+        starting_price_eur=10000,
         source_url="https://example.test/failed",
         title="Appartement",
         raw_payload={"source_blocks": {"description": "Appartement."}},

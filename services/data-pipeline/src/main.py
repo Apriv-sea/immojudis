@@ -689,6 +689,7 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
         prompt_version=prompt_version,
         statuses=options.llm_backfill_statuses,
     )
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     timings["fetch_seconds"] = round(time.perf_counter() - started, 2)
     if not sales:
         summary = {
@@ -778,8 +779,8 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
             elif not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
                 _clear_llm_description_failure(sale)
             if options.upsert:
-                _checkpoint_enrichment(sale)
-                persisted_urls.add(sale.source_url)
+                if _checkpoint_enrichment(sale):
+                    persisted_urls.add(sale.source_url)
             if options.upsert and _should_update_llm_backfill_progress(
                 completed,
                 total=len(sales),
@@ -844,11 +845,14 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
     return 1 if llm_stats.unavailable or any(errors.values()) else 0
 
 
-def _checkpoint_enrichment(sale: AuctionSale) -> None:
-    """Commit a finished item before waiting for the next costly operation."""
+def _checkpoint_enrichment(sale: AuctionSale) -> bool:
+    """Commit admissible progress without failing deferred enrichment targets."""
+    if not has_price_or_surface(sale) or is_expired(sale):
+        return False
     _finalize_sale_for_app(sale, geocode=False)
     if upsert_sales_to_supabase([sale], refresh_last_seen=False) != 1:
         raise RuntimeError(f"Enrichment checkpoint was not persisted: {sale.source_url}")
+    return True
 
 
 def _should_update_llm_backfill_progress(completed: int, *, total: int, every: int) -> bool:

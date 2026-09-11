@@ -29,10 +29,6 @@
     {
       "path": "/api/cron/operational-health",
       "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/sale-retention",
-      "schedule": "*/5 * * * *"
     }
   ]
 }

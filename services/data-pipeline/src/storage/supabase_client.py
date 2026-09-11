@@ -22,7 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - GitHub Actions installs psycop
     sql = None
     Jsonb = None
 
-from src.admission import has_price_or_surface
+from src.admission import has_price_or_surface, is_expired
 from src.asset_normalization import (
     build_auction_features_row,
     build_auction_risk_rows_from_occurrences,
@@ -304,7 +304,7 @@ def upsert_sales_to_supabase(
     *,
     refresh_last_seen: bool = True,
 ) -> int:
-    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     if not sales:
         return 0
     settings = load_settings()
@@ -781,7 +781,7 @@ def update_run_progress_in_supabase(
 
 
 def upsert_documents_to_supabase(sales: list[AuctionSale]) -> int:
-    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     if not sales:
         return 0
     settings = load_settings()
@@ -798,7 +798,7 @@ def upsert_documents_to_supabase(sales: list[AuctionSale]) -> int:
 
 
 def upsert_extractions_to_supabase(sales: list[AuctionSale]) -> int:
-    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     if not sales:
         return 0
     settings = load_settings()
@@ -814,7 +814,7 @@ def upsert_extractions_to_supabase(sales: list[AuctionSale]) -> int:
 
 
 def upsert_observations_to_supabase(sales: list[AuctionSale]) -> int:
-    sales = [sale for sale in sales if has_price_or_surface(sale)]
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     if not sales:
         return 0
     settings = load_settings()

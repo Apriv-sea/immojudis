@@ -261,7 +261,12 @@ export function buildAiDescriptionDashboardStats(
     if (promptVersion !== expectedPromptVersion) {
       promptVersionMismatch += 1;
     }
-    if (displayDescription && promptVersion === expectedPromptVersion) {
+    if (
+      displayDescription &&
+      promptVersion === expectedPromptVersion &&
+      payload.llm_display_quality_version === "display_quality_20260911_v3" &&
+      ["accepted", "fallback"].includes(String(payload.llm_display_status))
+    ) {
       ready += 1;
     }
   }
