@@ -12,7 +12,7 @@ Implémentation locale. Aucun déploiement, migration de production, backfill pa
 - Finaliseur GitHub limité à l’identifiant du run courant : clôture un run inachevé sans écraser sa progression ni toucher aux autres runs.
 - Sauvegarde du cache documentaire/IA même après échec du workflow, lorsque le runner exécute encore ses étapes finales. Ce cache ne remplace pas une archive durable.
 - Publication GitHub exigeant PostgreSQL transactionnel. Dans cette transaction, Python devient propriétaire de l’enfilement ; le trigger SQL reste un secours pour les autres écrivains.
-- Migration `20260911090103_reliable_enrichment_queue.sql` : annulation tracée des révisions obsolètes et ventes inactives/passées ; priorités homogènes, urgence et vieillissement. Aucun effacement de l’historique des jobs. La migration préserve les permissions service_role et ne crée pas d’accès navigateur.
+- Migration `20260911091913_reliable_enrichment_queue.sql` : annulation tracée des révisions obsolètes et ventes inactives/passées ; priorités homogènes, urgence et vieillissement. Aucun effacement de l’historique des jobs. La migration préserve les permissions service_role et ne crée pas d’accès navigateur.
 - Condition sur le numéro de tentative lors de la finalisation d’un job : un ancien worker ne peut plus clôturer une nouvelle tentative.
 - Accès IA initialisé seulement si nécessaire ; erreur de chargement d’une annonce isolée au lot concerné.
 - PDF numériques jusqu’à 300 pages ; budget OCR par passage, cache par page adressé par contenu, reprise sur les pages restantes. Au-delà de 300 pages : refus explicite. Les limites OCR restent soumises au nombre maximal de tentatives.

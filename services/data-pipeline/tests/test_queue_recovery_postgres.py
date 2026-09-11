@@ -14,7 +14,7 @@ def test_queue_migration_on_real_postgres():
     root = Path(__file__).resolve().parents[3]
     original = (root / 'supabase/migrations/20260819105011_add_structured_surface_reasoning_queue.sql').read_text()
     table = original[original.index('create table if not exists public.auction_enrichment_jobs'):original.index('create index if not exists auction_surface_measurements')]
-    migration = (root / 'supabase/migrations/20260911090103_reliable_enrichment_queue.sql').read_text().removeprefix('begin;').removesuffix('commit;\n')
+    migration = (root / 'supabase/migrations/20260911091913_reliable_enrichment_queue.sql').read_text().removeprefix('begin;').removesuffix('commit;\n')
     with _postgres_connect(url) as db:
         try:
             db.execute('create schema if not exists app_private')
