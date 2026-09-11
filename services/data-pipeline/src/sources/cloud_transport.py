@@ -34,7 +34,9 @@ class SourceRelayTransport(httpx.BaseTransport):
                    if k in {"user-agent", "accept", "accept-language", "content-type"}}
         response = self.client.post(
             self.endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
+            # Pin the proven Paris region. Automatic placement otherwise follows
+            # the GitHub runner to a different egress network.
+            headers={"Authorization": f"Bearer {self.token}", "x-region": "eu-west-3"},
             json={"url": str(request.url), "method": request.method,
                   "headers": headers, "body": request.read().decode("utf-8")},
         )

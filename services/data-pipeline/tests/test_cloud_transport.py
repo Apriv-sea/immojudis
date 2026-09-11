@@ -12,6 +12,7 @@ def test_relay_preserves_source_status_and_never_forwards_authorization():
         import json
         calls.append(json.loads(request.content))
         assert request.headers["authorization"] == "Bearer fetch-only"
+        assert request.headers["x-region"] == "eu-west-3"
         return httpx.Response(403, headers={"x-immojudis-source-relay": "1", "cf-mitigated": "challenge"}, text="blocked")
 
     transport.client.close()

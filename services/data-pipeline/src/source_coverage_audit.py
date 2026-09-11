@@ -67,6 +67,10 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
 
     def send(client, request, **kwargs):
         nonlocal budget_exhausted
+        # The outer request represents the source response. Counting the inner
+        # relay request too duplicates pages and assigns them a Supabase URL.
+        if str(request.url) == os.environ.get('SOURCE_FETCH_RELAY_URL'):
+            return original_send(client, request, **kwargs)
         if len(trace) >= max_requests or time.monotonic() - started >= max_seconds:
             budget_exhausted = True
             raise RuntimeError('AUDIT_BUDGET_EXHAUSTED')
@@ -76,7 +80,7 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
             response = original_send(client, request, **kwargs)
             entry['status'] = response.status_code
             entry['response_headers'] = {key: response.headers[key] for key in
-                                         ('server', 'cf-mitigated', 'content-type', 'retry-after') if key in response.headers}
+                                         ('server', 'cf-mitigated', 'content-type', 'retry-after', 'x-sb-edge-region') if key in response.headers}
             if response.status_code in {401, 403, 429} and not kwargs.get('stream'):
                 block = BeautifulSoup(response.text, 'html.parser')
                 entry['refusal_title'] = block.title.get_text(' ', strip=True) if block.title else None
