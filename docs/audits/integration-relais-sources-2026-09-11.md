@@ -11,13 +11,12 @@
 - Test local de bout en bout Python → transport → fonction Deno → sites → parseurs : HTTP 200, 10 annonces Petites Affiches et 16 Cessions d’État. Fonction locale arrêtée après validation. Déploiement cloud de cette version non validé.
 - Enchères Publiques : nouvelle ouverture dans le navigateur et lecture structurée du DOM public de la fiche 131688 réussies. Surface 42,04 m², prix de départ 150 000 €, audience du 15 octobre 2026 à 14 h, avocat USGVB. Aucun collecteur navigateur serveur déployé ; cette lecture ne certifie pas un catalogue exhaustif.
 
-## Activation en attente
+## Activation autorisée
 
-Le contrôle automatique a refusé :
+L’utilisateur a explicitement autorisé le déploiement durable et le secret GitHub. La fonction `source-fetch-relay` est déployée sur Supabase `sgpakxtyvenlpeihuucm`. Le secret dédié et l’URL sont configurés dans GitHub `Aprivi-dev/immojudis`.
 
-1. Le transfert du nouveau secret de téléchargement `SOURCE_FETCH_RELAY_TOKEN` vers le dépôt GitHub `Aprivi-dev/immojudis`, faute d’autorisation explicite pour cette destination.
-2. Le déploiement durable de `source-fetch-relay` sur le projet Supabase `sgpakxtyvenlpeihuucm`, faute d’autorisation explicite pour cette exposition réseau. La fonction utilise sa propre authentification ; la validation JWT Supabase est désactivée car le jeton dédié n’est pas un JWT.
+La validation réelle a détecté puis corrigé une double décompression gzip dans le transport Python. Un test de régression couvre ce cas. Vérification après correction : 10 annonces Petites Affiches et 16 Cessions d’État reçues depuis le relais cloud.
 
-Le refus initial mentionnait également le relais de cookies. Leur transmission a été retirée du code préparé. Aucun nouvel essai de déploiement n’a suivi le refus.
+Le lancement admin « Toutes les sources » inclut les deux sources dans le même workflow, sans second clic. Le suivi affiche le transport réellement utilisé et les annonces extraites par source, sans qualifier les anciens runs de Supabase par défaut. Les tests couvrent les trois sélections (toutes, Petites Affiches, Cessions État) et le refus des utilisateurs non administrateurs.
 
-Aucun secret GitHub ajouté, aucune fonction durable déployée, aucune collecte production ni reprise de file historique exécutée. Après autorisation : déploiement, configuration du secret et de l’URL, puis audit en lecture seule depuis GitHub sur les deux sources.
+Validation locale : 1 138 tests Python réussis, 21 ignorés ; 7 tests admin réussis ; vérification TypeScript et lint ciblé. Aucun traitement historique relancé.

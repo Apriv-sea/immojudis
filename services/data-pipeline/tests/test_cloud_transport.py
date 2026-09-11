@@ -33,6 +33,19 @@ def test_gateway_errors_are_not_catalogue_pages():
         client.get("https://cessions.immobilier-etat.gouv.fr/")
 
 
+def test_relay_gzip_is_decoded_exactly_once():
+    import gzip
+    transport = SourceRelayTransport("https://example.supabase.co/relay", "test")
+    transport.client.close()
+    transport.client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"x-immojudis-source-relay": "1", "content-encoding": "gzip"},
+        content=gzip.compress(b"<html>catalogue</html>"))))
+    with httpx.Client(transport=transport) as client:
+        response = client.get("https://www.petitesaffiches.fr/encheres-immobilieres/")
+    assert response.text == "<html>catalogue</html>"
+    assert "content-encoding" not in response.headers
+
+
 @pytest.mark.parametrize("url", ["https://evil.example/", "http://www.petitesaffiches.fr/",
                                  "https://www.petitesaffiches.fr:444/"])
 def test_transport_rejects_other_origins(url):

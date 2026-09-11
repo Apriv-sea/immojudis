@@ -40,7 +40,11 @@ class SourceRelayTransport(httpx.BaseTransport):
         )
         if response.headers.get("x-immojudis-source-relay") != "1":
             raise httpx.TransportError("Source relay unavailable or authentication rejected")
-        return httpx.Response(response.status_code, headers=response.headers, content=response.content)
+        # httpx has already decompressed the relay response. Do not ask the
+        # outer client to decompress those bytes a second time.
+        headers = {k: v for k, v in response.headers.items()
+                   if k not in {"content-encoding", "content-length", "transfer-encoding", "connection"}}
+        return httpx.Response(response.status_code, headers=headers, content=response.content)
 
     def close(self) -> None:
         self.client.close()

@@ -8,7 +8,7 @@ The endpoint uses a dedicated 384-bit random bearer token, not a Supabase databa
 
 `verify_jwt = false` delegates authentication to `handler`, which rejects missing or invalid tokens before fetching. This token does not grant database access. No authorization header or cookie from the collector is forwarded to the sources. Source redirects are returned to Python, where every destination is checked again before following it. POST is restricted to the Petites Affiches public listing filter (`historique=0`, optional department).
 
-Rotate the token by generating a new random value, replacing its SHA-256 digest, deploying the function, and replacing the GitHub secret together. Do not print or commit the plaintext. This initial activation is awaiting explicit approval after automatic review rejected the secret transfer and persistent deployment.
+Rotate the token by generating a new random value, replacing its SHA-256 digest, deploying the function, and replacing the GitHub secret together. Do not print or commit the plaintext. The user explicitly approved the persistent deployment and GitHub secret configuration; both are now configured.
 
 ## Limits
 

@@ -179,6 +179,7 @@ class PoliteHttpClient:
         if self.extra_headers:
             headers.update(self.extra_headers)
         transport = configured_transport(self.base_url)
+        self._fetch_transport = "supabase" if transport is not None else "direct"
         transport_options = {"transport": transport} if transport is not None else {}
         self._client = httpx.Client(
             headers=headers,
@@ -298,6 +299,7 @@ class PoliteHttpClient:
 
     def coverage_metrics(self) -> dict[str, Any]:
         return {
+            "fetch_transport": self._fetch_transport,
             "requests_attempted": self._requests_attempted,
             "requests_succeeded": self._requests_succeeded,
             "requests_failed": self._requests_failed,
