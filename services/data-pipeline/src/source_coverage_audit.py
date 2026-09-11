@@ -17,6 +17,8 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
+from src.catalogue_proof import canonical, certify_catalogue, public_page_proof
+
 SOURCES = ('avoventes', 'licitor', 'vench', 'info_encheres', 'encheres_publiques',
            'petites_affiches', 'cessions_etat', 'agrasc', 'encheres_immobilieres', 'notaires')
 
@@ -53,6 +55,8 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     collector = getattr(module, 'scrape_' + source + '_aquitaine_result')
     started = time.monotonic()
     trace: list[dict] = []
+    proofs: list[dict] = []
+    parsed: dict[str, set[str]] = {}
     skipped_details = 0
     budget_exhausted = False
     original_send = httpx.Client.send
@@ -67,11 +71,20 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
         try:
             response = original_send(client, request, **kwargs)
             entry['status'] = response.status_code
+            entry['response_headers'] = {key: response.headers[key] for key in
+                                         ('server', 'cf-mitigated', 'content-type', 'retry-after') if key in response.headers}
+            if response.status_code in {401, 403, 429} and not kwargs.get('stream'):
+                block = BeautifulSoup(response.text, 'html.parser')
+                entry['refusal_title'] = block.title.get_text(' ', strip=True) if block.title else None
+                entry['refusal_text'] = block.get_text(' ', strip=True)[:350]
             if not kwargs.get('stream'):
                 entry['sha256'] = hashlib.sha256(response.content).hexdigest()
                 entry['bytes'] = len(response.content)
                 if response.status_code == 200 and not request.url.path.endswith('/robots.txt'):
                     entry['evidence'] = page_evidence(response.text, str(request.url))
+                    proof = public_page_proof(source, response.text, str(request.url))
+                    entry['catalogue_proof'] = proof
+                    proofs.append(proof)
             return response
         except Exception as exc:
             entry['error'] = str(exc)[:250]
@@ -82,6 +95,15 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
         skipped_details += 1
         return True
 
+    def observe_parser(original):
+        def wrapper(*args, **kwargs):
+            rows = original(*args, **kwargs)
+            if proofs:
+                partition = proofs[-1]['partition']
+                parsed.setdefault(partition, set()).update(canonical(str(r['source_url'])) for r in rows if r.get('source_url'))
+            return rows
+        return wrapper
+
     result = None
     fatal = None
     with ExitStack() as stack:
@@ -89,6 +111,15 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
         for name in ('_enrich_sale_from_detail', 'enrich_agrasc_operator'):
             if hasattr(module, name):
                 stack.enter_context(patch.object(module, name, skip_detail))
+        parser_names = {
+            'avoventes': 'parse_avoventes_html', 'licitor': 'parse_licitor_list_sales',
+            'vench': 'parse_vench_list_html', 'info_encheres': 'parse_info_encheres_list_html',
+            'agrasc': 'parse_agrasc_html', 'petites_affiches': 'parse_petites_affiches_html',
+            'cessions_etat': 'parse_cessions_etat_html', 'encheres_immobilieres': 'parse_encheres_immobilieres_html',
+        }
+        if source in parser_names:
+            name = parser_names[source]
+            stack.enter_context(patch.object(module, name, observe_parser(getattr(module, name))))
         arguments = {'max_pages': max_pages} if 'max_pages' in inspect.signature(collector).parameters else {}
         if source == 'licitor':
             arguments['fetch_details'] = False
@@ -99,7 +130,11 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     sales = result.sales if result else []
     coverage = result.coverage if result else {}
     errors = result.errors if result else [fatal]
+    certificate = certify_catalogue(source, proofs, parsed,
+                                    {canonical(str(s['source_url'])) for s in sales},
+                                    errors, budget_exhausted, coverage)
     report = {
+        'certificate': certificate,
         'source': source, 'utc': datetime.now(UTC).isoformat(),
         'scope': 'national configured inventory; listing pages only; no DB, PDF or AI',
         'budgets': {'pages_per_partition': max_pages, 'requests': max_requests, 'seconds': max_seconds},
