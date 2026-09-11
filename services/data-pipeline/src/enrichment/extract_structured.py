@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.config import LLM_EXTRACTIONS_DIR, PDF_TEXTS_DIR, load_settings
+from src.enrichment.display_evidence import verify_display_claims
 from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION, preserve_source_constraints
 from src.enrichment.llm_client import ReplicateClient, create_llm_client
 from src.enrichment.prompts import (
@@ -503,7 +504,7 @@ def apply_cached_llm_extraction_to_sale(sale: AuctionSale, *, prompt_version: st
 
     before = clean_text(sale.raw_payload.get("llm_display_description"))
     stats = LLMEnrichmentStats()
-    _apply_extraction_to_sale(sale, extraction, stats, context="", prompt_version=prompt_version)
+    _apply_extraction_to_sale(sale, extraction, stats, context=load_llm_context_for_sale(sale) or "", prompt_version=prompt_version)
     after = clean_text(sale.raw_payload.get("llm_display_description"))
     return bool(after and after != before)
 
@@ -1150,6 +1151,7 @@ def _apply_extraction_to_sale(
     context: str = "",
     prompt_version: str | None = None,
 ) -> None:
+    reference_sale = sale.model_copy()
     confidence = extraction.confidence
     if prompt_version:
         sale.raw_payload["llm_prompt_version"] = prompt_version
@@ -1229,14 +1231,20 @@ def _apply_extraction_to_sale(
             sale.property_type = extraction.property_type
 
     display_description = _normalize_display_description(extraction.display_description)
+    display_check = verify_display_claims(
+        display_description or "", "\n".join(filter(None, (extract_source_description(sale), context))),
+        reference_sale.model_dump(),
+    )
+    sale.raw_payload["llm_display_evidence_check"] = display_check
     if (display_description and confidence.get("display_description", 1.0) >= DISPLAY_DESCRIPTION_MIN_CONFIDENCE
-            and not sale.raw_payload.get("operator_land_surface_conflict")):
+            and not sale.raw_payload.get("operator_land_surface_conflict")
+            and not display_check["issues"]):
         sale.raw_payload["llm_display_status"] = "accepted"
         sale.raw_payload["llm_display_description"] = display_description
         sale.raw_payload["llm_display_description_word_count"] = len(display_description.split())
     else:
         sale.raw_payload["llm_display_status"] = "rejected"
-        fallback_display_description = _fallback_display_description(sale, extraction)
+        fallback_display_description = _fallback_display_description(reference_sale if display_check["issues"] else sale, LLMExtraction() if display_check["issues"] else extraction)
         if fallback_display_description:
             sale.raw_payload["llm_display_status"] = "fallback"
             sale.raw_payload["llm_display_description"] = (fallback_display_description + " Surface du terrain à clarifier entre les champs de la source."

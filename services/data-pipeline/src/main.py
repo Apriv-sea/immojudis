@@ -166,6 +166,7 @@ KNOWN_ENRICHMENT_PAYLOAD_FIELDS = (
     "llm_display_status",
     "llm_display_quality_version",
     "llm_display_source_constraints",
+    "llm_display_evidence_check",
     "llm_prompt_version",
     "document_analysis",
     "surface_extraction",
