@@ -162,7 +162,13 @@ def _parse_card(card: Tag, page_url: str) -> dict[str, Any] | None:
         line for line in (clean_text(part) for part in card.get_text("\n", strip=True).splitlines()) if line
     )
     title = clean_text(card.get("data-titre")) or _node_text(card.select_one(".fr-card__title"))
-    city, department = _location(clean_text(card.get("data-localisation")) or raw_text)
+    location = clean_text(card.get("data-localisation"))
+    city, department = _location(location or raw_text)
+    # Accept the explicit department only when both title and URL agree.
+    if not department and location and title:
+        code = re.search(r"\b(2[AB]|\d{2})$", title)
+        if code and source_url.rstrip("/").endswith("-" + code[1].lower()):
+            city, department = location, code[1]
     postal_code = _extract_postal(raw_text)
     surface = _extract_surface(raw_text)
     reference = _extract_after(raw_text, r"R[ée]f[ée]rence\s*:\s*([^\n]+)")
@@ -248,10 +254,10 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
 def _location(text: str | None) -> tuple[str | None, str | None]:
     if not text:
         return None, None
-    match = re.search(r"(.+?)\s*-\s*(\d{2,3})\b", text)
+    match = re.search(r"(.+?)\s*-\s*(2[AB]|\d{1,3})\b", text)
     if not match:
         return None, None
-    return clean_text(match.group(1)), match.group(2)
+    return clean_text(match.group(1)), match.group(2).zfill(2)
 
 
 def _first_image(card: Tag, page_url: str) -> str | None:

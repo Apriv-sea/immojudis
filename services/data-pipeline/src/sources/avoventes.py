@@ -107,6 +107,11 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
         for sale in parsed_sales:
             postal_code = sale.get("postal_code")
             department = extract_department(str(postal_code) if postal_code else None)
+            detail_checked = False
+            if not department:
+                _enrich_sale_from_detail(client, sale, errors)
+                detail_checked = True
+                department = sale.get("department") or extract_department(sale.get("postal_code"))
             if not department:
                 unresolved_locations.append(str(sale["source_url"]))
                 continue
@@ -118,7 +123,8 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
             seen_urls.add(sale["source_url"])
             # Avoventes keeps photos and several detail fields off the list page;
             # always refresh the detail page after filtering to the target territory.
-            _enrich_sale_from_detail(client, sale, errors)
+            if not detail_checked:
+                _enrich_sale_from_detail(client, sale, errors)
             raw_sales.append(sale)
     return ScrapeResult(
         validate_raw_sales("avoventes", raw_sales, errors),
@@ -291,7 +297,7 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
         sale["raw_image_url"] = details["raw_image_url"]
     if details.get("raw_text"):
         sale["raw_text"] = f"{sale.get('raw_text') or ''}\n{details['raw_text']}".strip()
-    for key in ("tribunal", "description", "lawyer_contact", "surface_m2", "adjudication_price_eur", "status"):
+    for key in ("tribunal", "description", "lawyer_contact", "surface_m2", "adjudication_price_eur", "status", "postal_code", "department"):
         if details.get(key) and (key == "description" or not sale.get(key)):
             sale[key] = details[key]
 
@@ -312,6 +318,7 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
     title = _extract_detail_title(soup, raw_text)
     tribunal = _extract_after_label(raw_text, r"(?:Tribunal\s+Judiciaire|TJ)\s+de?\s*([^\n]+)")
     description = _property_description(soup) or _extract_description(raw_text)
+    location = _property_location_codes(description)
     lawyer_contact = _extract_after_label(raw_text, r"(?:Téléphone|Tél\.?|Tel\.?)\s*:?\s*([^\n]+)")
     adjudication_price = _extract_after_label(raw_text, r"Adjug[ée]\s*:?\s*([0-9][0-9\s,.]*\s*(?:€|euros?)?)")
     surface = _extract_after_label(
@@ -319,6 +326,7 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
         r"(?:Surface(?:\s+(?:habitable|totale))?|Superficie(?:\s+(?:des\s+)?Lots?\b[^:\n]{0,80})?)\s*:?\s*([0-9\s,.]+)\s*m",
     )
     return {
+        **location,
         "documents": documents,
         "source_images": images,
         "raw_image_url": images[0] if images else None,
@@ -345,6 +353,20 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
             if value
         },
     }
+
+
+def _property_location_codes(description: str | None) -> dict[str, str | None]:
+    # Restrict inference to the property description, never the lawyer's address.
+    text = description or ""
+    postals = set(re.findall(r"\((\d{5})\)", text))
+    departments = {extract_department(code) for code in postals}
+    explicit_departments = set(re.findall(r"\((2[AB]|\d{2,3})\)", text))
+    departments.update(explicit_departments)
+    departments.discard(None)
+    if len(departments) != 1:
+        return {}
+    return {"department": next(iter(departments)),
+            "postal_code": next(iter(postals)) if len(postals) == 1 and not explicit_departments else None}
 
 
 def _extract_images(soup: BeautifulSoup, page_url: str) -> list[str]:

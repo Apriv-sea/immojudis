@@ -11,7 +11,7 @@ import certifi
 from bs4 import BeautifulSoup, Tag
 
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
-from src.normalize import clean_text, strip_accents
+from src.normalize import clean_text, extract_department, strip_accents
 from src.raw_models import validate_raw_sales
 from src.sources.agrasc_operators import enrich_agrasc_operator
 from src.sources.common import PoliteHttpClient, ScrapeResult, unique_dicts
@@ -92,7 +92,8 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
 def parse_agrasc_html(html: str, page_url: str = LIST_URL) -> list[dict[str, Any]]:
     soup = BeautifulSoup(html, "html.parser")
     sales: list[dict[str, Any]] = []
-    for card in soup.select(".card-vente-immo"):
+    inventory = soup.select_one(".view-liste-ventes-immobilieres") or soup
+    for card in inventory.select(".card-vente-immo"):
         sale = _parse_card(card, page_url)
         if sale:
             sales.append(sale)
@@ -159,7 +160,7 @@ def _parse_card(card: Tag, page_url: str) -> dict[str, Any] | None:
 def _first_detail(card: Tag) -> str | None:
     for node in card.select(".fr-card__detail"):
         text = clean_text(node.get_text(" ", strip=True))
-        if text and re.search(r"\(\d{2,3}\)", text):
+        if text and re.search(r"\((?:\d{2,3}|\d{5}|2[AB]|O\d)\)", text):
             return text
     return None
 
@@ -167,10 +168,12 @@ def _first_detail(card: Tag) -> str | None:
 def _location(text: str | None) -> tuple[str | None, str | None]:
     if not text:
         return None, None
-    match = re.search(r"(.+?)\s*\((\d{2,3})\)", text)
+    match = re.search(r"(.+?)\s*\((\d{2,3}|\d{5}|2[AB]|O\d)\)", text)
     if not match:
         return None, None
-    return clean_text(match.group(1)), match.group(2)
+    code = match.group(2).replace("O", "0")
+    department = extract_department(code) if len(code) == 5 else code
+    return clean_text(match.group(1)), department
 
 
 def _extract_sale_window(card: Tag) -> str | None:
