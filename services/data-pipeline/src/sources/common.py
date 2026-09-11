@@ -10,6 +10,8 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
+from src.sources.cloud_transport import configured_transport
+
 LOGGER = logging.getLogger(__name__)
 REDIRECT_STATUS_CODES = {301, 302, 303, 307, 308}
 MAX_SAFE_REDIRECTS = 5
@@ -176,11 +178,14 @@ class PoliteHttpClient:
         }
         if self.extra_headers:
             headers.update(self.extra_headers)
+        transport = configured_transport(self.base_url)
+        transport_options = {"transport": transport} if transport is not None else {}
         self._client = httpx.Client(
             headers=headers,
             timeout=self.timeout_seconds,
             follow_redirects=False,
             verify=self.tls_context if self.tls_context is not None else True,
+            **transport_options,
         )
         self._robots = RobotsRules()
         try:

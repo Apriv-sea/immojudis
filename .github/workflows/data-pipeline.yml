@@ -64,6 +64,8 @@ jobs:
         working-directory: services/data-pipeline
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SOURCE_FETCH_RELAY_URL: ${{ vars.SOURCE_FETCH_RELAY_URL }}
+      SOURCE_FETCH_RELAY_TOKEN: ${{ secrets.SOURCE_FETCH_RELAY_TOKEN }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
