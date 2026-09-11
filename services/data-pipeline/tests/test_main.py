@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION
 from src.freshness import document_fingerprint
 from src.models import AuctionSale
 from src.sources.common import ScrapeResult
@@ -55,6 +56,8 @@ def test_needs_heavy_enrichment_skips_complete_sale(monkeypatch) -> None:
     assert main._needs_heavy_enrichment(sale, use_llm=True) is True
     sale.raw_payload["llm_display_description"] = "Appartement libre de 42 m2."
     assert main._needs_heavy_enrichment(sale, use_llm=True) is True
+    sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
+    sale.raw_payload["llm_display_status"] = "accepted"
     sale.raw_payload["llm_prompt_version"] = "auction_llm_v5"
     assert main._needs_heavy_enrichment(sale, use_llm=True) is False
 
@@ -112,6 +115,8 @@ def test_heavy_enrichment_does_not_skip_stale_llm_description(monkeypatch) -> No
     assert main._needs_heavy_enrichment(sale, use_llm=True) is True
     assert main._heavy_enrichment_already_current(sale, {"same-content"}, use_llm=True) is False
 
+    sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
+    sale.raw_payload["llm_display_status"] = "accepted"
     sale.raw_payload["llm_prompt_version"] = "auction_llm_v5"
     assert main._heavy_enrichment_already_current(sale, {"same-content"}, use_llm=True) is True
 

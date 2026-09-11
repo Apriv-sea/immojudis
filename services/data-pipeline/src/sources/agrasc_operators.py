@@ -41,10 +41,10 @@ def enrich_agrasc_operator(
     endpoint = f"{API_URL}/{marker}" if api else url
     try:
         payload = clients[client_origin].get(endpoint)
-        if api:
-            detail = parse_immo_operator_json(payload, marker)
-            if not detail.get("description"):
-                raise ValueError("missing operator description")
+        detail = parse_immo_operator_json(payload, marker) if api else parse_agora_operator_detail(payload, url)
+        if api and not detail.get("description"):
+            raise ValueError("missing operator description")
+        if detail.get("description"):
             for key, value in detail.items():
                 if value in (None, "", [], {}):
                     continue
@@ -61,7 +61,6 @@ def enrich_agrasc_operator(
             if images:
                 sale["source_images"] = list(dict.fromkeys([*images, *(sale.get("source_images") or [])]))
                 sale["raw_image_url"] = images[0]
-            # This server HTML exposes Product metadata, not the full dynamic detail.
             sale["operator_detail_status"] = "partial"
         sale.setdefault("source_blocks", {})["operator_endpoint"] = endpoint
     except Exception as exc:
@@ -103,3 +102,68 @@ def parse_agora_operator_images(html: str, source_url: str) -> list[str]:
         return [unescape(value) for value in values if isinstance(value, str)
                 and is_allowed_origin_url(value, ("https://cdn.agorastore.fr",))]
     return []
+
+
+def parse_agora_operator_detail(html: str, source_url: str) -> dict[str, Any]:
+    """Decode public React props as JSON, never execute JavaScript."""
+    marker = re.search(r"-(\d+)\.aspx$", urlsplit(source_url).path)
+    if not marker:
+        return {}
+    prefix = "React.createElement(FicheProduitApp,"
+    for script in BeautifulSoup(html, "html.parser").find_all("script"):
+        text = script.get_text()
+        if prefix not in text:
+            continue
+        props, _ = json.JSONDecoder().raw_decode(text.split(prefix, 1)[1].lstrip())
+        page = props["ficheProduitModel"]
+        model = page["productPageWrapper"]["productPageModel"]
+        product = model["product"]
+        if str(product.get("id")) != marker.group(1):
+            raise ValueError("operator identity mismatch")
+        fields = [(str(item.get("descriptifLibelle") or ""),
+                   _operator_field_text(item.get("value")))
+                  for group in model.get("descriptifs", []) for item in group.get("descriptifs", [])]
+        description = "\n".join(f"{label} : {value}" for label, value in fields if value)
+        if not description:
+            return {}
+        detail: dict[str, Any] = {
+            "description": description, "raw_text": description,
+            "documents": [{"label": item.get("fileName") or "Document opérateur", "url": item["url"]}
+                          for item in model.get("documents", [])
+                          if isinstance(item.get("url"), str)
+                          and is_allowed_origin_url(item["url"], ("https://cdn.agorastore.fr",))
+                          and urlsplit(item["url"]).path.lower().endswith(".pdf")],
+            "source_images": [item["url"] for item in model.get("images", [])
+                              if isinstance(item.get("url"), str)
+                              and is_allowed_origin_url(item["url"], ("https://cdn.agorastore.fr",))],
+            "source_blocks": {"description": description, "operator_fields": fields,
+                              "operator_public_model": "FicheProduitApp"},
+        }
+        if detail["source_images"]:
+            detail["raw_image_url"] = detail["source_images"][0]
+        for label, value in fields:
+            if label.casefold() == "adresse":
+                detail["address"] = value
+            if label.casefold() == "surface habitable":
+                surface = re.match(r"\s*(\d+(?:[.,]\d+)?)\s*m[²2]\b", value)
+                if surface:
+                    detail["surface_m2"] = surface.group(1).replace(",", ".")
+        state = page.get("saleState") or {}
+        if str(state.get("productId")) == marker.group(1):
+            detail["sale_date"] = state.get("endDate")
+            detail["starting_price_eur"] = state.get("initialPrice")
+            detail["source_blocks"].update({"operator_opening_date": state.get("startDate"),
+                                             "operator_closing_date": state.get("endDate")})
+        last_visit = (product.get("realEstateInformation") or {}).get("lastVisitDate")
+        if last_visit:
+            detail["visit_dates"] = [last_visit]
+            detail["source_blocks"]["operator_visit_coverage"] = "last_visit_only"
+        if re.search(r"libre de toute occupation", description, re.I):
+            detail["occupancy_status"] = "vacant"
+        return detail
+    return {}
+
+
+def _operator_field_text(value: Any) -> str:
+    text = str(value or "")
+    return BeautifulSoup(text, "html.parser").get_text(" ", strip=True) if "<" in text else unescape(text).strip()
