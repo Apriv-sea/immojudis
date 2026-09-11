@@ -43,3 +43,17 @@ def test_retention_deadline_matches_database(date, status, raw, expected):
     sale = AuctionSale(source_name='test', source_url='https://example.org/sale', sale_date=date, status=status, raw_payload=raw)
     deadline = retention_deadline(sale)
     assert (deadline.isoformat() if deadline else None) == expected
+
+
+def test_checkpoint_waits_for_usable_enrichment(monkeypatch):
+    from src import main
+    sale = AuctionSale(source_name='test', source_url='https://example.org/sale')
+    monkeypatch.setattr(main, 'upsert_sales_to_supabase', lambda *a, **k: pytest.fail('inadmissible checkpoint'))
+    assert main._checkpoint_enrichment(sale) is False
+
+
+def test_expired_enrichment_cannot_recreate_a_deleted_sale(monkeypatch):
+    from datetime import UTC, datetime
+    sale = AuctionSale(source_name='test', source_url='https://example.org/sale', starting_price_eur=1000, sale_date=datetime(2000,1,1,tzinfo=UTC))
+    monkeypatch.setattr(supabase_client, 'load_settings', lambda: pytest.fail('expired write reached database'))
+    assert supabase_client.upsert_sales_to_supabase([sale]) == 0

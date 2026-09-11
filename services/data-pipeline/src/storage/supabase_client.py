@@ -993,7 +993,7 @@ def fetch_sales_needing_llm_descriptions(
             ):
                 continue
             sale = _auction_sale_from_row(row)
-            if sale is not None:
+            if sale is not None and has_price_or_surface(sale) and not is_expired(sale):
                 selected.append(sale)
             if len(selected) >= limit:
                 break
@@ -1444,18 +1444,8 @@ def delete_expired_sales_in_supabase(now: datetime | None = None) -> int:
 
 
 def delete_vench_sales_without_surface_in_supabase() -> int:
-    settings = load_settings()
-    url = settings["supabase_url"]
-    key = settings["supabase_service_role_key"]
-    if not url or not key:
-        return 0
-    deleted = 0
-    while source_urls := _fetch_vench_without_surface_urls(str(url), str(key)):
-        _postgrest_delete_by_source_urls(str(url), str(key), "auction_observations", source_urls)
-        _postgrest_delete_by_source_urls(str(url), str(key), "auction_sales", source_urls)
-        deleted += len(source_urls)
-    return deleted
-
+    """Compatibility shim: admission replaces destructive source-specific cleanup."""
+    return 0
 
 
 def _delete_sale_rows_by_source_urls(supabase_url: str, api_key: str, source_urls: list[str]) -> int:
@@ -1466,28 +1456,6 @@ def _delete_sale_rows_by_source_urls(supabase_url: str, api_key: str, source_url
         _postgrest_delete_by_source_urls(supabase_url, api_key, table, unique)
     return len(unique)
 
-
-def _fetch_vench_without_surface_urls(supabase_url: str, api_key: str) -> list[str]:
-    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/auction_sales"
-    response = httpx.get(
-        endpoint,
-        params={
-            "select": "source_url",
-            "source_name": "eq.vench",
-            "surface_m2": "is.null",
-            "habitable_surface_m2": "is.null",
-            "carrez_surface_m2": "is.null",
-            "app_surface_m2": "is.null",
-            "land_surface_m2": "is.null",
-            "limit": "1000",
-        },
-        headers=_rest_headers(api_key, prefer="count=none"),
-        timeout=30,
-    )
-    if response.is_error:
-        LOGGER.warning("Supabase Vench cleanup lookup failed (%s): %s", response.status_code, response.text[:200])
-        return []
-    return [str(row["source_url"]) for row in response.json() if row.get("source_url")]
 
 
 def _upsert_with_rest(supabase_url: str, api_key: str, payload: list[dict[str, object]]) -> None:

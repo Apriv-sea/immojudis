@@ -306,7 +306,8 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
         def json(self):
             return [
                 {
-                    "source_name": "avoventes",
+                    "source_name": "avoventes", "starting_price_eur": 10000,
+                    "surface_m2": 80,
                     "source_url": "https://example.test/current",
                     "status": "upcoming",
                     "raw_payload": {
@@ -318,6 +319,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/missing",
                     "status": "upcoming",
                     "title": "Maison 85 m²",
@@ -325,6 +327,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "encheres_publiques",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/stale",
                     "status": "active",
                     "title": "Appartement",
@@ -335,6 +338,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/recent-failure",
                     "status": "upcoming",
                     "title": "Maison en échec récent",
@@ -346,6 +350,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/old-failure",
                     "status": "upcoming",
                     "title": "Maison en ancien échec",
@@ -379,63 +384,8 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
     ]
 
 
-def test_delete_vench_sales_without_surface_removes_observations_then_sales(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        def __init__(self, rows):
-            self._rows = rows
-
-        is_error = False
-
-        def json(self):
-            return self._rows
-
-    responses = [
-        [{"source_url": "https://vench.test/no-surface"}],
-        [],
-    ]
-
-    def fake_get(endpoint, params, headers, timeout):
-        assert endpoint == "https://supabase.test/rest/v1/auction_sales"
-        assert params["source_name"] == "eq.vench"
-        assert params["surface_m2"] == "is.null"
-        assert params["habitable_surface_m2"] == "is.null"
-        assert params["carrez_surface_m2"] == "is.null"
-        assert params["app_surface_m2"] == "is.null"
-        assert params["land_surface_m2"] == "is.null"
-        return Response(responses.pop(0))
-
-    calls = []
-    monkeypatch.setattr(supabase_client.httpx, "get", fake_get)
-    monkeypatch.setattr(
-        supabase_client,
-        "_postgrest_delete",
-        lambda supabase_url, api_key, table, params: calls.append(table),
-    )
-
-    assert supabase_client.delete_vench_sales_without_surface_in_supabase() == 1
-    assert calls == ["auction_observations", "auction_sales"]
-
-
-def test_delete_vench_sales_without_surface_is_best_effort_on_lookup_error(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        is_error = True
-        status_code = 522
-        text = "connection timed out"
-
-    monkeypatch.setattr(supabase_client.httpx, "get", lambda *args, **kwargs: Response())
-
+def test_legacy_vench_cleanup_does_not_delete_existing_rows(monkeypatch):
+    monkeypatch.setattr(supabase_client, "load_settings", lambda: pytest.fail("legacy cleanup accessed DB"))
     assert supabase_client.delete_vench_sales_without_surface_in_supabase() == 0
 
 
