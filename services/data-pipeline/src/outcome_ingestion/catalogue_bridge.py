@@ -7,7 +7,7 @@ from uuid import UUID
 
 import httpx
 
-BRIDGE_RPC_NAME = "bridge_auction_sales_to_outcome_graph"
+BRIDGE_RPC_NAME = "bridge_auction_sales_to_outcome_graph_batch"
 COURT_RECONCILIATION_RPC_NAME = "reconcile_catalogue_competent_courts_batch"
 BRIDGE_TIMEOUT = httpx.Timeout(120.0, connect=20.0)
 
@@ -45,7 +45,7 @@ def bridge_auction_sales_before_cleanup(
     *,
     post: PostCallable = httpx.post,
 ) -> OutcomeCatalogueBridgeResult:
-    """Bridge the complete database catalogue through one service-role RPC.
+    """Bridge the complete catalogue through bounded, idempotent service-role RPCs.
 
     The RPC copies PostgreSQL ``numeric`` values directly into Outcome Graph;
     Python never serializes monetary ``Decimal`` values through ``float``.
@@ -55,31 +55,52 @@ def bridge_auction_sales_before_cleanup(
 
     supabase_url = _required_setting(settings, "supabase_url")
     service_role_key = _required_setting(settings, "supabase_service_role_key")
-    payload = _call_rpc(
-        supabase_url,
-        service_role_key,
-        BRIDGE_RPC_NAME,
-        post=post,
-        operation_label="Outcome catalogue bridge",
-    )
+    cursor: str | None = None
+    totals = [0, 0, 0, 0]
+    for _ in range(2000):
+        payload = _call_rpc(
+            supabase_url, service_role_key, BRIDGE_RPC_NAME,
+            post=post, operation_label="Outcome catalogue bridge",
+            arguments={"p_after_id": cursor, "p_limit": 25},
+        )
+        row = _single_result_row(payload)
+        part = OutcomeCatalogueBridgeResult(
+            scanned_count=_non_negative_int(row, "scanned_count"),
+            created_count=_non_negative_int(row, "created_count"),
+            reused_count=_non_negative_int(row, "reused_count"),
+            linked_count=_non_negative_int(row, "linked_count"),
+            complete=_strict_bool(row, "complete"),
+        )
+        if part.created_count + part.reused_count != part.scanned_count:
+            raise OutcomeCatalogueBridgeError(
+                "Outcome catalogue bridge returned incoherent counters; destructive cleanup is disabled."
+            )
+        if part.linked_count > part.scanned_count:
+            raise OutcomeCatalogueBridgeError(
+                "Outcome catalogue bridge linked count exceeds its scan; destructive cleanup is disabled."
+            )
+        part.require_complete()
 
-    row = _single_result_row(payload)
-    result = OutcomeCatalogueBridgeResult(
-        scanned_count=_non_negative_int(row, "scanned_count"),
-        created_count=_non_negative_int(row, "created_count"),
-        reused_count=_non_negative_int(row, "reused_count"),
-        linked_count=_non_negative_int(row, "linked_count"),
-        complete=_strict_bool(row, "complete"),
-    )
-    if result.created_count + result.reused_count != result.scanned_count:
-        raise OutcomeCatalogueBridgeError(
-            "Outcome catalogue bridge returned incoherent counters; destructive cleanup is disabled."
-        )
-    if result.linked_count > result.scanned_count:
-        raise OutcomeCatalogueBridgeError(
-            "Outcome catalogue bridge linked count exceeds its scan; destructive cleanup is disabled."
-        )
-    result.require_complete()
+        if part.scanned_count > 25:
+            raise OutcomeCatalogueBridgeError("Bridge batch exceeded its bound; cleanup is disabled.")
+        more = _strict_bool(row, "has_more")
+        if part.scanned_count:
+            try:
+                parsed = UUID(str(row.get("next_cursor")))
+                if cursor is not None and parsed.int <= UUID(cursor).int:
+                    raise ValueError("non-increasing cursor")
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise OutcomeCatalogueBridgeError("Invalid bridge cursor; cleanup is disabled.") from exc
+            cursor = str(parsed)
+        elif more:
+            raise OutcomeCatalogueBridgeError("Empty bridge page; cleanup is disabled.")
+        for index, count in enumerate((part.scanned_count, part.created_count, part.reused_count, part.linked_count)):
+            totals[index] += count
+        if not more:
+            break
+    else:
+        raise OutcomeCatalogueBridgeError("Bridge page bound exceeded; cleanup is disabled.")
+    result = OutcomeCatalogueBridgeResult(*totals, complete=True)
 
     cursor: str | None = None
     scanned = 0

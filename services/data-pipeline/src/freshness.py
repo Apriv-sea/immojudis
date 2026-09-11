@@ -6,6 +6,8 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+SOURCE_EXTRACTION_VERSION = "source_extraction_20260911_v2"
+
 
 def timestamp_is_fresh(value: object, *, hours: float = 24, now: datetime | None = None) -> bool:
     try:
@@ -22,6 +24,8 @@ def detail_is_fresh(row: dict[str, Any], source_url: str) -> bool:
     payload = row.get("raw_payload") or {}
     checks = payload.get("source_checks") or {}
     check = checks.get(source_url) or {}
+    if check.get("extractor_version") != SOURCE_EXTRACTION_VERSION:
+        return False
     hours = 24
     try:
         sale_date = datetime.fromisoformat(str(row.get("sale_date")).replace("Z", "+00:00"))
@@ -43,12 +47,12 @@ def record_source_checks(raw_sales: list, known: dict) -> None:
         previous = (known.get(url, {}).get("raw_payload") or {}).get("source_checks") or {}
         payload = sale
         payload["source_checks"] = dict(previous)
-        if sale.get("_known_unchanged"):
+        if sale.get("_known_unchanged") or sale.get("_detail_fetch_failed"):
             continue
         content = {key: sale.get(key) for key in ("raw_text", "documents", "visit_dates", "occupancy_status", "sale_date", "starting_price_eur")}
         fingerprint = hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
         old = previous.get(url) or {}
-        payload["source_checks"][url] = {"checked_at": datetime.now(UTC).isoformat(), "fingerprint": fingerprint}
+        payload["source_checks"][url] = {"checked_at": datetime.now(UTC).isoformat(), "fingerprint": fingerprint, "extractor_version": SOURCE_EXTRACTION_VERSION}
         if old.get("fingerprint") != fingerprint:
             payload["source_content_changed"] = True
             for key in ("document_facts_version", "llm_prompt_version"):

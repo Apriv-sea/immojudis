@@ -1229,11 +1229,14 @@ def _apply_extraction_to_sale(
 
     display_description = _normalize_display_description(extraction.display_description)
     if display_description and confidence.get("display_description", 1.0) >= DISPLAY_DESCRIPTION_MIN_CONFIDENCE:
+        sale.raw_payload["llm_display_status"] = "accepted"
         sale.raw_payload["llm_display_description"] = display_description
         sale.raw_payload["llm_display_description_word_count"] = len(display_description.split())
     else:
+        sale.raw_payload["llm_display_status"] = "rejected"
         fallback_display_description = _fallback_display_description(sale, extraction)
         if fallback_display_description:
+            sale.raw_payload["llm_display_status"] = "fallback"
             sale.raw_payload["llm_display_description"] = fallback_display_description
             sale.raw_payload["llm_display_description_word_count"] = len(fallback_display_description.split())
 
@@ -1385,7 +1388,7 @@ def _format_surface_value(value: Any) -> str | None:
     except InvalidOperation:
         return None
     normalized = number.quantize(Decimal("0.01")).normalize()
-    return str(normalized).replace(".", ",")
+    return format(normalized, "f").replace(".", ",")
 
 
 def _fallback_amenities(sale: AuctionSale) -> list[str]:

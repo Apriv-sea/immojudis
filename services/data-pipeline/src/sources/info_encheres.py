@@ -170,7 +170,7 @@ def parse_info_encheres_detail_html(html: str, source_url: str) -> dict[str, Any
         "description": description,
         "surface_m2": _extract_surface(description, page_text),
         "starting_price_eur": details.get("mise a prix") or details.get("mise à prix"),
-        "sale_date": details.get("vente le"),
+        "sale_date": _sale_date_with_audience_time(details.get("vente le"), description or page_text),
         "visit_dates": [details["date de visite"]] if details.get("date de visite") else [],
         "lawyer_name": lawyer_name,
         "lawyer_contact": lawyer_contact,
@@ -184,6 +184,15 @@ def parse_info_encheres_detail_html(html: str, source_url: str) -> dict[str, Any
         "raw_image_url": source_images[0] if source_images else None,
         "source_images": source_images,
     }
+
+
+def _sale_date_with_audience_time(date_text: str | None, text: str) -> str | None:
+    if not date_text or not re.fullmatch(r"\d{2}/\d{2}/\d{4}", date_text.strip()):
+        return date_text
+    match = re.search(r"audience[^.\n]{0,70}d[ée]bute\s+[àa]\s+(\d{1,2})[hH:](\d{2})?\b", text, re.I)
+    if match and int(match.group(1)) < 24 and int(match.group(2) or 0) < 60:
+        return f"{date_text} à {match.group(1)}h{match.group(2) or '00'}"
+    return date_text
 
 
 def _list_urls(max_pages: int) -> list[str]:
@@ -203,6 +212,7 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
         LOGGER.warning("Info Encheres detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
         return
+    sale["source_detail_status"] = "complete"
     details = parse_info_encheres_detail_html(html, source_url)
     for key, value in details.items():
         if value in (None, "", []):
@@ -363,6 +373,8 @@ def _append_image_url(urls: list[str], value: object, source_url: str) -> None:
 
 def _looks_like_property_image(url: str) -> bool:
     text = _normalize_document_text(url)
+    if "/pix/" in text:
+        return False
     if not re.search(r"\.(?:jpe?g|png|webp)(?:\?|$)", text):
         return False
     return not re.search(r"\b(?:logo|favicon|sprite|icon|picto|placeholder|avatar|loader)\b", text)
@@ -390,9 +402,9 @@ def _extract_occupancy_status(raw_text: str) -> str | None:
     lowered = raw_text.lower()
     if re.search(r"sans\s+droit\s+ni\s+titre|squat", lowered):
         return "squatted"
-    if re.search(r"propri[ée]taire\s+occupant|occup[ée]\s+par\s+le\s+propri[ée]taire", lowered):
+    if re.search(r"propri[ée]taires?\s+occupants?|occup[ée]s?\s+par\s+les?\s+propri[ée]taires?", lowered):
         return "owner_occupied"
-    if re.search(r"libre\s+de\s+toute\s+occupation|bien\s+libre|inoccup[ée]|vacant", lowered):
+    if re.search(r"libres?\s+(?:de\s+toute\s+occupation|d[\s’\x27]*occupation)|biens?\s+libres?|inoccup[ée]s?|vacants?", lowered):
         return "vacant"
     if no_lease_status := no_lease_occupancy_status(lowered):
         return no_lease_status

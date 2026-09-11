@@ -315,10 +315,11 @@ def test_pipeline_deletes_expired_sales_after_supabase_publication(monkeypatch, 
     if global_cleanup:
         assert calls[-6:] == expected_cleanup
     else:
-        assert calls[-2:] == ["bridge", "delete_secondary"]
+        assert "bridge" not in calls
+        assert "delete_secondary" not in calls
     assert summary_capture["deleted_expired_sales"] == (3 if global_cleanup else 0)
-    assert summary_capture["deleted_secondary_sales"] == 1
-    assert summary_capture["outcome_bridge_scanned"] == 3
+    assert summary_capture["deleted_secondary_sales"] == (1 if global_cleanup else 0)
+    assert summary_capture["outcome_bridge_scanned"] == (3 if global_cleanup else 0)
 
 
 @pytest.mark.parametrize("collection_failed", [False, True])
@@ -382,7 +383,7 @@ def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch, col
     )
 
     result = main.run_pipeline(
-        main.PipelineOptions(source="avoventes", use_llm=False, heavy_enrichment=False, upsert=True)
+        main.PipelineOptions(source="all", use_llm=False, heavy_enrichment=False, upsert=True)
     )
 
     assert result == 1

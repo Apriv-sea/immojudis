@@ -735,6 +735,7 @@ def test_enrich_sale_with_llm_builds_fallback_display_description(tmp_path, monk
     assert "loué" in display_description
     assert sale.raw_payload["llm_display_description_word_count"] == len(display_description.split())
     assert "llm_prompt_version" not in sale.raw_payload  # fallback is not a successful model synthesis
+    assert sale.raw_payload["llm_display_status"] == "fallback"
 
 
 def test_enrich_sale_with_llm_falls_back_from_low_confidence_display_description(tmp_path, monkeypatch) -> None:

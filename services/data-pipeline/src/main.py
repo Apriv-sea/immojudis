@@ -162,6 +162,7 @@ KNOWN_ENRICHMENT_PAYLOAD_FIELDS = (
     "llm_fact_context_coverage",
     "llm_display_description",
     "llm_display_description_word_count",
+    "llm_display_status",
     "llm_prompt_version",
     "document_analysis",
     "surface_extraction",
@@ -568,13 +569,14 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             # rows. The database also rejects deletion of any unbridged sale.
             if collection_failed or coverage_incomplete:
                 raise RuntimeError("Collection incomplete; catalogue cleanup is disabled.")
-            outcome_bridge = bridge_auction_sales_before_cleanup(settings)
-            outcome_bridge_scanned = outcome_bridge.scanned_count
-            outcome_bridge_created = outcome_bridge.created_count
-            outcome_bridge_reused = outcome_bridge.reused_count
-            supabase_deleted_secondary = delete_secondary_sales_in_supabase(app_ready)
-            # A targeted/bounded refresh must not maintain unrelated sources.
+            # Bounded/source refreshes publish only; all destructive maintenance
+            # requires a complete catalogue archive and an unbounded global scan.
             if app_ready and options.source == "all" and options.limit is None:
+                outcome_bridge = bridge_auction_sales_before_cleanup(settings)
+                outcome_bridge_scanned = outcome_bridge.scanned_count
+                outcome_bridge_created = outcome_bridge.created_count
+                outcome_bridge_reused = outcome_bridge.reused_count
+                supabase_deleted_secondary = delete_secondary_sales_in_supabase(app_ready)
                 if settings.get("dedupe_reconcile_enabled", True):
                     supabase_reconciled_duplicates = reconcile_duplicate_sales_in_supabase(
                         limit=int(settings.get("dedupe_reconcile_max_rows") or 2000)
@@ -914,14 +916,16 @@ def _hydrate_known_unchanged_sales(
 ) -> int:
     skipped = 0
     for sale in raw_sales:
-        if not sale.get("_known_unchanged"):
+        if not sale.get("_known_unchanged") and not sale.get("_detail_fetch_failed"):
             continue
-        skipped += 1
+        skipped += int(bool(sale.get("_known_unchanged")))
         source_url = str(sale.get("source_url") or "")
         known = known_details.get(source_url)
         if not known:
             continue
         _backfill_raw_sale_from_known_detail(sale, known)
+        if sale.get("_detail_fetch_failed") and len(str(known.get("description") or "")) > len(str(sale.get("description") or "")):
+            sale["description"] = known["description"]
     return skipped
 
 
@@ -938,7 +942,9 @@ def _preserve_known_enrichment_payloads(
         preserved += _backfill_payload_fields_from_known(
             sale,
             known,
-            keys=KNOWN_ENRICHMENT_PAYLOAD_FIELDS,
+            keys=tuple(key for key in KNOWN_ENRICHMENT_PAYLOAD_FIELDS
+                       if sale.get("source_detail_status") not in {"complete", "restricted"}
+                       or key not in {"source_images", "raw_image_url"}),
         )
         preserved += _backfill_document_surface_fields_from_known(sale, known)
         preserved += _backfill_document_price_from_known(sale, known)

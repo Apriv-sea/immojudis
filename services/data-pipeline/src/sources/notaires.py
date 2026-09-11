@@ -81,7 +81,10 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                     break
                 for sale in sales:
                     if not _enrich_sale_from_detail(client, sale, errors):
-                        continue
+                        sale["_detail_fetch_failed"] = True
+                        sale["source_detail_status"] = "failed"
+                    else:
+                        sale["source_detail_status"] = "complete"
                     if sale.get("department") in TARGET_DEPARTMENTS:
                         raw_sales.append(sale)
 

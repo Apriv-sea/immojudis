@@ -217,6 +217,7 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
         LOGGER.warning("Petites Affiches detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
         return
+    sale["source_detail_status"] = "restricted" if "abonn" in html.lower() and ("réserv" in html.lower() or "devez être abonné" in html.lower()) else "complete"
     detail = parse_petites_affiches_detail_html(html, source_url)
     for key in DETAIL_FIELDS:
         value = detail.get(key)
@@ -362,6 +363,8 @@ def _append_image_url(urls: list[str], value: object, source_url: str) -> None:
 
 def _looks_like_property_image(url: str) -> bool:
     text = _normalized_text(url)
+    if any(marker in text for marker in ("captcha", "/squelettes/", "kiosque")):
+        return False
     if not re.search(r"\.(?:jpe?g|png|webp)(?:\?|$)", text):
         return False
     return not re.search(r"\b(?:logo|favicon|sprite|icon|picto|placeholder|avatar|loader)\b", text)
@@ -369,6 +372,8 @@ def _looks_like_property_image(url: str) -> bool:
 
 def _looks_like_document_link(href: str, label: str | None) -> bool:
     text = _normalized_text(f"{href} {label or ''}")
+    if "cgv" in text or "conditions-generales-de-vente" in text:
+        return False
     return bool(
         ".pdf" in text
         or re.search(
