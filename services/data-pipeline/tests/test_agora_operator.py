@@ -48,3 +48,17 @@ def test_missing_public_props_retains_partial_fallback():
 def test_operator_javascript_is_never_executed():
     with pytest.raises(json.JSONDecodeError):
         parse_agora_operator_detail('<script>React.createElement(FicheProduitApp, dangerousFunction());</script>', URL)
+
+
+def test_land_smaller_than_cadastral_parcel_is_flagged_without_summing_shares():
+    html = page()
+    # Add source fields to the existing descriptor group, not the product header.
+    extra = [{'descriptifLibelle': 'Surface terrain', 'value': '92 m²'},
+             {'descriptifLibelle': 'Références cadastrales', 'value': 'YD 59 (1 742m²) et YD 60 (91 m²)'}]
+    prefix = 'React.createElement(FicheProduitApp, '
+    props = json.JSONDecoder().raw_decode(html.split(prefix)[1])[0]
+    props['ficheProduitModel']['productPageWrapper']['productPageModel']['descriptifs'][0]['descriptifs'].extend(extra)
+    detail = parse_agora_operator_detail('<script>' + prefix + json.dumps(props) + ');</script>', URL)
+    assert detail['operator_land_surface_conflict'] is True
+    assert len(detail['source_display_constraints']) == 2
+    assert 'land_surface_m2' not in detail
