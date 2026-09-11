@@ -44,7 +44,7 @@ def page_evidence(body: str, url: str) -> dict:
 
 
 def run_audit(source: str, output: Path, *, max_pages: int = 100,
-              max_requests: int = 300, max_seconds: int = 600) -> dict:
+              max_requests: int = 300, max_seconds: int = 600, resolve_missing_locations: bool = False) -> dict:
     if source not in SOURCES or not 1 <= max_pages <= 150 or not 1 <= max_requests <= 500 or not 1 <= max_seconds <= 900:
         raise ValueError('Invalid source or audit budget')
     # Configuration is read after clearing credentials. No enrichment runner is imported.
@@ -59,6 +59,9 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     parsed: dict[str, set[str]] = {}
     parsed_records: dict[str, set[str]] = {}
     skipped_details = 0
+    location_details = 0
+    in_detail = False
+    original_detail = getattr(module, "_enrich_sale_from_detail", None)
     budget_exhausted = False
     original_send = httpx.Client.send
 
@@ -81,7 +84,7 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
             if not kwargs.get('stream'):
                 entry['sha256'] = hashlib.sha256(response.content).hexdigest()
                 entry['bytes'] = len(response.content)
-                if response.status_code == 200 and not request.url.path.endswith('/robots.txt'):
+                if response.status_code == 200 and not request.url.path.endswith('/robots.txt') and not in_detail:
                     entry['evidence'] = page_evidence(response.text, str(request.url))
                     proof = public_page_proof(source, response.text, str(request.url))
                     entry['catalogue_proof'] = proof
@@ -92,7 +95,14 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
             raise
 
     def skip_detail(*args, **kwargs):
-        nonlocal skipped_details
+        nonlocal skipped_details, location_details, in_detail
+        if resolve_missing_locations and source == 'avoventes' and len(args) > 1 and not args[1].get('department'):
+            location_details += 1
+            in_detail = True
+            try:
+                return original_detail(*args, **kwargs)
+            finally:
+                in_detail = False
         skipped_details += 1
         return True
 
@@ -139,21 +149,23 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
                                     errors, budget_exhausted, coverage, parsed_records)
     report = {
         'certificate': certificate,
+        'parser_record_ids': {key: sorted(value) for key, value in parsed_records.items()},
         'source': source, 'utc': datetime.now(UTC).isoformat(),
-        'scope': 'national configured inventory; listing pages only; no DB, PDF or AI',
+        'scope': 'national configured inventory; listing pages and optional missing-location details; no DB, PDF or AI',
+        'location_details_requested': location_details,
         'budgets': {'pages_per_partition': max_pages, 'requests': max_requests, 'seconds': max_seconds},
         'budget_exhausted': budget_exhausted, 'duration_seconds': round(time.monotonic() - started, 2),
         'listings_emitted': len(sales), 'unique_listing_urls': len({s.get('source_url') for s in sales}),
         'details_skipped': skipped_details, 'coverage': coverage,
         'audit_status': 'budget_exhausted' if budget_exhausted else 'source_error' if errors else 'inspected',
-        'inventory_certified': bool(coverage.get('coverage_complete') is True and not errors and not budget_exhausted),
+        'inventory_certified': certificate['all_discovered_announcements_emitted'],
         'error_count': len(errors), 'errors': errors[:20], 'requests': trace,
         'inventory': [{'url': s.get('source_url'), 'external_id': s.get('external_id'),
                        'department': s.get('department'), 'sale_date': s.get('sale_date')} for s in sales],
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str))
-    print(json.dumps({k: v for k, v in report.items() if k not in ('requests', 'inventory', 'errors')}, ensure_ascii=False))
+    print(json.dumps({key: report[key] for key in ('source', 'utc', 'audit_status', 'unique_listing_urls', 'inventory_certified', 'error_count', 'budget_exhausted', 'duration_seconds')}, ensure_ascii=False))
     return report
 
 
@@ -161,12 +173,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', choices=SOURCES, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--resolve-missing-locations', action='store_true')
     parser.add_argument('--max-pages', type=int, default=100)
     parser.add_argument('--max-requests', type=int, default=300)
     parser.add_argument('--max-seconds', type=int, default=600)
     args = parser.parse_args()
     run_audit(args.source, args.output, max_pages=args.max_pages,
-              max_requests=args.max_requests, max_seconds=args.max_seconds)
+              max_requests=args.max_requests, max_seconds=args.max_seconds,
+              resolve_missing_locations=args.resolve_missing_locations)
 
 
 if __name__ == '__main__':

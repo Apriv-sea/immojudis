@@ -120,8 +120,9 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
         count_proof = expected is not None and expected == len(extracted)
         public_records = {r for p in group for r in p.get('public_record_ids', [])}
         extracted_records = (parsed_records or {}).get(partition, set())
+        source_rows = sum({p['page_index']: p.get('card_nodes', 0) for p in group}.values())
         if source == 'licitor':
-            count_proof = bool(expected is not None and expected == len(public_records)
+            count_proof = bool(expected is not None and expected == source_rows
                                and public_records == extracted_records)
         page_proof = bool(lasts and len(lasts) == 1 and not missing_pages and urls and urls == extracted)
         reasons = []
@@ -149,6 +150,8 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
                            'advertised_totals': sorted(totals), 'outside_scope_count': len(outside),
                            'public_unique_urls': len(urls), 'parsed_unique_urls': len(extracted),
                            'public_records': len(public_records), 'parsed_records': len(extracted_records),
+                           'source_rows_seen': source_rows,
+                           'identical_repeated_rows': max(0, source_rows - len(public_records)) if source == 'licitor' else None,
                            'visited_page_indices': sorted(indices), 'advertised_last_pages': sorted(lasts),
                            'missing_page_indices': missing_pages, 'omitted_urls': omitted,
                            'extra_urls': extra, 'reasons': reasons})

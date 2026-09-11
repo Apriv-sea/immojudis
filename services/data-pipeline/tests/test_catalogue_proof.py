@@ -118,3 +118,63 @@ def test_unlinked_sold_archive_only_allows_qualified_certificate():
     assert not c['public_discovery_certified']
     assert c['addressable_public_inventory_certified']
     assert len(c['partitions'][0]['unlinked_public_cards']) == 1
+
+
+def test_licitor_detail_collection_carries_all_listing_lots(monkeypatch):
+    from src.sources import licitor
+    url = 'https://www.licitor.com/annonce/parking/109985.html'
+    lots = [{'raw_text': 'Parking lot 58'}, {'raw_text': 'Parking lot 59'}]
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            return '<html></html>'
+
+    monkeypatch.setattr(licitor, 'LicitorClient', Client)
+    monkeypatch.setattr(licitor, 'TARGET_DEPARTMENTS', ('33',))
+    monkeypatch.setattr(licitor, '_collect_list_sales', lambda *args, **kwargs: [{'source_url': url, 'source_lots': lots}])
+    monkeypatch.setattr(licitor, 'parse_licitor_detail_html', lambda *args: {'source_name': 'licitor', 'source_url': url, 'department': '33', 'title': 'Deux parkings', 'raw_text': 'Deux parkings lot 58 et lot 59'})
+    result = licitor.scrape_licitor_aquitaine_result()
+    assert result.sales[0]['source_lots'] == lots
+    assert 'lot 58' in result.sales[0]['source_blocks']['lots_publics']
+    assert 'lot 59' in result.sales[0]['source_blocks']['lots_publics']
+
+
+def test_licitor_identical_duplicate_rows_are_counted_without_inventing_lots():
+    p = {'partition': 'zone', 'page_index': 1, 'advertised_totals': [2],
+         'advertised_last_pages': [], 'public_urls': ['a'], 'outside_scope_urls': [],
+         'unlinked_cards': 0, 'card_nodes': 2, 'public_record_ids': ['same-lot']}
+    c = certify_catalogue('licitor', [p], {'zone': {'a'}}, {'a'}, [], False, {}, {'zone': {'same-lot'}})
+    assert c['public_discovery_certified']
+    assert c['partitions'][0]['identical_repeated_rows'] == 1
+    p['card_nodes'] = 1
+    assert not certify_catalogue('licitor', [p], {'zone': {'a'}}, {'a'}, [], False, {}, {'zone': {'same-lot'}})['public_discovery_certified']
+
+
+def test_avoventes_location_uses_property_description_not_lawyer_address():
+    from src.sources.avoventes import _property_location_codes, parse_avoventes_detail_html
+    assert _property_location_codes('Immeuble à MARSEILLE (13014)') == {'department': '13', 'postal_code': '13014'}
+    assert _property_location_codes('Biens à NICE (06) et GUILLAUMES (06470)')['department'] == '06'
+    assert _property_location_codes('Biens à PARIS (75016) et NICE (06000)') == {}
+    result = parse_avoventes_detail_html('<footer>Cabinet 11 rue Armeny 13006 MARSEILLE</footer>', 'https://avoventes.fr/enchere/test')
+    assert not result.get('department')
+
+
+def test_encheres_immobilieres_stops_on_unavailable_inventory(monkeypatch):
+    from src.sources import encheres_immobilieres as source
+    calls = []
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            calls.append(url)
+            raise TimeoutError('source unavailable')
+
+    monkeypatch.setattr(source, 'PoliteHttpClient', Client)
+    result = source.scrape_encheres_immobilieres_aquitaine_result(max_pages=100)
+    assert len(calls) == 1
+    assert result.errors and result.coverage['coverage_complete'] is False
