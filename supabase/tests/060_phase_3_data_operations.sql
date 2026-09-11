@@ -229,6 +229,12 @@ insert into public.operational_job_runs (
   '2026-07-27T16:18:00Z'::timestamptz,
   '2026-07-27T16:19:00Z'::timestamptz,
   60000
+), (
+  'sale-retention',
+  'success',
+  '2026-07-27T16:18:00Z'::timestamptz,
+  '2026-07-27T16:19:00Z'::timestamptz,
+  60000
 );
 
 select lives_ok(
