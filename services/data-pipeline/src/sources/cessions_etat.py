@@ -71,7 +71,7 @@ def scrape_cessions_etat_aquitaine_result(
         except Exception as exc:
             LOGGER.error("Cessions Etat list fetch failed for %s: %s", page_url, exc)
             errors.append(f"{page_url}: {exc}")
-            continue
+            break
         page_sales = parse_cessions_etat_html(html, page_url=page_url)
         if not pagination.accept(page_sales):
             break

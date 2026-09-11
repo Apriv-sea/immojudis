@@ -20,6 +20,7 @@ from src.normalize import (
 from src.raw_models import validate_raw_sales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
+from src.sources.linked_pages import LinkedPages
 
 BASE_URL = "https://www.vench.fr"
 LIST_URL = f"{BASE_URL}/prochaines-ventes-aux-encheres.html"
@@ -66,33 +67,40 @@ def scrape_vench_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    partitions: list[dict[str, Any]] = []
+    seen_sales: set[str] = set()
     for department in _department_filters():
-        try:
-            form = {
-                "searching": "1",
-                "orderResult": "1",
-                "resetInput": "0",
-            }
-            if department:
-                form["departement"] = department
-            html = client.post_form(
-                LIST_URL,
-                form,
-            )
-        except Exception as exc:
-            LOGGER.error("Vench list fetch failed for department %s: %s", department, exc)
-            errors.append(f"department {department}: {exc}")
-            continue
-        for sale in parse_vench_list_html(html, page_url=LIST_URL, fallback_department=department):
-            if should_fetch_detail(sale, known):
-                _enrich_sale_from_detail(client, sale, errors)
-            raw_sales.append(sale)
+        pages = LinkedPages(LIST_URL, "p", 1, max_pages or int(settings["vench_max_pages"]))
+        form = {"searching": "1", "orderResult": "1", "resetInput": "0"}
+        if department:
+            form["departement"] = department
+        for page_url in pages:
+            try:
+                # Preserve the source's search session when following its links.
+                html = client.post_form(page_url, form) if page_url == LIST_URL else client.get(page_url)
+            except Exception as exc:
+                LOGGER.error("Vench list fetch failed for %s: %s", page_url, exc)
+                errors.append(f"{page_url}: {exc}")
+                break
+            pages.observe(html, page_url)
+            for sale in parse_vench_list_html(html, page_url=page_url, fallback_department=department):
+                url = str(sale.get("source_url"))
+                if url in seen_sales:
+                    continue
+                seen_sales.add(url)
+                if should_fetch_detail(sale, known):
+                    _enrich_sale_from_detail(client, sale, errors)
+                raw_sales.append(sale)
+        partitions.append({"department": department, **pages.metrics()})
 
     catalog_sales = _filter_catalog_sales(unique_dicts(raw_sales, "source_url"), known_details)
     return ScrapeResult(
         validate_raw_sales("vench", catalog_sales, errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(), "partitions": partitions,
+         "linked_pages_complete": all(p["linked_pages_complete"] for p in partitions),
+         "inventory_before_catalog_filter": len(raw_sales),
+         "catalog_filter_excluded": len(raw_sales) - len(catalog_sales)},
     )
 
 
