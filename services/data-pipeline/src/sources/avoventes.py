@@ -264,6 +264,7 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
         errors.append(f"detail {source_url}: {exc}")
         return
 
+    sale["source_detail_status"] = "complete"
     details = parse_avoventes_detail_html(html, source_url)
     if details.get("source_blocks"):
         existing_blocks = sale.get("source_blocks") if isinstance(sale.get("source_blocks"), dict) else {}
@@ -281,18 +282,26 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
     if details.get("raw_text"):
         sale["raw_text"] = f"{sale.get('raw_text') or ''}\n{details['raw_text']}".strip()
     for key in ("tribunal", "description", "lawyer_contact", "surface_m2", "adjudication_price_eur", "status"):
-        if details.get(key) and not sale.get(key):
+        if details.get(key) and (key == "description" or not sale.get(key)):
             sale[key] = details[key]
 
 
 def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
+    # Exclude comparables and neighbourhood amenities from the lot's facts.
+    for heading in list(soup.find_all(["h2", "h3", "h4"])):
+        text = heading.get_text(" ", strip=True).lower()
+        if "proximité" in text or "valeurs foncières" in text:
+            sibling = heading.find_next_sibling()
+            if sibling and sibling.name in {"div", "table"}:
+                sibling.decompose()
+            heading.decompose()
     raw_text = soup.get_text("\n", strip=True)
     documents = _extract_documents(soup.find_all("a", href=True), page_url)
     images = _extract_images(soup, page_url)
     title = _extract_detail_title(soup, raw_text)
     tribunal = _extract_after_label(raw_text, r"(?:Tribunal\s+Judiciaire|TJ)\s+de?\s*([^\n]+)")
-    description = _extract_description(raw_text)
+    description = _property_description(soup) or _extract_description(raw_text)
     lawyer_contact = _extract_after_label(raw_text, r"(?:Téléphone|Tél\.?|Tel\.?)\s*:?\s*([^\n]+)")
     adjudication_price = _extract_after_label(raw_text, r"Adjug[ée]\s*:?\s*([0-9][0-9\s,.]*\s*(?:€|euros?)?)")
     surface = _extract_after_label(
@@ -393,6 +402,20 @@ def _document_type(href: str, label: str) -> str:
     if ".pdf" in text:
         return "pdf"
     return "document"
+
+
+def _property_description(soup: BeautifulSoup) -> str | None:
+    parts: list[str] = []
+    for node in soup.find_all(["h2", "h3", "h4", "div"]):
+        label = node.get_text(" ", strip=True).strip(" :").lower()
+        if label not in {"à propos du bien", "informations complémentaires"}:
+            continue
+        content = node.find_next_sibling()
+        if content:
+            value = clean_text(content.get_text(" ", strip=True))
+            if value and value not in parts:
+                parts.append(value)
+    return "\n".join(parts) or None
 
 
 def _extract_description(raw_text: str) -> str | None:

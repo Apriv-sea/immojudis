@@ -217,6 +217,7 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
         LOGGER.warning("Cessions Etat detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
         return
+    sale["source_detail_status"] = "complete"
     detail = parse_cessions_etat_detail_html(html, source_url)
     for key in DETAIL_FIELDS:
         value = detail.get(key)
@@ -235,7 +236,7 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
                 sale["raw_image_url"] = sale["source_images"][0]
         elif key == "raw_image_url" and not sale.get("raw_image_url"):
             sale[key] = value
-        elif key == "documents" or not sale.get(key):
+        elif key in {"documents", "description", "sale_date", "visit_dates"} or not sale.get(key):
             sale[key] = value
 
 
@@ -258,7 +259,7 @@ def _first_image(card: Tag, page_url: str) -> str | None:
 
 
 def _description(soup: BeautifulSoup) -> str | None:
-    for selector in (".field--name-body", ".fr-card__desc", "article"):
+    for selector in ("#panel-bien .texte .fr-text", ".field--name-body", ".fr-card__desc", "article"):
         node = soup.select_one(selector)
         if node:
             text = clean_text(node.get_text(" ", strip=True))
@@ -274,7 +275,7 @@ def _documents(soup: BeautifulSoup, page_url: str) -> list[dict[str, str]]:
         text = clean_text(link.get_text(" ", strip=True)) or href.rsplit("/", 1)[-1]
         if not _looks_like_document_link(href, text):
             continue
-        documents.append({"label": text or "document", "url": urljoin(page_url, href), "type": "document"})
+        documents.append({"label": text or "document", "url": urljoin(page_url, href), "type": "pdf" if ".pdf" in href.lower() else "document"})
     return documents
 
 
@@ -306,6 +307,8 @@ def _append_image(images: list[str], value: object | None, page_url: str) -> Non
 
 def _looks_like_document_link(href: str, label: str | None) -> bool:
     text = f"{href} {label or ''}".lower()
+    if "/qui-nous-sommes/" in text or "/qui-sommes-nous" in text:
+        return False
     return bool(
         ".pdf" in text
         or re.search(
@@ -322,6 +325,9 @@ def _visit_dates(text: str) -> list[str]:
     for raw_line in text.splitlines():
         line = clean_text(raw_line)
         if not line or _is_virtual_visit_line(line):
+            continue
+        if re.fullmatch(r"visites?\s+libres?\.?", line, flags=re.I):
+            visits.append(line)
             continue
         label_match = re.match(r"^(?:Visites?|Rendez-vous)\s*:\s*(.+)$", line, flags=re.I)
         if label_match:
@@ -360,6 +366,20 @@ def _extract_land_surface(text: str) -> str | None:
 
 
 def _extract_sale_date(text: str) -> str | None:
+    adjudication = re.search(r"Date\s+d[’']adjudication\s*:\s*(\d{2}/\d{2}/\d{4})", text, re.I)
+    if adjudication:
+        from src.normalize import parse_french_datetime
+        date_text = adjudication.group(1)
+        expected = parse_french_datetime(date_text)
+        # Only attach an hour from the procedure comment on the same sale day.
+        for line in text[adjudication.end():].splitlines()[:5]:
+            if not line.lower().startswith("commentaire"):
+                continue
+            candidate = parse_french_datetime(line)
+            hour = re.search(r"\b(\d{1,2})[h:](\d{2})\b", line)
+            if candidate and expected and candidate.date() == expected.date() and hour:
+                return f"{date_text} à {hour.group(1)}h{hour.group(2)}"
+        return date_text
     for pattern in (
         r"\bdate\s+limite\s+de\s+r[ée]ception\s+des\s+offres\s+est\s+fix[ée]e?\s+au\s+([^\n.]+)",
         r"\b(?:Date limite|Fin de candidature|Cl[oô]ture)\s*:\s*([^\n]+)",

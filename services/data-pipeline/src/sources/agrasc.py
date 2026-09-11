@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup, Tag
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text, strip_accents
 from src.raw_models import validate_raw_sales
+from src.sources.agrasc_operators import enrich_agrasc_operator
 from src.sources.common import PoliteHttpClient, ScrapeResult, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 
@@ -57,6 +58,7 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
     )
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    operator_clients: dict[str, PoliteHttpClient] = {}
     try:
         html = client.get(LIST_URL)
     except Exception as exc:
@@ -65,12 +67,15 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
     else:
         for sale in parse_agrasc_html(html, page_url=LIST_URL):
             if sale.get("department") in TARGET_DEPARTMENTS:
+                enrich_agrasc_operator(sale, operator_clients, settings, errors)
                 raw_sales.append(sale)
 
     return ScrapeResult(
         validate_raw_sales("agrasc", unique_dicts(raw_sales, "source_url"), errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+         "operator_details": {status: sum(s.get("operator_detail_status") == status for s in raw_sales)
+                              for status in ("complete", "partial", "failed", "unsupported")}},
     )
 
 

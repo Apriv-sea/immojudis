@@ -314,6 +314,11 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
         LOGGER.warning("Vench detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
         return
+    access_text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
+    restricted = re.search(
+        r"(?:r[ée]serv[ée]e?\s+aux\s+abonn[ée]s|vous\s+devez\s+[êe]tre\s+abonn[ée])", access_text, re.I,
+    )
+    sale["source_detail_status"] = "restricted" if restricted else "complete"
     details = parse_vench_detail_html(html, source_url)
     for key, value in details.items():
         if value in (None, "", []):
@@ -566,6 +571,8 @@ def _append_image_url(urls: list[str], value: object, source_url: str) -> None:
 
 def _looks_like_property_image(url: str) -> bool:
     text = _normalize_document_text(url)
+    if "/design/" in text or "autopromo" in text:
+        return False
     if not re.search(r"\.(?:jpe?g|png|webp)(?:\?|$)", text):
         return False
     return not re.search(r"\b(?:logo|favicon|sprite|icon|picto|placeholder|avatar|loader)\b", text)
