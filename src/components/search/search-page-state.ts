@@ -1,3 +1,4 @@
+import { validSaleDate } from "@/lib/search/sale-date-range";
 import dynamic from "next/dynamic";
 import type * as React from "react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -94,6 +95,8 @@ import { SearchPagination } from "./SearchPagination";
 import { parseSaleType, saleTypeFilterLabel, type SaleTypeFilter } from "@/lib/sale-types";
 
 export type SearchDraft = {
+  minSaleDate: string;
+  maxSaleDate: string;
   saleType: SaleTypeFilter | "";
   city: string;
   department: string;
@@ -132,6 +135,8 @@ export type SearchStatistics = {
 
 export function searchToDraft(search: SalesSearchParams): SearchDraft {
   return {
+    minSaleDate: search.minSaleDate ?? "",
+    maxSaleDate: search.maxSaleDate ?? "",
     saleType: search.saleType ?? "",
     city: search.city ?? "",
     department: search.department ?? "",
@@ -162,6 +167,8 @@ export function searchToDraft(search: SalesSearchParams): SearchDraft {
 
 export function emptySearchDraft(): SearchDraft {
   return {
+    minSaleDate: "",
+    maxSaleDate: "",
     saleType: "",
     city: "",
     department: "",
@@ -192,6 +199,8 @@ export function emptySearchDraft(): SearchDraft {
 
 export function draftToSearch(draft: SearchDraft, current: SalesSearchParams): SalesSearchParams {
   return {
+    minSaleDate: validSaleDate(draft.minSaleDate),
+    maxSaleDate: validSaleDate(draft.maxSaleDate),
     saleType: parseSaleType(draft.saleType),
     sort: current.sort,
     viewport: current.viewport,

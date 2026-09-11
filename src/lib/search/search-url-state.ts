@@ -1,3 +1,4 @@
+import { validSaleDate } from "./sale-date-range";
 import { asFiniteNumber } from "@/lib/types";
 import { parseSaleType, type SaleTypeFilter } from "@/lib/sale-types";
 
@@ -13,6 +14,7 @@ export const SEARCH_SORT_KEYS = [
   "price_desc",
   "price_asc",
   "newest",
+  "sale_date_asc",
   "sqft_desc",
   "beds_desc",
   "distance",
@@ -24,6 +26,8 @@ export const TRANSACTION_TYPES = ["for_sale", "for_rent", "sold"] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 export type SalesSearchParams = {
+  minSaleDate?: string;
+  maxSaleDate?: string;
   saleType?: SaleTypeFilter;
   city?: string;
   department?: string;
@@ -162,6 +166,8 @@ function parseTransactionType(value: unknown): TransactionType | undefined {
 
 export function validateSalesSearch(search: Record<string, unknown>): SalesSearchParams {
   return {
+    minSaleDate: validSaleDate(search.minSaleDate),
+    maxSaleDate: validSaleDate(search.maxSaleDate),
     saleType: parseSaleType(search.saleType),
     city: stringValue(search.city),
     department: stringValue(search.department),
@@ -199,6 +205,8 @@ export function validateSalesSearch(search: Record<string, unknown>): SalesSearc
 
 export function salesSearchToUrlRecord(search: SalesSearchParams): SalesSearchUrlRecord {
   return {
+    minSaleDate: search.minSaleDate,
+    maxSaleDate: search.maxSaleDate,
     saleType: search.saleType,
     city: search.city,
     department: search.department,

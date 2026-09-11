@@ -20,7 +20,9 @@ export function SaleComparisonBar({
   onRemove,
   onClear,
   onRestore,
+  hideWhenEmpty = false,
 }: {
+  hideWhenEmpty?: boolean;
   items: ComparedSale[];
   returnTo: string;
   userId: string | null;
@@ -32,6 +34,8 @@ export function SaleComparisonBar({
   const [hasOpened, setHasOpened] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const barRef = useRef<HTMLElement>(null);
+
+  if (hideWhenEmpty && items.length === 0 && !open) return null;
 
   return (
     <>

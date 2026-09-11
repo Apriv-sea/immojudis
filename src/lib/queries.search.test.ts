@@ -25,6 +25,18 @@ describe("Supabase sale search query", () => {
     },
   );
 
+  it("matches canonical vacant occupancy before pagination", async () => {
+    const builder = new QueryRecorder();
+    await getSales({ occupancy_status: "free" }, 24, "price_asc", 24, {
+      client: { from: () => builder } as never,
+    });
+    expect(builder.calls).toContainEqual([
+      "or",
+      "occupancy_status.ilike.%libre%,occupancy_status.ilike.vacant,occupancy_status.ilike.free",
+    ]);
+    expect(builder.calls).toContainEqual(["range", 24, 47]);
+  });
+
   it("does not treat legacy online entries as an organizer family", async () => {
     const builder = new QueryRecorder();
     await getSales({ sale_venue_type: "unknown" }, 24, "price_asc", 0, {

@@ -179,3 +179,18 @@ describe("listing access resolution", () => {
     expect(mocks.sale).toHaveBeenCalledWith("sale", { discovery: false });
   });
 });
+
+it("offers access to the selected listing when its public preview is absent", async () => {
+  mocks.authenticated = false;
+  mocks.preview.mockResolvedValue(null);
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <SaleDetailPage id="sale" />
+    </QueryClientProvider>,
+  );
+  const link = await screen.findByRole("link", { name: "Se connecter ou créer un compte" });
+  expect(link.getAttribute("href")).toBe("/login?redirect=%2Fsales%2Fsale");
+  expect(screen.queryByText("Introuvable")).toBeNull();
+});

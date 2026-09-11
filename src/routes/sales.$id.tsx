@@ -181,6 +181,28 @@ export function SaleDetailPage({
       />
     );
   }
+  if (!sale && !session) {
+    return (
+      <main className="mx-auto my-16 max-w-xl px-4">
+        <section className="rounded-lg border border-border bg-white p-6">
+          <h1 className="font-display text-2xl font-semibold">Consulter cette annonce</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            L’aperçu de cette annonce n’est pas disponible. Connectez-vous pour vérifier l’accès à
+            la fiche complète.
+          </p>
+          <a
+            href={`/login?redirect=${encodeURIComponent(loginReturnTo)}`}
+            className="mt-5 inline-flex min-h-11 items-center rounded-md bg-brand-navy px-4 py-2 text-sm font-medium text-white"
+          >
+            Se connecter ou créer un compte
+          </a>
+          <a href={returnTo} className="mt-4 block text-sm underline underline-offset-4">
+            Retour aux résultats
+          </a>
+        </section>
+      </main>
+    );
+  }
   if (!sale) return <SaleNotFoundComponent />;
 
   return discovery ? (

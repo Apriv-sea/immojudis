@@ -63,6 +63,8 @@ const FIT_PADDING = { top: 82, right: 70, bottom: 86, left: 70 };
 const MOBILE_FIT_PADDING = { top: 88, right: 30, bottom: 120, left: 30 };
 
 export type MapPanelProps = {
+  locationCenter?: { lat: number; lng: number; zoom?: number } | null;
+  totalCount?: number;
   preview?: boolean;
   showDpeLegend?: boolean;
   sales: AuctionSale[];
@@ -95,6 +97,8 @@ type QueriedMapFeature = {
 type PopupAccess = { preview: boolean; analysisLocked: boolean };
 
 export function MapPanel({
+  locationCenter,
+  totalCount,
   preview = false,
   showDpeLegend = true,
   sales,
@@ -119,7 +123,7 @@ export function MapPanel({
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const accessToken = useMemo(() => getMapboxAccessToken(), []);
-  const mapStyle = useMemo(() => getMapboxStyleUrl(), []);
+  const mapStyle = useMemo(() => "mapbox://styles/mapbox/streets-v12", []);
   const featureCollection = useMemo(() => buildMapboxSaleFeatureCollection(sales), [sales]);
   const geocodedSales = useMemo(() => sales.filter(hasCoordinates), [sales]);
   const canToggleSearchAsMove = !preview && mapReady && (geocodedSales.length > 0 || searchAsMove);
@@ -161,6 +165,7 @@ export function MapPanel({
         accessToken,
         container: containerRef.current,
         style: mapStyle,
+        language: "fr",
         center: DEFAULT_MAP_CENTER,
         zoom: defaultMapZoomForViewport(containerRef.current),
         minZoom: MIN_MAP_ZOOM,
@@ -319,6 +324,18 @@ export function MapPanel({
     popupRef.current = showSalePopup(map, sale, popupRef.current, popupAccessRef.current);
   }, [mapReady, selectedSaleId, preview, showDpeLegend]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (locationCenter)
+      map.easeTo({
+        center: [locationCenter.lng, locationCenter.lat],
+        zoom: locationCenter.zoom ?? 10,
+        duration: 500,
+      });
+    else centerMapOnFrance(map, true, containerRef.current);
+  }, [locationCenter, mapReady]);
+
   function zoomIn() {
     markUserInteracted();
     mapRef.current?.zoomIn({ duration: 240 });
@@ -397,16 +414,15 @@ export function MapPanel({
             }`}
           >
             <LocateFixed className="h-4 w-4" />
-            {searchAsMove ? "Carte active" : "Rechercher ici"}
+            {searchAsMove
+              ? "Actualisation automatique activée"
+              : "Actualiser en déplaçant la carte"}
           </button>
         ) : (
           <span className="rounded-md border border-[#d6e0dc] bg-white/95 px-3 py-2 text-xs font-bold text-[#3d4b57] shadow-lg">
             Positions approximatives · annonces de cette page
           </span>
         )}
-        <div className="hidden h-10 items-center rounded-md border border-[#d6e0dc] bg-white/95 px-3 text-xs font-bold text-[#3d4b57] shadow-lg backdrop-blur sm:inline-flex">
-          {geocodedSales.length.toLocaleString("fr-FR")} {preview ? "situées" : "géocodés"}
-        </div>
       </div>
 
       <div className="absolute right-4 top-4 z-30 flex flex-col overflow-hidden rounded-md border border-[#d6e0dc] bg-white shadow-lg">
@@ -423,38 +439,12 @@ export function MapPanel({
         <MapControlButton icon={MapIcon} label="Voir la France" onClick={centerOnFrance} />
       </div>
 
-      <div className="absolute bottom-20 left-4 z-30 max-w-[calc(100%-2rem)] rounded-md border border-[#d6e0dc] bg-white/95 px-3 py-2 text-xs font-bold text-[#3d4b57] shadow-lg backdrop-blur sm:bottom-4">
-        <span className="sm:hidden">
-          {featureCollection.features.length.toLocaleString("fr-FR")} points ·{" "}
-          {sales.length.toLocaleString("fr-FR")} biens
-        </span>
-        <span className="hidden sm:inline">
-          {featureCollection.features.length.toLocaleString("fr-FR")} points Mapbox ·{" "}
-          {sales.length.toLocaleString("fr-FR")} dossiers chargés
-        </span>
+      <div className="absolute bottom-10 left-4 z-30 max-w-[calc(100%-2rem)] rounded-md bg-white/95 px-3 py-2 text-xs text-[#526170]">
+        {geocodedSales.length.toLocaleString("fr-FR")} annonces situées
+        {totalCount != null && totalCount > geocodedSales.length
+          ? ` sur ${totalCount.toLocaleString("fr-FR")} résultats${preview ? " · positions approximatives de cette page" : " · échantillon cartographié"}`
+          : ""}
       </div>
-
-      {showDpeLegend ? (
-        <div className="absolute bottom-16 left-4 z-30 hidden rounded-md border border-[#d6e0dc] bg-white/95 px-2 py-2 shadow-lg backdrop-blur sm:block">
-          <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#667482]">
-            DPE
-          </div>
-          <div className="flex gap-1">
-            {DPE_CLASSES.map((dpeClass) => {
-              const color = dpeColor(dpeClass);
-              return (
-                <span
-                  key={dpeClass}
-                  className="grid h-5 w-5 place-items-center rounded text-[10px] font-extrabold"
-                  style={{ backgroundColor: color?.background, color: color?.foreground }}
-                >
-                  {dpeClass}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
 
       <a
         href={MAPBOX_COPYRIGHT_URL}
@@ -486,7 +476,7 @@ function addSalesLayers(map: MapboxMap, data: MapboxSaleFeatureCollection) {
     source: SALES_SOURCE_ID,
     filter: ["has", "point_count"],
     paint: {
-      "circle-color": ["step", ["get", "point_count"], "#071a31", 10, "#132238", 30, "#c98d45"],
+      "circle-color": "#132238",
       "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 30, 30],
       "circle-stroke-color": "#ffffff",
       "circle-stroke-width": 3,
@@ -518,7 +508,7 @@ function addSalesLayers(map: MapboxMap, data: MapboxSaleFeatureCollection) {
     source: SALES_SOURCE_ID,
     filter: ["!", ["has", "point_count"]],
     paint: {
-      "circle-color": ["get", "markerColor"],
+      "circle-color": "#132238",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 13, 9, 16, 14, 20],
       "circle-stroke-color": "#ffffff",
       "circle-stroke-width": 3,
@@ -546,7 +536,7 @@ function addSalesLayers(map: MapboxMap, data: MapboxSaleFeatureCollection) {
     filter: ["!", ["has", "point_count"]],
     layout: {
       "text-field": ["get", "priceLabel"],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 9, 11, 14, 12],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 12, 9, 13, 14, 14],
       "text-anchor": "top",
       "text-offset": [0, 1.25],
       "text-allow-overlap": false,
@@ -556,7 +546,7 @@ function addSalesLayers(map: MapboxMap, data: MapboxSaleFeatureCollection) {
     paint: {
       "text-color": "#132238",
       "text-halo-color": "#ffffff",
-      "text-halo-width": 1.4,
+      "text-halo-width": 2,
       "text-halo-blur": 0.2,
     },
   };

@@ -1,3 +1,4 @@
+import { saleDateBoundary } from "./search/sale-date-range";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { departmentSearchValues, frenchSearchTerms } from "@/lib/search/french-geo-search";
@@ -259,6 +260,8 @@ function applySaleTypeFilter<TQuery>(query: TQuery, filters: SaleFilters): TQuer
 function applyAuthenticatedSaleFilters<TQuery>(query: TQuery, filters: SaleFilters) {
   let q = applySaleTypeFilter(query, filters) as unknown as FilterableQuery;
 
+  if (filters.min_sale_date) q = q.gte("sale_date", saleDateBoundary(filters.min_sale_date));
+  if (filters.max_sale_date) q = q.lte("sale_date", saleDateBoundary(filters.max_sale_date, true));
   if (filters.department) q = q.eq("department", filters.department);
   if (filters.departments?.length) {
     q = q.in("department", departmentSearchValues(filters.departments));
@@ -273,7 +276,21 @@ function applyAuthenticatedSaleFilters<TQuery>(query: TQuery, filters: SaleFilte
   if (filters.max_surface != null) q = q.lte("app_surface_m2", filters.max_surface);
   if (filters.min_bedrooms != null) q = q.gte("bedrooms_count", filters.min_bedrooms);
   if (filters.min_bathrooms != null) q = q.gte("bathrooms_count", filters.min_bathrooms);
-  if (filters.occupancy_status) q = q.eq("occupancy_status", filters.occupancy_status);
+  if (filters.occupancy_status) {
+    // Match the same historical aliases as occupancyLabel, before count/pagination.
+    const occupancy = filters.occupancy_status.toLowerCase();
+    if (["free", "vacant", "libre"].includes(occupancy)) {
+      q = q.or(
+        "occupancy_status.ilike.%libre%,occupancy_status.ilike.vacant,occupancy_status.ilike.free",
+      );
+    } else if (["occupied", "occupé", "occupe"].includes(occupancy)) {
+      q = q.ilike("occupancy_status", "%occup%");
+    } else if (["rented", "loué", "loue"].includes(occupancy)) {
+      q = q.or(
+        "occupancy_status.ilike.%loué%,occupancy_status.ilike.%loue%,occupancy_status.ilike.%rented%",
+      );
+    } else q = q.eq("occupancy_status", filters.occupancy_status);
+  }
   if (filters.min_score != null) q = q.gte("investment_score", filters.min_score);
   if (filters.tribunal_code) q = q.eq("tribunal_code", filters.tribunal_code);
   if (filters.status_in?.length) q = q.in("status", filters.status_in);
