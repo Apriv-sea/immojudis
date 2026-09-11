@@ -21,7 +21,7 @@ Certificat daté, limité au catalogue public exposé par les pages configurées
 | Catalogue | Référence publiée / contrôle | Résultat |
 |---|---|---|
 | Avoventes | 276 cartes = 273 enchères + 3 ventes amiables hors périmètre | **273/273 enchères reconnues et retenues** ; quatre fiches publiques lues pour compléter leur département |
-| Licitor | 671 lignes réparties sur six zones ; deux répétitions identiques ; 669 lots distincts sous 653 URL | **671/671 lignes expliquées, 669 lots conservés dans 653 fiches** ; les lots partageant une URL restent séparés dans `source_lots` |
+| Licitor | 671 lignes réparties sur six zones ; deux répétitions identiques ; 669 contenus d’annonce distincts sous 653 URL | **671/671 lignes expliquées, 669 contenus d’annonce conservés dans 653 fiches** ; les lots partageant une URL restent séparés dans `source_lots` |
 | Info Enchères | Compteur 85 ; cinq pages | **85/85 reconnues et retenues** |
 | Petites Affiches | Pages 1 à 66 ; toutes les cartes identifiées | **658/658 reconnues et retenues depuis la connexion locale** ; refus GitHub inchangé |
 | Cessions État | Pages annoncées 0 à 21 ; 238 identifiants publics ; page supplémentaire répétée | **238/238 reconnues et retenues depuis la connexion locale** ; refus GitHub inchangé |
