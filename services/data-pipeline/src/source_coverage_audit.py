@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
-from src.catalogue_proof import canonical, certify_catalogue, public_page_proof
+from src.catalogue_proof import canonical, certify_catalogue, public_page_proof, record_id
 
 SOURCES = ('avoventes', 'licitor', 'vench', 'info_encheres', 'encheres_publiques',
            'petites_affiches', 'cessions_etat', 'agrasc', 'encheres_immobilieres', 'notaires')
@@ -57,6 +57,7 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     trace: list[dict] = []
     proofs: list[dict] = []
     parsed: dict[str, set[str]] = {}
+    parsed_records: dict[str, set[str]] = {}
     skipped_details = 0
     budget_exhausted = False
     original_send = httpx.Client.send
@@ -101,6 +102,9 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
             if proofs:
                 partition = proofs[-1]['partition']
                 parsed.setdefault(partition, set()).update(canonical(str(r['source_url'])) for r in rows if r.get('source_url'))
+                parsed_records.setdefault(partition, set()).update(
+                    record_id(str(r['source_url']), lot['raw_text']) for r in rows
+                    for lot in r.get('source_lots', []) if r.get('source_url') and lot.get('raw_text'))
             return rows
         return wrapper
 
@@ -132,7 +136,7 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     errors = result.errors if result else [fatal]
     certificate = certify_catalogue(source, proofs, parsed,
                                     {canonical(str(s['source_url'])) for s in sales},
-                                    errors, budget_exhausted, coverage)
+                                    errors, budget_exhausted, coverage, parsed_records)
     report = {
         'certificate': certificate,
         'source': source, 'utc': datetime.now(UTC).isoformat(),

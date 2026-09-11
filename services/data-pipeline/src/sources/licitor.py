@@ -162,7 +162,8 @@ def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details:
             getattr(client, "coverage_metrics", lambda: {})(),
         )
 
-    detail_urls = _collect_detail_urls(client, max_pages=max_pages, errors=errors)
+    listing_by_url = {sale["source_url"]: sale for sale in _collect_list_sales(client, max_pages=max_pages, errors=errors)}
+    detail_urls = list(listing_by_url)
     seen: set[str] = set()
     for detail_url in detail_urls:
         if detail_url in seen:
@@ -175,6 +176,8 @@ def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details:
             errors.append(f"{detail_url}: {exc}")
             continue
         sale = parse_licitor_detail_html(detail_html, detail_url)
+        sale["source_lots"] = listing_by_url[detail_url].get("source_lots", [])
+        sale.setdefault("source_blocks", {})["lots_publics"] = "\n\n".join(lot["raw_text"] for lot in sale["source_lots"])
         postal_code = sale.get("postal_code")
         department = str(sale.get("department") or extract_department(str(postal_code) if postal_code else None) or "")
         if department and department not in TARGET_DEPARTMENTS:
@@ -206,7 +209,7 @@ def parse_licitor_list_html(html: str, page_url: str = AQUITAINE_URL) -> tuple[l
 def parse_licitor_list_sales(html: str, page_url: str = AQUITAINE_URL) -> list[dict[str, Any]]:
     soup = BeautifulSoup(html, "html.parser")
     sales: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    by_url: dict[str, dict[str, Any]] = {}
     for link in soup.find_all("a", href=True):
         href = str(link.get("href"))
         if not re.search(r"/annonce/.+/\d+\.html$", href):
@@ -214,9 +217,6 @@ def parse_licitor_list_sales(html: str, page_url: str = AQUITAINE_URL) -> list[d
         source_url = urljoin(page_url, href)
         if not is_allowed_origin_url(source_url, ALLOWED_ORIGINS):
             continue
-        if source_url in seen:
-            continue
-        seen.add(source_url)
         container = _list_item_container(link)
         raw_text = "\n".join(
             line
@@ -228,7 +228,13 @@ def parse_licitor_list_sales(html: str, page_url: str = AQUITAINE_URL) -> list[d
         )
         sale = _parse_list_sale(source_url, raw_text)
         if sale:
-            sales.append(sale)
+            sale["source_lots"] = [{"raw_text": raw_text, "title": sale.get("title"),
+                                    "starting_price_eur": sale.get("starting_price_eur")}]
+            if source_url in by_url:
+                _merge_listing_lots(by_url[source_url], sale)
+            else:
+                by_url[source_url] = sale
+                sales.append(sale)
     return sales
 
 
@@ -332,7 +338,7 @@ def _collect_detail_urls(client: LicitorClient, max_pages: int, errors: list[str
 
 def _collect_list_sales(client: LicitorClient, max_pages: int, errors: list[str]) -> list[dict[str, Any]]:
     raw_sales: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    by_url: dict[str, dict[str, Any]] = {}
     for start_url in _start_urls_for_target_departments():
         pending = [start_url]
         visited: set[str] = set()
@@ -349,9 +355,10 @@ def _collect_list_sales(client: LicitorClient, max_pages: int, errors: list[str]
                 continue
             for sale in parse_licitor_list_sales(html, page_url):
                 source_url = str(sale.get("source_url") or "")
-                if source_url in seen:
+                if source_url in by_url:
+                    _merge_listing_lots(by_url[source_url], sale)
                     continue
-                seen.add(source_url)
+                by_url[source_url] = sale
                 department = str(sale.get("department") or "")
                 if department and department not in TARGET_DEPARTMENTS:
                     continue
@@ -361,6 +368,15 @@ def _collect_list_sales(client: LicitorClient, max_pages: int, errors: list[str]
         if pending:
             errors.append(f"Pagination incomplete at {start_url}: page limit {max_pages}")
     return raw_sales
+
+
+def _merge_listing_lots(target: dict[str, Any], incoming: dict[str, Any]) -> None:
+    lots = target.setdefault("source_lots", [])
+    for lot in incoming.get("source_lots", []):
+        if lot not in lots:
+            lots.append(lot)
+    target["raw_text"] = "\n\n".join(lot["raw_text"] for lot in lots)
+    target.setdefault("source_blocks", {})["lots_publics"] = target["raw_text"]
 
 
 def _start_urls_for_target_departments() -> tuple[str, ...]:

@@ -1,6 +1,7 @@
 """Evidence for a dated public catalogue, distinct from database completeness."""
 from __future__ import annotations
 
+import hashlib
 import re
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -13,6 +14,10 @@ COUNTERS = {
     'licitor': r'(?<!\d)(\d{1,3}(?:[ \u00a0\u202f]\d{3})*|\d+)\s+annonces\b',
     'encheres_immobilieres': r'(?<!\d)(\d{1,3}(?:[ \u00a0\u202f]\d{3})*|\d+)\s+biens en ventes?',
 }
+
+
+def record_id(url: str, text: str) -> str:
+    return hashlib.sha256((canonical(url) + "\n" + " ".join(text.split())).encode()).hexdigest()
 
 
 def canonical(url: str) -> str:
@@ -32,11 +37,15 @@ def page_index(source: str, url: str) -> int:
 
 def public_page_proof(source: str, body: str, url: str) -> dict:
     soup = BeautifulSoup(body, 'html.parser')
+    if source == 'agrasc':
+        soup = soup.select_one('.view-liste-ventes-immobilieres') or soup
     text = soup.get_text(' ', strip=True)
     totals = {int(re.sub(r'\s', '', m[1])) for m in re.finditer(COUNTERS.get(source, r'(?!)'), text, re.I)}
     candidates: set[str] = set()
     excluded: set[str] = set()
     missing_links = 0
+    records: set[str] = set()
+    unlinked_records = []
     cards = []
     if source == 'avoventes':
         cards = soup.select('[data-link]')
@@ -51,7 +60,7 @@ def public_page_proof(source: str, body: str, url: str) -> dict:
     elif source == 'info_encheres':
         cards = [r for r in soup.select('tr') if r.find('td') and r.find('td').get_text(strip=True).isdigit()]
     elif source == 'licitor':
-        cards = [a for a in soup.select('a[href]') if re.search(r'/annonce/.+/\d+\.html$', str(a['href']))]
+        cards = soup.select('.AdResults a.Ad[href]')
     for card in cards:
         href = card.get('data-link') or card.get('data-url')
         if not href:
@@ -65,12 +74,16 @@ def public_page_proof(source: str, body: str, url: str) -> dict:
             href = links[0]['href'] if links else None
         if not href:
             missing_links += 1
+            unlinked_records.append({'id': record_id(urlparse(url)._replace(query='').geturl(), card.get_text(' ', strip=True)),
+                                     'sold': 'sold' in (card.get('class') or []),
+                                     'title': card.select_one('h3').get_text(' ', strip=True) if card.select_one('h3') else None})
             continue
         target = canonical(urljoin(url, str(href)))
         if source == 'avoventes' and 'vente amiable' in card.get_text(' ', strip=True).lower():
             excluded.add(target)
         else:
             candidates.add(target)
+            records.add(record_id(target, card.get_text(" ", strip=True)))
     last_indices = set()
     for a in soup.select('a[href]'):
         markup = str(a).lower()
@@ -82,11 +95,11 @@ def public_page_proof(source: str, body: str, url: str) -> dict:
     return {'partition': partition, 'page_index': page_index(source, url),
             'advertised_totals': sorted(totals), 'advertised_last_pages': sorted(last_indices),
             'public_urls': sorted(candidates), 'outside_scope_urls': sorted(excluded),
-            'unlinked_cards': missing_links, 'card_nodes': len(cards)}
+            'unlinked_cards': missing_links, 'card_nodes': len(cards), 'public_record_ids': sorted(records), 'unlinked_records': unlinked_records}
 
 
 def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]],
-                      emitted: set[str], errors: list, budget_exhausted: bool, coverage: dict) -> dict:
+                      emitted: set[str], errors: list, budget_exhausted: bool, coverage: dict, parsed_records: dict[str, set[str]] | None = None) -> dict:
     """Fail closed; every positive certificate names its exact scope and evidence."""
     partitions = []
     discovered: set[str] = set()
@@ -105,6 +118,11 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
         extra = sorted(extracted - urls) if urls else []
         expected = next(iter(totals)) - len(outside) if len(totals) == 1 else None
         count_proof = expected is not None and expected == len(extracted)
+        public_records = {r for p in group for r in p.get('public_record_ids', [])}
+        extracted_records = (parsed_records or {}).get(partition, set())
+        if source == 'licitor':
+            count_proof = bool(expected is not None and expected == len(public_records)
+                               and public_records == extracted_records)
         page_proof = bool(lasts and len(lasts) == 1 and not missing_pages and urls and urls == extracted)
         reasons = []
         if len(totals) > 1:
@@ -119,11 +137,18 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
             reasons.append('advertised_pages_not_fetched')
         if not count_proof and not page_proof:
             reasons.append('no_matching_total_or_terminal_page_proof')
+        unlinked = {r['id']: r for p in group for r in p.get('unlinked_records', [])}
         certified = not reasons and bool(count_proof or page_proof)
+        addressable_certified = bool(certified or (reasons == ['public_cards_without_identifiers']
+                                                  and unlinked and all(r['sold'] for r in unlinked.values())
+                                                  and (count_proof or page_proof)))
         partitions.append({'partition': partition, 'certified': certified,
+                           'addressable_inventory_certified': addressable_certified,
+                           'unlinked_public_cards': list(unlinked.values()),
                            'basis': 'advertised_total' if count_proof else 'advertised_terminal_page_and_all_public_cards' if page_proof else None,
                            'advertised_totals': sorted(totals), 'outside_scope_count': len(outside),
                            'public_unique_urls': len(urls), 'parsed_unique_urls': len(extracted),
+                           'public_records': len(public_records), 'parsed_records': len(extracted_records),
                            'visited_page_indices': sorted(indices), 'advertised_last_pages': sorted(lasts),
                            'missing_page_indices': missing_pages, 'omitted_urls': omitted,
                            'extra_urls': extra, 'reasons': reasons})
@@ -136,6 +161,7 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
     not_emitted = discovered - emitted
     return {'scope': 'Public catalogue exposed by the configured listing pages at audit time; not private inventory, field completeness or database persistence.',
             'public_discovery_certified': discovery,
+            'addressable_public_inventory_certified': bool((discovery or (partitions and all(p['addressable_inventory_certified'] for p in partitions))) and not errors and not budget_exhausted),
             'all_discovered_announcements_emitted': bool(discovery and not not_emitted),
             'database_completeness_certified': False,
             'discovered_but_not_emitted_count': len(not_emitted),
