@@ -74,6 +74,8 @@ def test_pagination_reports_limit_repeat_and_exhaustion():
     pagination = PaginationCoverage()
     pagination.accept(page)
     pagination.accept([])
+    assert not pagination.metrics()["coverage_complete"]
+    pagination.accept([], terminal=True, expected_total=1)
     assert pagination.metrics()["coverage_complete"]
 
 
