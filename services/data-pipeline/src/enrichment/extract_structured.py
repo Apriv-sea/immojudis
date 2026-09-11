@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -356,6 +358,10 @@ def enrich_sale_with_llm(
     fact_contexts = [context for context in contexts if context]
     if not fact_contexts:
         return stats
+    context_complete = (sale.raw_payload.get("llm_fact_context_coverage") or {}).get("complete") is not False
+    if extraction_mode != "display_description" and not context_complete:
+        stats.errors += 1
+        stats.error_messages.append("Fact context truncated by the configured chunk budget")
     full_evidence_context = "\n\n".join(fact_contexts)
 
     client = client or create_llm_client()
@@ -369,12 +375,14 @@ def enrich_sale_with_llm(
     cache_key = _llm_cache_key(
         full_evidence_context,
         model_name,
-        prompt_version=f"{prompt_version}:{extraction_mode}:{SURFACE_REASONING_VERSION}",
+        prompt_version=f"{prompt_version}:{extraction_mode}:{SURFACE_REASONING_VERSION}:complete_v2:{settings.get('llm_fact_prompt_version')}:{settings.get('llm_display_prompt_version')}",
     )
-    cached = _load_cached_extraction(sale, cache_key, output_dir) if settings["incremental_enrichment"] else None
+    cached = _load_cached_extraction(sale, cache_key, output_dir) if settings["incremental_enrichment"] and not stats.errors else None
     if cached is not None:
         extraction = cached
         stats.valid_json += 1
+        if extraction_mode != "display_description":
+            sale.raw_payload["llm_fact_coverage"] = {"total_chunks": len(fact_contexts), "successful_chunks": len(fact_contexts), "failed_chunks": 0, "complete": True}
         _apply_extraction_to_sale(sale, extraction, stats, full_evidence_context, prompt_version=prompt_version)
         sale.raw_payload["llm_extraction"] = extraction.model_dump(mode="json")
         if extraction.assets:
@@ -389,6 +397,9 @@ def enrich_sale_with_llm(
                 build_display_description_prompt(full_evidence_context),
             )
             extraction = LLMExtraction.model_validate(raw)
+            if not _normalize_display_description(extraction.display_description):
+                stats.errors += 1
+                stats.error_messages.append("Model returned an empty display description; derived fallback only")
         except Exception as exc:
             LOGGER.warning("LLM display synthesis failed for %s: %s", sale.source_url, exc)
             stats.errors += 1
@@ -399,8 +410,14 @@ def enrich_sale_with_llm(
         failed_chunks = 0
         for index, context in enumerate(fact_contexts, start=1):
             try:
-                raw = client.generate_json(SYSTEM_PROMPT, build_user_prompt(context))
-                chunk_extractions.append(LLMExtraction.model_validate(raw))
+                chunk_key = _llm_cache_key(context, model_name, f"facts_complete_v2:{settings.get('llm_fact_prompt_version')}:{SURFACE_REASONING_VERSION}")
+                chunk_path = output_dir / "chunks" / f"{chunk_key}.json"
+                chunk = _read_fact_chunk(chunk_path) if settings["incremental_enrichment"] else None
+                if chunk is None:
+                    raw = client.generate_json(SYSTEM_PROMPT, build_user_prompt(context))
+                    chunk = LLMExtraction.model_validate(raw)
+                    _atomic_json(chunk_path, chunk.model_dump(mode="json"))
+                chunk_extractions.append(chunk)
                 stats.fact_chunks_analyzed += 1
             except Exception as exc:
                 failed_chunks += 1
@@ -417,7 +434,7 @@ def enrich_sale_with_llm(
             "total_chunks": len(fact_contexts),
             "successful_chunks": len(chunk_extractions),
             "failed_chunks": failed_chunks,
-            "complete": failed_chunks == 0,
+            "complete": failed_chunks == 0 and context_complete,
         }
         sale.raw_payload["llm_fact_prompt_version"] = str(
             settings.get("llm_fact_prompt_version") or prompt_version
@@ -438,6 +455,8 @@ def enrich_sale_with_llm(
                     build_display_description_prompt(display_context),
                 )
                 display_extraction = LLMExtraction.model_validate(display_raw)
+                if not _normalize_display_description(display_extraction.display_description):
+                    raise ValueError("Model returned an empty display description")
                 extraction.display_description = display_extraction.display_description
                 if "display_description" in display_extraction.confidence:
                     extraction.confidence["display_description"] = display_extraction.confidence[
@@ -452,12 +471,15 @@ def enrich_sale_with_llm(
                 stats.error_messages.append(_llm_error_message(sale, exc))
 
     stats.valid_json += 1
-    _save_extraction(sale, extraction, output_dir, cache_key=cache_key, model=model_name, prompt_version=prompt_version)
+    if not stats.errors:
+        _save_extraction(sale, extraction, output_dir, cache_key=cache_key, model=model_name, prompt_version=prompt_version)
     _apply_extraction_to_sale(sale, extraction, stats, full_evidence_context, prompt_version=prompt_version)
     sale.raw_payload["llm_extraction"] = extraction.model_dump(mode="json")
     if extraction_mode != "display_description":
         sale.raw_payload["llm_fact_extraction"] = extraction.model_dump(mode="json")
     sale.raw_payload["llm_cache_hit"] = False
+    if stats.errors:
+        sale.raw_payload.pop("llm_prompt_version", None)
     return stats
 
 
@@ -468,6 +490,8 @@ def apply_cached_llm_extraction_to_sale(sale: AuctionSale, *, prompt_version: st
     new public display field populate it from a previously validated extraction
     without re-downloading PDFs or calling Replicate again.
     """
+    if sale.raw_payload.get("source_content_changed") or (sale.raw_payload.get("llm_fact_coverage") or {}).get("complete") is False:
+        return False
     payload = sale.raw_payload.get("llm_extraction") if isinstance(sale.raw_payload, dict) else None
     if not isinstance(payload, dict):
         return False
@@ -956,8 +980,28 @@ def _save_extraction(
     payload = extraction.model_dump(mode="json")
     if cache_key or model or prompt_version:
         payload["_cache"] = {"key": cache_key, "model": model, "prompt_version": prompt_version}
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _atomic_json(path, payload)
     return path
+
+
+def _atomic_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            json.dump(payload, handle, ensure_ascii=False)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _read_fact_chunk(path: Path) -> LLMExtraction | None:
+    try:
+        return LLMExtraction.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return None
 
 
 def _load_cached_extraction(sale: AuctionSale, cache_key: str, output_dir: Path) -> LLMExtraction | None:

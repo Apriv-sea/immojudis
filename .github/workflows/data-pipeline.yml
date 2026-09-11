@@ -96,6 +96,8 @@ jobs:
       PDF_DOCLING_ENABLED: false
       PDF_OCR_ENABLED: true
       PDF_MAX_DOCUMENTS_PER_SALE: 6
+      PDF_MAX_DOWNLOAD_MB: 50
+      PDF_MAX_TOTAL_PAGES: 300
       ENABLE_LICITOR_BENCHMARK: true
       ENABLE_VENCH_BENCHMARK: true
       ENABLE_INFO_ENCHERES_BENCHMARK: true
@@ -123,7 +125,8 @@ jobs:
           cache-dependency-path: services/data-pipeline/requirements.txt
 
       - name: Restore pipeline extraction cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: extraction-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             services/data-pipeline/data/documents
@@ -158,6 +161,7 @@ jobs:
         run: python -m src.official_sources.justice_reference_sync
 
       - name: Run manually requested pipeline
+        id: pipeline
         env:
           REQUESTED_PUBLICATION_CHECK: ${{ github.event.inputs.publication_check }}
           REQUESTED_ENRICHMENT_ONLY: ${{ github.event.inputs.enrichment_only }}
@@ -167,6 +171,7 @@ jobs:
           REQUESTED_LLM_BACKFILL: ${{ github.event.inputs.llm_backfill }}
         run: |
           set -euo pipefail
+          : "${SUPABASE_DB_URL:?Transactional publication requires SUPABASE_DB_URL}"
 
           if [ "$REQUESTED_PUBLICATION_CHECK" = "true" ]; then
             python -m src.verify_publication
@@ -189,6 +194,23 @@ jobs:
           fi
           python -m src.main "${args[@]}"
 
+      - name: Finalize unfinished run
+        if: always() && inputs.publication_check != true
+        env:
+          REQUESTED_RUN_ID: ${{ inputs.run_id }}
+        run: python -m src.run_finalizer
+
       - name: Report source coverage and enrichment backlog
         if: always()
         run: python -m src.pipeline_health
+
+      - name: Save extraction checkpoints
+        if: always() && steps.pipeline.outcome != 'skipped' && inputs.publication_check != true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            services/data-pipeline/data/documents
+            services/data-pipeline/data/raw/pdf_texts
+            services/data-pipeline/data/raw/docling_texts
+            services/data-pipeline/data/processed/llm_extractions
+          key: immojudis-data-pipeline-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}

@@ -13,3 +13,12 @@ Issuer: Sectigo Public Server Authentication Root R46.
 Live verified request: HTTP 200 with the intermediate; certificate verification
 failure without it. Remove this workaround when the origin serves a full chain.
 Do not add a root or enable partial-chain trust to accommodate future failures.
+
+## Cessions État — Sectigo OV R36
+
+`sectigo-public-ov-r36.pem` : intermédiaire Sectigo Public Server Authentication CA OV R36.
+URL AIA publiée par le certificat du site : `http://crt.sectigo.com/SectigoPublicServerAuthenticationCAOVR36.crt`.
+SHA-256 DER : `6542d176bed50f193c0ce297ae44ecd8a0a86bec2ede682769344059b4e78530`.
+Validité : 22 mars 2021 au 21 mars 2036. Test du 11 septembre 2026 : HTTP 200,
+avec racines certifi, CERT_REQUIRED, contrôle du hostname et confiance partielle désactivée.
+Le transport de l’intermédiaire public ne remplace pas la vérification cryptographique de sa chaîne.

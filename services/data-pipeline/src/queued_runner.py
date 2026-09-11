@@ -11,7 +11,7 @@ from src.cadastre import enrich_cadastre_sales
 from src.config import load_settings
 from src.dpe import enrich_dpe_sales
 from src.enrichment.extract_structured import enrich_sale_with_llm
-from src.enrichment.llm_client import LLMClientUnavailable, create_llm_client
+from src.enrichment.llm_client import create_llm_client
 from src.freshness import documents_are_current
 from src.information_agent_evidence import run_information_agent_evidence_batch
 from src.main import (
@@ -204,6 +204,13 @@ def run_data_refresh_request(request: dict[str, object]) -> int:
     return 0
 
 
+def _finish_job(job: dict[str, object], **kwargs) -> None:
+    # A worker whose lease expired must not finish a later worker's attempt.
+    if job.get("attempt_count") is not None:
+        kwargs["attempt_count"] = int(job["attempt_count"])
+    finish_auction_enrichment_job_in_supabase(str(job.get("id") or ""), **kwargs)
+
+
 def run_enrichment_queue_batch(*, limit: int) -> int:
     jobs = claim_auction_enrichment_jobs_from_supabase(limit=limit)
     if not jobs:
@@ -214,39 +221,27 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
         if source_url:
             jobs_by_sale[source_url].append(job)
 
-    needs_llm = any(
-        str(job.get("job_type") or "") in {"fact_extraction", "display_description"}
-        for job in jobs
-    )
     settings = load_settings()
-    display_only_mode = str(settings.get("llm_extraction_mode") or "display_description") == "display_description"
     prompt_version = str(settings.get("llm_prompt_version") or "")
     llm_client = None
-    if needs_llm:
-        try:
-            llm_client = create_llm_client()
-        except LLMClientUnavailable as exc:
-            for job in jobs:
-                finish_auction_enrichment_job_in_supabase(
-                    str(job.get("id") or ""),
-                    succeeded=False,
-                    error_message=str(exc),
-                )
-            return len(jobs)
 
     for source_url, sale_jobs in jobs_by_sale.items():
-        sale = fetch_sale_for_data_refresh(source_url)
+        try:
+            sale = fetch_sale_for_data_refresh(source_url)
+        except Exception as exc:
+            for job in sale_jobs:
+                _finish_job(job, succeeded=False, error_message=str(exc))
+            continue
         if sale is None:
             for job in sale_jobs:
-                finish_auction_enrichment_job_in_supabase(
-                    str(job.get("id") or ""),
+                _finish_job(job,
                     succeeded=False,
                     error_message="sale not found",
                 )
             continue
         if sale.sale_date is not None and sale.sale_date < datetime.now(UTC):
             for job in sale_jobs:
-                finish_auction_enrichment_job_in_supabase(str(job.get("id") or ""), succeeded=True)
+                _finish_job(job, succeeded=True)
             continue
         job_types = {str(job.get("job_type") or "") for job in sale_jobs}
         try:
@@ -255,25 +250,29 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                 if pdf_stats.errors or (sale.raw_payload.get("document_analysis") or {}).get("failed_documents"):
                     raise RuntimeError("Document extraction incomplete; retry required")
             if job_types & {"fact_extraction", "display_description"}:
-                if llm_client is None:
-                    raise RuntimeError("LLM client unavailable")
                 # The early scan upsert enqueues a safety-net job before the
                 # inline Qwen call. If the final upsert already persisted the
                 # current synthesis, completing that job without another paid
                 # prediction prevents duplicate Replicate spend.
-                description_current = not _needs_llm_display_description_refresh(
+                description_current = bool(sale.raw_payload.get("llm_display_description")) and not sale.raw_payload.get("source_content_changed") and not _needs_llm_display_description_refresh(
                     sale,
                     prompt_version=prompt_version,
                 )
-                if not (display_only_mode and description_current and "fact_extraction" not in job_types):
+                if not (description_current and "fact_extraction" not in job_types):
+                    if llm_client is None:
+                        llm_client = create_llm_client()
                     llm_stats = enrich_sale_with_llm(sale, client=llm_client, **({"extraction_mode": "structured_then_display"} if "fact_extraction" in job_types else {}))
-                    if llm_stats.unavailable or not llm_stats.valid_json:
+                    if llm_stats.unavailable or not llm_stats.valid_json or getattr(llm_stats, "errors", 0):
                         detail = (
                             llm_stats.error_messages[-1]
                             if llm_stats.error_messages
                             else "LLM extraction incomplete"
                         )
                         raise RuntimeError(detail)
+                    if not sale.raw_payload.get("llm_display_description") or _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
+                        raise RuntimeError("Missing or stale display description")
+                    if "fact_extraction" in job_types and not (sale.raw_payload.get("llm_fact_coverage") or {}).get("complete"):
+                        raise RuntimeError("Fact extraction coverage incomplete")
             if "display_description" in job_types or "fact_extraction" in job_types:
                 sale.raw_payload.pop("source_content_changed", None)
             fill_tribunal(sale)
@@ -283,15 +282,13 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
         except Exception as exc:
             LOGGER.exception("Enrichment queue failed for %s: %s", source_url, exc)
             for job in sale_jobs:
-                finish_auction_enrichment_job_in_supabase(
-                    str(job.get("id") or ""),
+                _finish_job(job,
                     succeeded=False,
                     error_message=str(exc),
                 )
             continue
         for job in sale_jobs:
-            finish_auction_enrichment_job_in_supabase(
-                str(job.get("id") or ""),
+            _finish_job(job,
                 succeeded=True,
             )
     return len(jobs)

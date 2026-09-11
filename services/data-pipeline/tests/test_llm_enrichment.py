@@ -734,7 +734,7 @@ def test_enrich_sale_with_llm_builds_fallback_display_description(tmp_path, monk
     assert "jardin" in display_description
     assert "loué" in display_description
     assert sale.raw_payload["llm_display_description_word_count"] == len(display_description.split())
-    assert sale.raw_payload["llm_prompt_version"] == "auction_llm_v5_test"
+    assert "llm_prompt_version" not in sale.raw_payload  # fallback is not a successful model synthesis
 
 
 def test_enrich_sale_with_llm_falls_back_from_low_confidence_display_description(tmp_path, monkeypatch) -> None:
@@ -1046,6 +1046,7 @@ def test_structured_llm_measurements_are_validated_then_summed_server_side(tmp_p
     stats = enrich_sale_with_llm(
         sale,
         client=StructuredRoomSurfaceClient(),
+        extraction_mode="structured_then_display",
         output_dir=tmp_path / "llm-extractions",
     )
 

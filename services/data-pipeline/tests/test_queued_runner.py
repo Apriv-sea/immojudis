@@ -250,6 +250,7 @@ def test_enrichment_queue_runs_pdf_before_fact_extraction_and_completes_jobs(mon
         queued_runner,
         "enrich_sale_with_llm",
         lambda current, client, **kwargs: calls.append("facts_then_display")
+        or current.raw_payload.update({"llm_display_description": "Description vérifiée.", "llm_prompt_version": queued_runner.load_settings()["llm_prompt_version"], "llm_fact_coverage": {"complete": True}})
         or SimpleNamespace(unavailable=False, valid_json=1, error_messages=[]),
     )
     monkeypatch.setattr(queued_runner, "normalize_asset_features", lambda current: calls.append("normalize"))
