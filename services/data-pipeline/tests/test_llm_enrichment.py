@@ -758,8 +758,10 @@ def test_enrich_sale_with_llm_falls_back_from_low_confidence_display_description
 
     display_description = sale.raw_payload["llm_display_description"]
     assert not display_description.startswith("Maison de 91,4 m² décrite par la source")
-    assert display_description.startswith("Maison.")
-    assert "surface de 91,4 m²" in display_description
+    assert display_description.startswith("Bien immobilier.")
+    assert "91,4" not in display_description
+    assert "4 pièces" not in display_description
+    assert sale.raw_payload["llm_display_evidence_check"]["issues"]
     assert sale.raw_payload["llm_display_description_word_count"] == len(display_description.split())
 
 
