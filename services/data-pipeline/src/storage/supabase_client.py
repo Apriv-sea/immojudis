@@ -267,6 +267,7 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
             document_fingerprint(sale.documents),
             sorted((str(profile.get("url") or ""), str(profile.get("sha256") or "")) for profile in analysis.get("profiles", []) if isinstance(profile, dict)),
             prompt_version, str(settings.get("replicate_model") or ""),
+            settings.get("llm_fact_prompt_version"), settings.get("llm_display_prompt_version"),
             sorted((url, check.get("fingerprint")) for url, check in checks.items()),
         ], sort_keys=True).encode()).hexdigest()
         kinds = []
@@ -287,8 +288,8 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
         for kind, fingerprint, priority in kinds:
             jobs.append({"source_url": sale.source_url, "job_type": kind,
                          "input_hash": "pipeline_v2:" + fingerprint,
-                         # Older jobs eventually outrank freshly discovered PDFs.
-                         "priority": priority - int(datetime.now(UTC).timestamp() // 3600)})
+                         # Queue ordering applies age and urgency to every generation.
+                         "priority": priority})
     if jobs:
         if _PUBLICATION_CONNECTION.get() is not None:
             _transaction_write("auction_enrichment_jobs", jobs, "source_url,job_type,input_hash", ignore_conflicts=True)
@@ -312,6 +313,7 @@ def upsert_sales_to_supabase(
         # All product tables commit together. A failed transaction never falls
         # back to partially committed REST writes.
         with _postgres_connect(str(db_url)) as connection:
+            connection.execute("select set_config('app.pipeline_queue_owner', 'python', true)")
             connection.execute("set local lock_timeout = '15s'")
             connection.execute("set local statement_timeout = '120s'")
             token = _PUBLICATION_CONNECTION.set(connection)
@@ -539,6 +541,7 @@ def finish_auction_enrichment_job_in_supabase(
     *,
     succeeded: bool,
     error_message: str | None = None,
+    attempt_count: int | None = None,
 ) -> None:
     settings = load_settings()
     url = settings["supabase_url"]
@@ -557,7 +560,8 @@ def finish_auction_enrichment_job_in_supabase(
         payload["next_attempt_at"] = (now + timedelta(minutes=30)).isoformat()
     response = httpx.patch(
         f"{str(url).rstrip('/')}/rest/v1/auction_enrichment_jobs",
-        params={"id": f"eq.{job_id}", "status": "eq.running"},
+        params={"id": f"eq.{job_id}", "status": "eq.running",
+                **({"attempt_count": f"eq.{attempt_count}"} if attempt_count is not None else {})},
         headers=_rest_headers(str(key), prefer="return=minimal"),
         json=payload,
         timeout=30,

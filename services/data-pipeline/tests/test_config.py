@@ -70,7 +70,7 @@ def test_load_settings_uses_bounded_runtime_defaults(monkeypatch) -> None:
     assert settings["pipeline_enrich_workers"] == 2
     assert settings["pipeline_llm_workers"] == 1
     assert settings["pipeline_pdf_max_targets"] == 10
-    assert settings["pipeline_llm_max_targets"] == 0
+    assert settings["pipeline_llm_max_targets"] == 20
     assert settings["pipeline_llm_backfill_max_targets"] == 20
     assert settings["pipeline_llm_backfill_progress_every"] == 5
     assert settings["pipeline_llm_failure_cooldown_hours"] == 24

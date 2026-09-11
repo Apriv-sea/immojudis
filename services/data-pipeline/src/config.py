@@ -160,7 +160,7 @@ def load_settings() -> dict[str, str | float | None]:
         "pipeline_pdf_max_targets": max(0, int(os.getenv("PIPELINE_PDF_MAX_TARGETS", "10"))),
         # 0 means every eligible sale collected by the scan is summarized in
         # that same run. The explicit backfill limit remains separately bounded.
-        "pipeline_llm_max_targets": max(0, int(os.getenv("PIPELINE_LLM_MAX_TARGETS", "0"))),
+        "pipeline_llm_max_targets": max(0, int(os.getenv("PIPELINE_LLM_MAX_TARGETS", "20"))),
         "pipeline_llm_backfill_max_targets": max(
             1,
             int(os.getenv("PIPELINE_LLM_BACKFILL_MAX_TARGETS", os.getenv("PIPELINE_LLM_MAX_TARGETS", "20"))),
@@ -221,6 +221,7 @@ def load_settings() -> dict[str, str | float | None]:
         "pdf_docling_ocr_chunk_pages": int(os.getenv("PDF_DOCLING_OCR_CHUNK_PAGES", "2")),
         "pdf_max_documents_per_sale": int(os.getenv("PDF_MAX_DOCUMENTS_PER_SALE", "6")),
         "pdf_max_download_mb": max(1, int(os.getenv("PDF_MAX_DOWNLOAD_MB", "25"))),
+        "pdf_max_total_pages": max(1, int(os.getenv("PDF_MAX_TOTAL_PAGES", "300"))),
         "pdf_max_extract_pages": max(1, int(os.getenv("PDF_MAX_EXTRACT_PAGES", "75"))),
         "document_max_extracted_text_chars": max(
             10_000,

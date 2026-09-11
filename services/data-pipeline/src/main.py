@@ -43,6 +43,7 @@ from src.quality import (
     format_extraction_gap_report,
     format_quality_report,
 )
+from src.run_finalizer import register_run
 from src.sale_procedure import classify_sale_procedure
 from src.sources.agrasc import scrape_agrasc_aquitaine_result
 from src.sources.avoventes import scrape_avoventes_aquitaine_result
@@ -202,6 +203,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     options = options or PipelineOptions()
     settings = load_settings()
     run_id = create_run_in_supabase(options.source, options.use_llm, run_id=options.run_id) if options.upsert else None
+    register_run(run_id)
     errors: dict[str, list[str]] = {source: [] for source in SOURCE_NAMES}
     raw_sales: list[dict[str, object]] = []
     raw_by_source = {source: 0 for source in SOURCE_NAMES}
@@ -413,6 +415,8 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 try:
                     item_stats = future.result()
                     _merge_pdf_stats(pdf_stats, item_stats)
+                    if options.upsert:
+                        _checkpoint_enrichment(sale)
                     if item_stats.errors:
                         errors.setdefault("documents", []).append(f"{sale.source_url}: {item_stats.errors} document errors")
                 except Exception as exc:
@@ -463,6 +467,8 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 elif not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
                     sale.raw_payload.pop("source_content_changed", None)
                     _clear_llm_description_failure(sale)
+                if options.upsert:
+                    _checkpoint_enrichment(sale)
     timings["llm_seconds"] = round(time.perf_counter() - started, 2)
 
     # ── Phase 3 : finition (géocode réseau léger, tribunal, scoring) ─────────
@@ -531,7 +537,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
         "heavy_enrichment_enabled": options.heavy_enrichment,
         "stage_status": {
             "collection": "failed" if collection_failed else "partial" if coverage_incomplete else "unverified" if any(item.get("coverage_complete") is None for item in scrape_coverage.values()) else "complete",
-            "enrichment": "partial" if pdf_stats.errors or llm_stats.errors or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete",
+            "enrichment": "partial" if pdf_stats.errors or llm_stats.errors or llm_stats.unavailable or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete",
             "publication": "pending",
         },
     }
@@ -600,7 +606,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                     "deleted_vench_without_surface": supabase_deleted_vench_without_surface,
                 }
             )
-            summary["completion_status"] = "partial_success" if any(errors.values()) or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete"
+            summary["completion_status"] = "partial_success" if any(errors.values()) or llm_stats.unavailable or timings.get("pdf_targets_deferred") or timings.get("llm_targets_deferred") else "complete"
             summary["stage_status"]["publication"] = "complete"
             finish_run_in_supabase(run_id, "succeeded", summary, errors)
         except Exception as exc:
@@ -683,7 +689,9 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
         return 0
 
     run_id = create_run_in_supabase("llm-description-backfill", True, run_id=options.run_id) if options.upsert else None
+    register_run(run_id)
     completed = 0
+    persisted_urls: set[str] = set()
     progress_summary = _llm_backfill_progress_summary(
         selected=len(sales),
         completed=completed,
@@ -750,6 +758,9 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
                     failed_sales.append(sale)
             elif not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
                 _clear_llm_description_failure(sale)
+            if options.upsert:
+                _checkpoint_enrichment(sale)
+                persisted_urls.add(sale.source_url)
             if options.upsert and _should_update_llm_backfill_progress(
                 completed,
                 total=len(sales),
@@ -774,11 +785,12 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
     updated_sales = [
         sale for sale in sales if not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version)
     ]
-    upserted = 0
-    upsert_candidates = _unique_sales_by_source_url([*updated_sales, *failed_sales])
+    upserted = len(persisted_urls)
+    upsert_candidates = [sale for sale in _unique_sales_by_source_url([*updated_sales, *failed_sales])
+                         if sale.source_url not in persisted_urls]
     if options.upsert and upsert_candidates:
         started = time.perf_counter()
-        upserted = upsert_sales_to_supabase(upsert_candidates)
+        upserted += upsert_sales_to_supabase(upsert_candidates, refresh_last_seen=False)
         timings["supabase_seconds"] = round(time.perf_counter() - started, 2)
 
     summary = {
@@ -797,7 +809,7 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
         "llm_unavailable": llm_stats.unavailable,
     }
     if options.upsert:
-        status = "succeeded" if not llm_stats.unavailable else "failed"
+        status = "failed" if llm_stats.unavailable or any(errors.values()) else "succeeded"
         finish_run_in_supabase(run_id, status, summary, errors)
 
     print("LLM description backfill summary")
@@ -810,7 +822,14 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
     for key, value in timings.items():
         print(f"- timing_{key}: {value}")
     print(f"- errors: { {source: len(items) for source, items in errors.items()} }")
-    return 0 if not llm_stats.unavailable else 1
+    return 1 if llm_stats.unavailable or any(errors.values()) else 0
+
+
+def _checkpoint_enrichment(sale: AuctionSale) -> None:
+    """Commit a finished item before waiting for the next costly operation."""
+    _finalize_sale_for_app(sale, geocode=False)
+    if upsert_sales_to_supabase([sale], refresh_last_seen=False) != 1:
+        raise RuntimeError(f"Enrichment checkpoint was not persisted: {sale.source_url}")
 
 
 def _should_update_llm_backfill_progress(completed: int, *, total: int, every: int) -> bool:

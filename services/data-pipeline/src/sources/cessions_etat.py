@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 import re
+import ssl
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
+import certifi
 from bs4 import BeautifulSoup, Tag
 
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
@@ -33,6 +36,13 @@ DETAIL_FIELDS = {
 SURFACE_VALUE_PATTERN = r"([0-9]+(?:[ .][0-9]{3})*(?:[,.][0-9]+)?|[0-9]+(?:[,.][0-9]+)?)"
 
 
+def cessions_tls_context() -> ssl.SSLContext:
+    context = ssl.create_default_context(cafile=certifi.where())
+    context.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
+    context.load_verify_locations(str(Path(__file__).with_name("certificates") / "sectigo-public-ov-r36.pem"))
+    return context
+
+
 def scrape_cessions_etat_aquitaine(max_pages: int | None = None) -> list[dict[str, Any]]:
     return scrape_cessions_etat_aquitaine_result(max_pages=max_pages).sales
 
@@ -43,6 +53,7 @@ def scrape_cessions_etat_aquitaine_result(
     settings = load_settings()
     client = PoliteHttpClient(
         base_url=BASE_URL,
+        tls_context=cessions_tls_context(),
         user_agent=str(settings["browser_user_agent"]),
         delay_seconds=float(settings["request_delay_seconds"]),
         timeout_seconds=float(settings["request_timeout_seconds"]),

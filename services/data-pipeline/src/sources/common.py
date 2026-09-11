@@ -218,7 +218,7 @@ class PoliteHttpClient:
         try:
             for redirect_count in range(MAX_SAFE_REDIRECTS + 1):
                 self._guard(current_url)
-                response = self._client.request(current_method, current_url, **kwargs)
+                response = self._request_with_retries(current_method, current_url, **kwargs)
                 if response.status_code not in REDIRECT_STATUS_CODES:
                     response.raise_for_status()
                     self._requests_succeeded += 1
@@ -242,6 +242,36 @@ class PoliteHttpClient:
             raise
         finally:
             self._last_request_at = time.monotonic()
+
+    def _request_with_retries(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        # Retry only transient reads. Access refusals and invalid TLS chains
+        # need an operator/source fix, not repeated traffic.
+        for attempt in range(3):
+            try:
+                response = self._client.request(method, url, **kwargs)
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                if attempt == 2 or "CERTIFICATE_VERIFY_FAILED" in str(exc):
+                    raise
+            else:
+                if response.status_code not in {408, 429, 500, 502, 503, 504} or attempt == 2:
+                    return response
+                retry_after = response.headers.get("retry-after")
+                if retry_after:
+                    # Do not retry before the source's deadline, nor block a
+                    # collector indefinitely. Long/date-form delays defer the source.
+                    try:
+                        requested_delay = float(retry_after)
+                    except ValueError:
+                        return response
+                    if requested_delay > 60:
+                        return response
+                else:
+                    requested_delay = 0
+                response.close()
+                time.sleep(max(self.delay_seconds, 2 ** attempt, requested_delay))
+                continue
+            time.sleep(max(self.delay_seconds, 2 ** attempt))
+        raise RuntimeError("Source retry budget exhausted")
 
     def coverage_metrics(self) -> dict[str, Any]:
         return {

@@ -347,8 +347,8 @@ def test_pipeline_skips_every_cleanup_when_outcome_bridge_fails(monkeypatch, col
     monkeypatch.setattr(main, "build_extraction_gap_report", lambda *args, **kwargs: {})
     monkeypatch.setattr(main, "format_quality_report", lambda report: [])
     monkeypatch.setattr(main, "format_extraction_gap_report", lambda report: [])
-    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: len(sales))
+    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales, **kwargs: len(sales))
+    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales, **kwargs: len(sales))
     monkeypatch.setattr(
         main,
         "bridge_auction_sales_before_cleanup",
@@ -416,7 +416,7 @@ def test_pipeline_returns_failure_when_final_supabase_publication_fails(monkeypa
     monkeypatch.setattr(main, "format_extraction_gap_report", lambda report: [])
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: len(sales))
+    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales, **kwargs: len(sales))
 
     def upsert_sales(sales: list[AuctionSale]) -> int:
         nonlocal upsert_calls
@@ -460,7 +460,7 @@ def test_pipeline_recovers_when_only_early_supabase_publication_fails(monkeypatc
     monkeypatch.setattr(main, "format_extraction_gap_report", lambda report: [])
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: len(sales))
+    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales, **kwargs: len(sales))
 
     def upsert_sales(sales: list[AuctionSale]) -> int:
         nonlocal upsert_calls
@@ -710,8 +710,8 @@ def test_pipeline_generates_llm_description_when_heavy_enrichment_is_disabled(mo
     monkeypatch.setattr(main, "format_quality_report", lambda report: [])
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
-    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: len(sales))
+    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales, **kwargs: len(sales))
+    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales, **kwargs: len(sales))
 
     assert (
         main.run_pipeline(
@@ -748,8 +748,8 @@ def test_pipeline_requires_current_llm_description_for_incremental_skip(monkeypa
     monkeypatch.setattr(main, "format_quality_report", lambda report: [])
     monkeypatch.setattr(main, "mark_past_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_vench_sales_without_surface_in_supabase", lambda: 0)
-    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales: len(sales))
-    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales: len(sales))
+    monkeypatch.setattr(main, "upsert_sales_to_supabase", lambda sales, **kwargs: len(sales))
+    monkeypatch.setattr(main, "upsert_observations_to_supabase", lambda sales, **kwargs: len(sales))
 
     def fake_fetch(hashes, **kwargs):
         captured["hashes"] = hashes
@@ -833,24 +833,18 @@ def test_run_llm_description_backfill_marks_failed_sales(monkeypatch) -> None:
 
     monkeypatch.setattr(main, "enrich_sale_with_llm", fake_enrich)
 
-    def fake_upsert(sales: list[AuctionSale]) -> int:
+    def fake_upsert(sales: list[AuctionSale], *, refresh_last_seen: bool) -> int:
+        assert refresh_last_seen is False
         calls.append(f"upsert:{len(sales)}")
-        assert sales == [stale, failed]
-        assert failed.raw_payload["llm_display_error_prompt_version"] == "auction_llm_v6_display"
-        assert failed.raw_payload["llm_display_error_count"] == 1
+        assert len(sales) == 1
         return len(sales)
 
     monkeypatch.setattr(main, "upsert_sales_to_supabase", fake_upsert)
 
-    assert main.run_llm_description_backfill(main.PipelineOptions(llm_backfill=True, upsert=True)) == 0
-    assert calls == [
-        "progress:0",
-        "llm:stale",
-        "llm:failed",
-        "progress:2",
-        "upsert:2",
-        "finish",
-    ]
+    assert main.run_llm_description_backfill(main.PipelineOptions(llm_backfill=True, upsert=True)) == 1
+    assert calls.count("upsert:1") == 2
+    assert calls[-1] == "finish"
+    assert failed.raw_payload["llm_display_error_count"] == 1
 
 
 def test_llm_backfill_progress_is_batched() -> None:

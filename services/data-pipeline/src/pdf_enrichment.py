@@ -444,7 +444,23 @@ def _send_pinned_document_request(
         timeout=timeout_seconds,
         trust_env=False,
     ) as client:
-        return client.get(target.url, headers=headers)
+        with client.stream("GET", target.url, headers=headers) as response:
+            content = _read_document_stream(response, int(load_settings()["pdf_max_download_mb"]) * 1024 * 1024)
+            response_headers = dict(response.headers)
+            response_headers.pop("content-encoding", None)
+            response_headers["content-length"] = str(len(content))
+            return httpx.Response(response.status_code, headers=response_headers, content=content, request=response.request)
+
+
+def _read_document_stream(response: httpx.Response, max_bytes: int) -> bytes:
+    parts = []
+    size = 0
+    for chunk in response.iter_bytes(chunk_size=64 * 1024):
+        size += len(chunk)
+        if size > max_bytes:
+            raise ValueError(f"document exceeds the {max_bytes}-byte download limit")
+        parts.append(chunk)
+    return b"".join(parts)
 
 
 def _resolve_public_document_target(
@@ -776,16 +792,34 @@ def _extract_pdf_text_with_docling_subprocess(path: Path, timeout: float) -> str
 
 def extract_pdf_pages(file: str | Path) -> list[dict[str, object]]:
     pages: list[dict[str, object]] = []
-    max_pages = int(load_settings()["pdf_max_extract_pages"])
+    settings = load_settings()
+    max_pages = int(settings["pdf_max_extract_pages"])
+    hard_limit = int(settings.get("pdf_max_total_pages", 300))
     with fitz.open(file) as document:
-        if document.page_count > max_pages:
-            raise ValueError(f"PDF exceeds the {max_pages}-page extraction limit")
+        if document.page_count > hard_limit:
+            raise ValueError(f"PDF exceeds the {hard_limit}-page safety limit")
+        # Long text PDFs are inexpensive. Only OCR consumes the per-pass budget.
+        cache_key = hashlib.sha256(Path(file).read_bytes() + str((settings["pdf_ocr_enabled"], settings["pdf_ocr_language"], PDF_TEXT_CACHE_VERSION)).encode()).hexdigest()
+        cache_dir = PDF_DOCUMENT_TEXTS_DIR / "pages" / cache_key
+        ocr_attempts = 0
         for index, page in enumerate(document, start=1):
+            cache_path = cache_dir / f"{index}.json"
+            if cache_path.exists():
+                try:
+                    cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                    if cached.get("page") == index and isinstance(cached.get("text"), str):
+                        pages.append(cached)
+                        continue
+                except (OSError, ValueError, AttributeError):
+                    pass
             raw_text = page.get_text("text") or ""
             method = "pymupdf_text"
             confidence = _page_text_confidence(raw_text, method=method)
             text = raw_text
             if _should_try_ocr(raw_text):
+                if ocr_attempts >= max_pages:
+                    raise ValueError(f"OCR pass budget reached; {index - 1}/{document.page_count} pages checkpointed; retry resumes")
+                ocr_attempts += 1
                 result = _extract_page_text_with_ocr_result(page, fallback=raw_text)
                 text = str(result["text"])
                 method = str(result["method"])
@@ -801,6 +835,10 @@ def extract_pdf_pages(file: str | Path) -> list[dict[str, object]]:
                     "confidence": confidence,
                 }
             )
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            temporary = cache_path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(pages[-1], ensure_ascii=False), encoding="utf-8")
+            temporary.replace(cache_path)
     return pages
 
 
