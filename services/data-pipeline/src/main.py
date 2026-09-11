@@ -16,6 +16,7 @@ from src.cadastre import enrich_cadastre_sales
 from src.config import load_settings
 from src.dedupe import merge_duplicate_sales
 from src.dpe import enrich_dpe_sales
+from src.enrichment.display_quality import has_current_display
 from src.enrichment.extract_structured import (
     LLMEnrichmentStats,
     apply_cached_llm_extraction_to_sale,
@@ -163,6 +164,8 @@ KNOWN_ENRICHMENT_PAYLOAD_FIELDS = (
     "llm_display_description",
     "llm_display_description_word_count",
     "llm_display_status",
+    "llm_display_quality_version",
+    "llm_display_source_constraints",
     "llm_prompt_version",
     "document_analysis",
     "surface_extraction",
@@ -1340,9 +1343,7 @@ def _needs_llm_display_description_refresh(
     current_prompt_version = clean_payload_text(
         prompt_version if prompt_version is not None else load_settings().get("llm_prompt_version")
     )
-    if not current_prompt_version:
-        return False
-    return clean_payload_text(sale.raw_payload.get("llm_prompt_version")) != current_prompt_version
+    return not has_current_display(sale.raw_payload, current_prompt_version)
 
 
 def _sale_has_llm_context(sale: AuctionSale) -> bool:

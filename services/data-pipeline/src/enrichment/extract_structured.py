@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.config import LLM_EXTRACTIONS_DIR, PDF_TEXTS_DIR, load_settings
+from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION, preserve_source_constraints
 from src.enrichment.llm_client import ReplicateClient, create_llm_client
 from src.enrichment.prompts import (
     DISPLAY_DESCRIPTION_SYSTEM_PROMPT,
@@ -1239,6 +1240,26 @@ def _apply_extraction_to_sale(
             sale.raw_payload["llm_display_status"] = "fallback"
             sale.raw_payload["llm_display_description"] = fallback_display_description
             sale.raw_payload["llm_display_description_word_count"] = len(fallback_display_description.split())
+
+    # Revalidate cached generations too; do not certify stale text on rejection.
+    if sale.raw_payload["llm_display_status"] == "rejected":
+        sale.raw_payload.pop("llm_display_description", None)
+    checked_display, source_quotes = preserve_source_constraints(
+        sale.raw_payload.get("llm_display_description"), extract_source_description(sale),
+        max_chars=DISPLAY_DESCRIPTION_MAX_CHARS, max_words=DISPLAY_DESCRIPTION_MAX_WORDS,
+    )
+    sale.raw_payload["llm_display_source_constraints"] = source_quotes
+    sale.raw_payload.pop("llm_display_quality_version", None)
+    if checked_display:
+        sale.raw_payload["llm_display_description"] = checked_display
+        sale.raw_payload["llm_display_description_word_count"] = len(checked_display.split())
+        sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
+    else:
+        sale.raw_payload["llm_display_status"] = "rejected"
+        sale.raw_payload.pop("llm_display_description", None)
+        sale.raw_payload.pop("llm_display_description_word_count", None)
+        stats.errors += 1
+        stats.error_messages.append("Display quality rejected: no summary preserving source constraints within budget")
 
     risk_notes = _format_risk_notes(extraction)
     if risk_notes:

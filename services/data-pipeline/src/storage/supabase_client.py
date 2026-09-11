@@ -32,6 +32,7 @@ from src.asset_normalization import (
 from src.config import LLM_EXTRACTIONS_DIR, PDF_TEXTS_DIR, load_settings
 from src.court_competence import tribunal_reference_rows
 from src.dedupe import merge_duplicate_sales
+from src.enrichment.display_quality import has_current_display
 from src.freshness import document_fingerprint, documents_are_current
 from src.models import AuctionSale
 from src.normalize import make_sale_signature
@@ -1119,14 +1120,7 @@ def _fetch_dedupe_candidate_sales(
 
 
 def _has_current_llm_description(raw_payload: Any, prompt_version: str | None) -> bool:
-    if not isinstance(raw_payload, dict):
-        return False
-    display_description = raw_payload.get("llm_display_description")
-    if not isinstance(display_description, str) or not display_description.strip():
-        return False
-    if not prompt_version:
-        return True
-    return raw_payload.get("llm_prompt_version") == prompt_version
+    return has_current_display(raw_payload, prompt_version)
 
 
 def _has_recent_llm_description_failure(

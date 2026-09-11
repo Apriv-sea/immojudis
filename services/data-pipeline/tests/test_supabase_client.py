@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from src.court_competence import CompetentCourtAssignment
+from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION
 from src.normalize import normalize_sale
 from src.storage import supabase_client
 from src.storage.supabase_client import _sanitize_postgrest_payload, _secondary_source_urls
@@ -179,6 +180,8 @@ def test_enriched_hashes_require_current_llm_description_when_requested(monkeypa
                     "content_hash": "hash-current",
                     "raw_payload": {
                         "llm_display_description": "Synthèse IA prête.",
+                        "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
+                        "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v5",
                     },
                 },
@@ -308,6 +311,8 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                     "status": "upcoming",
                     "raw_payload": {
                         "llm_display_description": "Synthèse courante.",
+                        "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
+                        "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v6_display",
                     },
                 },
