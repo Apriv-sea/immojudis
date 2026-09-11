@@ -296,7 +296,7 @@ def test_filter_catalog_sales_keeps_vench_listing_with_surface_signal() -> None:
     assert _filter_catalog_sales([sale]) == [sale]
 
 
-def test_filter_catalog_sales_drops_vench_listing_without_surface_signal() -> None:
+def test_filter_catalog_sales_defers_sparse_listing_to_common_admission() -> None:
     sale = {
         "source_name": "vench",
         "source_url": "https://www.vench.fr/vente-165999-maison.html",
@@ -304,7 +304,7 @@ def test_filter_catalog_sales_drops_vench_listing_without_surface_signal() -> No
         "raw_text": "Mise à prix : 100 000 € Date de la vente : 25/06/26",
     }
 
-    assert _filter_catalog_sales([sale]) == []
+    assert _filter_catalog_sales([sale]) == [sale]
 
 
 def test_filter_catalog_sales_backfills_paywalled_vench_from_known_details() -> None:

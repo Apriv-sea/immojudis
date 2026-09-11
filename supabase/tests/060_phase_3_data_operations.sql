@@ -106,6 +106,7 @@ from unnest(array[
   'sale-change-monitor',
   'precompute-valuations',
   'data-retention',
+  'sale-retention',
   'cnb-lawyer-directory'
 ]) as job_name;
 
@@ -224,6 +225,12 @@ insert into public.operational_job_runs (
   duration_ms
 ) values (
   'operational-health',
+  'success',
+  '2026-07-27T16:18:00Z'::timestamptz,
+  '2026-07-27T16:19:00Z'::timestamptz,
+  60000
+), (
+  'sale-retention',
   'success',
   '2026-07-27T16:18:00Z'::timestamptz,
   '2026-07-27T16:19:00Z'::timestamptz,

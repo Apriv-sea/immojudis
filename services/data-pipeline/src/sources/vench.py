@@ -114,15 +114,11 @@ def _filter_catalog_sales(
     sales: list[dict[str, Any]],
     known_details: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    kept: list[dict[str, Any]] = []
+    # Preserve discovery; common admission runs after all enrichment stages.
     for sale in sales:
         if not _has_surface_signal(sale) or _is_paywalled_or_sparse(sale):
             _backfill_from_known_detail(sale, known_details)
-        if sale.get("_known_unchanged") or _has_surface_signal(sale):
-            kept.append(sale)
-            continue
-        LOGGER.info("Skipping Vench listing without surface: %s", sale.get("source_url"))
-    return kept
+    return sales
 
 
 def _backfill_from_known_detail(

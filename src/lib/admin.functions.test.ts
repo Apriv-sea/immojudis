@@ -7,8 +7,10 @@ describe("admin dashboard AI description stats", () => {
       {
         status: "upcoming",
         raw_payload: {
-          llm_display_description: "Synthèse prête.",
+          llm_display_description: "Synthèse prête. ".repeat(8),
           llm_prompt_version: "auction_llm_v9_qwen2_7b_scan_display",
+          llm_display_quality_version: "display_quality_20260911_v3",
+          llm_display_status: "accepted",
         },
       },
       {
@@ -41,6 +43,22 @@ describe("admin dashboard AI description stats", () => {
     });
   });
 
+  it("keeps short validated-looking summaries in the backlog", () => {
+    const stats = buildAiDescriptionDashboardStats([
+      {
+        status: "upcoming",
+        raw_payload: {
+          llm_display_description: "Maison située à Paris.",
+          llm_prompt_version: "auction_llm_v9_qwen2_7b_scan_display",
+          llm_display_quality_version: "display_quality_20260911_v3",
+          llm_display_status: "fallback",
+        },
+      },
+    ]);
+    expect(stats.ready).toBe(0);
+    expect(stats.backfillRemaining).toBe(1);
+  });
+
   it("paginates all AI description rows before computing backlog stats", async () => {
     const firstPage = Array.from({ length: 1000 }, () => ({
       status: "past",
@@ -53,8 +71,10 @@ describe("admin dashboard AI description stats", () => {
       {
         status: "active",
         raw_payload: {
-          llm_display_description: "Synthèse active.",
+          llm_display_description: "Synthèse active. ".repeat(8),
           llm_prompt_version: "auction_llm_v9_qwen2_7b_scan_display",
+          llm_display_quality_version: "display_quality_20260911_v3",
+          llm_display_status: "accepted",
         },
       },
     ];

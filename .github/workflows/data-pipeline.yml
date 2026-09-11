@@ -186,6 +186,7 @@ jobs:
 
           args=(--source "${REQUESTED_SOURCE:-all}")
           if [ "${REQUESTED_LLM_BACKFILL:-false}" = "true" ]; then
+            python -m src.revalidate_displays --limit 1000
             args+=(--backfill-llm-descriptions)
           fi
           if [ -n "$REQUESTED_RUN_ID" ]; then

@@ -50,7 +50,7 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
     # Configuration is read after clearing credentials. No enrichment runner is imported.
     for key in ('SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_URL', 'REPLICATE_API_TOKEN'):
         os.environ[key] = ''
-    os.environ.update(LLM_ENABLED='false', TARGET_DEPARTMENTS='all', REQUEST_TIMEOUT_SECONDS='15', REQUEST_DELAY_SECONDS='1')
+    os.environ.update(LLM_ENABLED='false', TARGET_DEPARTMENTS='all', REQUEST_TIMEOUT_SECONDS='30', REQUEST_DELAY_SECONDS='1')
     module = importlib.import_module('src.sources.' + source)
     collector = getattr(module, 'scrape_' + source + '_aquitaine_result')
     started = time.monotonic()

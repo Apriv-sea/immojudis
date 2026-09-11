@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from src.admission import has_price_or_surface, is_expired
 from src.asset_normalization import normalize_asset_features
 from src.cadastre import enrich_cadastre_sales
 from src.config import load_settings
@@ -361,17 +362,18 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     timings["app_ready_seconds"] = round(time.perf_counter() - started, 2)
     lifecycle_stats = mark_past_sales(app_ready)
 
-    if options.upsert and app_ready:
+    early_admitted = [sale for sale in app_ready if has_price_or_surface(sale) and not is_expired(sale)]
+    if options.upsert and early_admitted:
         try:
             started = time.perf_counter()
-            early_upserted = upsert_sales_to_supabase(app_ready)
-            early_observations_upserted = upsert_observations_to_supabase(app_ready)
+            early_upserted = upsert_sales_to_supabase(early_admitted)
+            early_observations_upserted = upsert_observations_to_supabase(early_admitted)
             timings["early_supabase_seconds"] = round(time.perf_counter() - started, 2)
         except Exception as exc:
             LOGGER.exception("Early Supabase upsert failed: %s", exc)
             errors.setdefault("supabase", []).append(str(exc))
     early_publication_fingerprints = (
-        _sale_publication_fingerprints(app_ready) if options.upsert and early_upserted > 0 else {}
+        _sale_publication_fingerprints(early_admitted) if options.upsert and early_upserted > 0 else {}
     )
 
     cached_llm_display_refreshed = 0
@@ -506,6 +508,15 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     heavy_enrich_skipped = len(app_ready) - len(pdf_targets)
     timings["heavy_enrich_skipped"] = heavy_enrich_skipped
 
+    admission_rejected = [sale for sale in app_ready if not has_price_or_surface(sale)]
+    for sale in admission_rejected:
+        LOGGER.info("Collection admission rejected source=%s url=%s reason=missing_price_and_surface",
+                    sale.source_name, sale.source_url)
+    expired_rejected = sum(is_expired(sale) for sale in app_ready)
+    app_ready = [sale for sale in app_ready if has_price_or_surface(sale) and not is_expired(sale)]
+    admitted_urls = {sale.source_url for sale in app_ready}
+    cadastre_rows = [row for row in cadastre_rows if row.get("source_url") in admitted_urls]
+    dpe_rows = [row for row in dpe_rows if row.get("source_url") in admitted_urls]
     enriched = app_ready
     lifecycle_stats.marked_past += mark_past_sales(enriched).marked_past
     quality_report = build_quality_report(enriched, pdf_stats=pdf_stats, llm_stats=llm_stats)
@@ -528,6 +539,8 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     outcome_bridge_reused = 0
     publication_failed = False
     summary = {
+        "admission_rejected_expired": expired_rejected,
+        "admission_rejected_missing_price_and_surface": len(admission_rejected),
         "collected": len(raw_sales),
         "collected_by_source": raw_by_source,
         "scrape_coverage": scrape_coverage,
@@ -676,6 +689,7 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
         prompt_version=prompt_version,
         statuses=options.llm_backfill_statuses,
     )
+    sales = [sale for sale in sales if has_price_or_surface(sale) and not is_expired(sale)]
     timings["fetch_seconds"] = round(time.perf_counter() - started, 2)
     if not sales:
         summary = {
@@ -765,8 +779,8 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
             elif not _needs_llm_display_description_refresh(sale, prompt_version=prompt_version):
                 _clear_llm_description_failure(sale)
             if options.upsert:
-                _checkpoint_enrichment(sale)
-                persisted_urls.add(sale.source_url)
+                if _checkpoint_enrichment(sale):
+                    persisted_urls.add(sale.source_url)
             if options.upsert and _should_update_llm_backfill_progress(
                 completed,
                 total=len(sales),
@@ -831,11 +845,14 @@ def run_llm_description_backfill(options: PipelineOptions | None = None) -> int:
     return 1 if llm_stats.unavailable or any(errors.values()) else 0
 
 
-def _checkpoint_enrichment(sale: AuctionSale) -> None:
-    """Commit a finished item before waiting for the next costly operation."""
+def _checkpoint_enrichment(sale: AuctionSale) -> bool:
+    """Commit admissible progress without failing deferred enrichment targets."""
+    if not has_price_or_surface(sale) or is_expired(sale):
+        return False
     _finalize_sale_for_app(sale, geocode=False)
     if upsert_sales_to_supabase([sale], refresh_last_seen=False) != 1:
         raise RuntimeError(f"Enrichment checkpoint was not persisted: {sale.source_url}")
+    return True
 
 
 def _should_update_llm_backfill_progress(completed: int, *, total: int, every: int) -> bool:

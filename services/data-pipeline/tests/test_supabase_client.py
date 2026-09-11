@@ -179,7 +179,7 @@ def test_enriched_hashes_require_current_llm_description_when_requested(monkeypa
                 {
                     "content_hash": "hash-current",
                     "raw_payload": {
-                        "llm_display_description": "Synthèse IA prête.",
+                        "llm_display_description": "Synthèse IA prête. " * 5,
                         "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
                         "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v5",
@@ -306,11 +306,12 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
         def json(self):
             return [
                 {
-                    "source_name": "avoventes",
+                    "source_name": "avoventes", "starting_price_eur": 10000,
+                    "surface_m2": 80,
                     "source_url": "https://example.test/current",
                     "status": "upcoming",
                     "raw_payload": {
-                        "llm_display_description": "Synthèse courante.",
+                        "llm_display_description": "Synthèse courante. " * 5,
                         "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
                         "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v6_display",
@@ -318,6 +319,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/missing",
                     "status": "upcoming",
                     "title": "Maison 85 m²",
@@ -325,6 +327,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "encheres_publiques",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/stale",
                     "status": "active",
                     "title": "Appartement",
@@ -335,6 +338,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/recent-failure",
                     "status": "upcoming",
                     "title": "Maison en échec récent",
@@ -346,6 +350,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                 },
                 {
                     "source_name": "notaires",
+                    "surface_m2": 80,
                     "source_url": "https://example.test/old-failure",
                     "status": "upcoming",
                     "title": "Maison en ancien échec",
@@ -379,142 +384,39 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
     ]
 
 
-def test_delete_vench_sales_without_surface_removes_observations_then_sales(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        def __init__(self, rows):
-            self._rows = rows
-
-        is_error = False
-
-        def json(self):
-            return self._rows
-
-    responses = [
-        [{"source_url": "https://vench.test/no-surface"}],
-        [],
-    ]
-
-    def fake_get(endpoint, params, headers, timeout):
-        assert endpoint == "https://supabase.test/rest/v1/auction_sales"
-        assert params["source_name"] == "eq.vench"
-        assert params["surface_m2"] == "is.null"
-        assert params["habitable_surface_m2"] == "is.null"
-        assert params["carrez_surface_m2"] == "is.null"
-        assert params["app_surface_m2"] == "is.null"
-        assert params["land_surface_m2"] == "is.null"
-        return Response(responses.pop(0))
-
-    calls = []
-    monkeypatch.setattr(supabase_client.httpx, "get", fake_get)
-    monkeypatch.setattr(
-        supabase_client,
-        "_postgrest_delete",
-        lambda supabase_url, api_key, table, params: calls.append(table),
-    )
-
-    assert supabase_client.delete_vench_sales_without_surface_in_supabase() == 1
-    assert calls == ["auction_observations", "auction_sales"]
-
-
-def test_delete_vench_sales_without_surface_is_best_effort_on_lookup_error(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        is_error = True
-        status_code = 522
-        text = "connection timed out"
-
-    monkeypatch.setattr(supabase_client.httpx, "get", lambda *args, **kwargs: Response())
-
+def test_legacy_vench_cleanup_does_not_delete_existing_rows(monkeypatch):
+    monkeypatch.setattr(supabase_client, "load_settings", lambda: pytest.fail("legacy cleanup accessed DB"))
     assert supabase_client.delete_vench_sales_without_surface_in_supabase() == 0
 
 
-def test_delete_expired_sales_removes_related_rows_then_sales(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        def __init__(self, rows):
-            self._rows = rows
-
-        is_error = False
-
-        def json(self):
-            return self._rows
-
-    responses = [
-        [
-            {"source_url": "https://example.test/expired"},
-            {"source_url": "https://example.test/expired"},
-        ],
-        [],
-    ]
-    get_params: list[dict[str, str]] = []
-
-    def fake_get(endpoint, params, headers, timeout):
-        assert endpoint == "https://supabase.test/rest/v1/auction_sales"
-        get_params.append(dict(params))
-        return Response(responses.pop(0))
-
-    calls: list[tuple[str, str]] = []
-    monkeypatch.setattr(supabase_client.httpx, "get", fake_get)
-    monkeypatch.setattr(
-        supabase_client,
-        "_postgrest_delete",
-        lambda supabase_url, api_key, table, params: calls.append((table, params["source_url"])),
-    )
-
-    deleted = supabase_client.delete_expired_sales_in_supabase(
-        now=datetime(2026, 7, 9, 12, 0, tzinfo=UTC)
-    )
-
-    assert deleted == 1
-    assert get_params[0] == {
-        "select": "source_url",
-        "sale_date": "lt.2026-07-09T12:00:00+00:00",
-        "order": "sale_date.asc.nullslast",
-        "limit": "1000",
-    }
-    assert calls == [
-        (table, 'in.("https://example.test/expired")')
-        for table in supabase_client.EXPIRED_SALE_DELETE_TABLES
-    ]
+def test_delete_expired_sales_uses_atomic_retention_rpc(monkeypatch):
+    monkeypatch.setattr(supabase_client, "load_settings", lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "test"})
+    calls = []
+    results = [{"deleted": 25, "remaining": 1, "busy": False}, {"deleted": 1, "remaining": 0, "busy": False}]
+    def post(url, **kwargs):
+        calls.append((url, kwargs["json"]))
+        return httpx.Response(200, json=results.pop(0), request=httpx.Request("POST", url))
+    monkeypatch.setattr(supabase_client.httpx, "post", post)
+    assert supabase_client.delete_expired_sales_in_supabase(datetime(2026, 7, 9, 12, tzinfo=UTC)) == 26
+    assert len(calls) == 2
+    assert calls[0] == ("https://supabase.test/rest/v1/rpc/purge_expired_auction_sales", {"p_now": "2026-07-09T12:00:00+00:00", "p_limit": 25})
 
 
-def test_delete_expired_sales_is_best_effort_on_lookup_error(monkeypatch) -> None:
-    monkeypatch.setattr(
-        supabase_client,
-        "load_settings",
-        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
-    )
-
-    class Response:
-        is_error = True
-        status_code = 522
-        text = "connection timed out"
-
-    monkeypatch.setattr(supabase_client.httpx, "get", lambda *args, **kwargs: Response())
-
+def test_delete_expired_sales_stops_on_busy(monkeypatch):
+    monkeypatch.setattr(supabase_client, "load_settings", lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "test"})
+    calls = []
+    def post(url, **kwargs):
+        calls.append(url)
+        return httpx.Response(200, json={"deleted": 0, "remaining": None, "busy": True}, request=httpx.Request("POST", url))
+    monkeypatch.setattr(supabase_client.httpx, "post", post)
     assert supabase_client.delete_expired_sales_in_supabase() == 0
+    assert len(calls) == 1
 
 
 def test_upsert_sales_prefers_direct_postgres_when_db_url_is_configured(monkeypatch) -> None:
     sale = normalize_sale(
         {
-            "source_name": "avoventes",
+            "source_name": "avoventes", "starting_price_eur": 10000,
             "source_url": "https://example.test/sale",
             "source_urls": ["https://example.test/sale"],
             "raw_payload": {"text": "hello\x00"},
@@ -574,7 +476,7 @@ def test_upsert_sales_prefers_direct_postgres_when_db_url_is_configured(monkeypa
 def test_upsert_sales_via_rest_does_not_delete_secondary_rows(monkeypatch) -> None:
     sale = normalize_sale(
         {
-            "source_name": "avoventes",
+            "source_name": "avoventes", "starting_price_eur": 10000,
             "source_url": "https://example.test/primary",
             "source_urls": [
                 "https://example.test/primary",
@@ -634,7 +536,7 @@ def test_upsert_sales_registers_verified_competent_court_before_sale(monkeypatch
     )
     sale = normalize_sale(
         {
-            "source_name": "avoventes",
+            "source_name": "avoventes", "starting_price_eur": 10000,
             "source_url": "https://example.test/haut-valromey",
             "tribunal": assignment.court_name,
             "tribunal_code": assignment.court_code,
@@ -721,7 +623,7 @@ def test_secondary_sale_cleanup_is_explicit_and_uses_postgres(monkeypatch) -> No
 def test_upsert_sales_can_preserve_last_seen_during_recompute(monkeypatch) -> None:
     sale = normalize_sale(
         {
-            "source_name": "licitor",
+            "source_name": "licitor", "starting_price_eur": 10000,
             "source_url": "https://example.test/licitor-sale",
         }
     )
@@ -951,9 +853,9 @@ def test_sync_normalized_sale_tables_upserts_properties_before_judicial_sales(mo
 def test_upsert_observations_prefers_direct_postgres_when_db_url_is_configured(monkeypatch) -> None:
     sale = normalize_sale(
         {
-            "source_name": "avoventes",
+            "source_name": "avoventes", "starting_price_eur": 10000,
             "source_url": "https://example.test/sale",
-            "observations": [{"source_name": "avoventes", "source_url": "https://example.test/sale"}],
+            "observations": [{"source_name": "avoventes", "starting_price_eur": 10000, "source_url": "https://example.test/sale"}],
         }
     )
     calls: list[tuple[str, str, int]] = []
@@ -985,7 +887,7 @@ def test_upsert_observations_prefers_direct_postgres_when_db_url_is_configured(m
 def test_upsert_documents_deduplicates_document_urls(monkeypatch) -> None:
     sale = normalize_sale(
         {
-            "source_name": "avoventes",
+            "source_name": "avoventes", "starting_price_eur": 10000,
             "source_url": "https://example.test/sale",
             "documents": [
                 {"url": "https://example.test/pv.pdf", "label": "PV descriptif"},

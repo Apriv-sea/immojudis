@@ -6,7 +6,9 @@
   },
   "installCommand": "npx --yes --package=npm@11.18.0 -c 'npm ci'",
   "buildCommand": "npm run build",
-  "regions": ["cdg1"],
+  "regions": [
+    "cdg1"
+  ],
   "crons": [
     {
       "path": "/api/cron/smart-alerts",
