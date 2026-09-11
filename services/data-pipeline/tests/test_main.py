@@ -25,6 +25,7 @@ except ModuleNotFoundError as exc:
 
 @pytest.fixture(autouse=True)
 def _disable_real_expired_sale_cleanup(monkeypatch) -> None:
+    monkeypatch.delenv("GITHUB_ENV", raising=False)
     monkeypatch.setattr(main, "delete_expired_sales_in_supabase", lambda: 0)
     monkeypatch.setattr(main, "delete_secondary_sales_in_supabase", lambda sales: 0)
     monkeypatch.setattr(

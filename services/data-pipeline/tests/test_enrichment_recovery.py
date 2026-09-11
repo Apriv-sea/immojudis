@@ -10,6 +10,7 @@ from src.models import AuctionSale
 
 
 def test_backfill_commits_before_next_result_even_if_interrupted(monkeypatch):
+    monkeypatch.delenv("GITHUB_ENV", raising=False)
     sales = [AuctionSale(source_name="avoventes", source_url=f'https://example.test/{i}', description='Maison à Bordeaux.', last_seen_at=datetime(2026, 1, 1, tzinfo=UTC)) for i in range(2)]
     stored = []
     monkeypatch.setattr(main, 'fetch_sales_needing_llm_descriptions', lambda **kw: sales)
@@ -178,3 +179,13 @@ def test_expired_attempt_cannot_finish_new_claim(monkeypatch):
     monkeypatch.setattr(storage.httpx, 'patch', lambda *a, **kw: captured.append(kw) or SimpleNamespace(is_error=False))
     storage.finish_auction_enrichment_job_in_supabase('job', succeeded=True, attempt_count=2)
     assert captured[0]['params'] == {'id': 'eq.job', 'status': 'eq.running', 'attempt_count': 'eq.2'}
+
+
+def test_register_run_exports_only_valid_uuid(tmp_path, monkeypatch):
+    from src.run_finalizer import register_run
+    target = tmp_path / "github-env"
+    monkeypatch.setenv("GITHUB_ENV", str(target))
+    register_run("11111111-1111-4111-8111-111111111111")
+    assert target.read_text() == "PIPELINE_CURRENT_RUN_ID=11111111-1111-4111-8111-111111111111\n"
+    with pytest.raises(ValueError):
+        register_run("bad\nINJECTED=value")
