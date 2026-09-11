@@ -81,3 +81,26 @@ def test_numbered_path_pagination_excludes_results_and_other_origins():
                   '<a href="https://evil.test/sales/list-p3.html">bad</a>', url)
     assert next(iterator) == 'https://example.test/sales/list-p66.html'
     assert pages.pending == []
+
+
+def test_cessions_enriches_promoted_listing_only_once(monkeypatch):
+    from src.sources import cessions_etat as source
+    enriched = []
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            return url
+
+    monkeypatch.setattr(source, 'PoliteHttpClient', Client)
+    monkeypatch.setattr(source, 'TARGET_DEPARTMENTS', ('33',))
+    monkeypatch.setattr(source, 'parse_cessions_etat_html', lambda html, **kwargs: [
+        {'source_url': 'https://example.test/promoted', 'department': '33'},
+        {'source_url': html, 'department': '33'},
+    ])
+    monkeypatch.setattr(source, '_enrich_sale_from_detail', lambda client, sale, errors: enriched.append(sale['source_url']))
+    monkeypatch.setattr(source, 'validate_raw_sales', lambda source, sales, errors: sales)
+    source.scrape_cessions_etat_aquitaine_result(max_pages=2)
+    assert enriched.count('https://example.test/promoted') == 1

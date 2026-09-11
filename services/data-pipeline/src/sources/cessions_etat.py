@@ -65,6 +65,7 @@ def scrape_cessions_etat_aquitaine_result(
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
     pagination = PaginationCoverage()
+    seen_sales: set[str] = set()
     for page_url in _list_urls(max_pages):
         try:
             html = client.get(page_url)
@@ -78,6 +79,10 @@ def scrape_cessions_etat_aquitaine_result(
         for sale in page_sales:
             if sale.get("department") not in TARGET_DEPARTMENTS:
                 continue
+            url = str(sale.get("source_url"))
+            if url in seen_sales:
+                continue
+            seen_sales.add(url)
             if should_fetch_detail(sale, known):
                 _enrich_sale_from_detail(client, sale, errors)
             raw_sales.append(sale)
