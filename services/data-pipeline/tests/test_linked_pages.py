@@ -69,3 +69,15 @@ def test_notaires_missing_rows_cannot_certify_zero_inventory(monkeypatch):
     monkeypatch.setattr(source, '_department_filters', lambda: (None,))
     result = source.scrape_notaires_aquitaine_result(max_pages=1)
     assert result.errors and result.coverage['coverage_complete'] is False
+
+
+def test_numbered_path_pagination_excludes_results_and_other_origins():
+    pages = LinkedPages('https://example.test/sales/', '', 1, 100,
+                        path_pattern=r'/sales/list-p(\d+)\.html')
+    iterator = iter(pages)
+    url = next(iterator)
+    pages.observe('<a href="/sales/list-p1.html">1</a><a href="/sales/list-p66.html?">66</a>'
+                  '<a href="/sales/results-p2.html">results</a>'
+                  '<a href="https://evil.test/sales/list-p3.html">bad</a>', url)
+    assert next(iterator) == 'https://example.test/sales/list-p66.html'
+    assert pages.pending == []
