@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.config import LLM_EXTRACTIONS_DIR, PDF_TEXTS_DIR, load_settings
 from src.enrichment.display_evidence import verify_display_claims
-from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION, preserve_source_constraints
+from src.enrichment.display_quality import DISPLAY_MIN_CHARS, DISPLAY_QUALITY_VERSION, preserve_source_constraints
 from src.enrichment.llm_client import ReplicateClient, create_llm_client
 from src.enrichment.prompts import (
     DISPLAY_DESCRIPTION_SYSTEM_PROMPT,
@@ -1264,7 +1264,8 @@ def _apply_extraction_to_sale(
     if checked_display:
         sale.raw_payload["llm_display_description"] = checked_display
         sale.raw_payload["llm_display_description_word_count"] = len(checked_display.split())
-        sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
+        if len(checked_display.strip()) >= DISPLAY_MIN_CHARS:
+            sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
     else:
         sale.raw_payload["llm_display_status"] = "rejected"
         sale.raw_payload.pop("llm_display_description", None)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+DISPLAY_MIN_CHARS = 80
 DISPLAY_QUALITY_VERSION = "display_quality_20260911_v3"
 # Keep the entire sentence, including negation and uncertainty. Never infer a risk
 # from a keyword or from unrelated PDF boilerplate.
@@ -19,7 +20,7 @@ def has_current_display(payload: Any, prompt_version: str | None = None) -> bool
         return False
     text = payload.get("llm_display_description")
     return bool(
-        isinstance(text, str) and text.strip()
+        isinstance(text, str) and len(text.strip()) >= DISPLAY_MIN_CHARS
         and payload.get("llm_display_quality_version") == DISPLAY_QUALITY_VERSION
         and payload.get("llm_display_status") in {"accepted", "fallback"}
         and (not prompt_version or payload.get("llm_prompt_version") == prompt_version)

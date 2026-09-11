@@ -5,7 +5,7 @@ from src.models import AuctionSale
 
 def test_revalidation_persists_quality_only_changes_without_refreshing_source_age(monkeypatch):
     sale = AuctionSale(source_name='test', source_url='https://example.test/sale', starting_price_eur=1000,
-                       raw_payload={'llm_extraction': {}, 'llm_display_description': 'Existing text'})
+                       raw_payload={'llm_extraction': {}, 'llm_display_description': 'Existing text ' * 8})
     monkeypatch.setattr(module, 'load_settings', lambda: {'llm_prompt_version': 'test'})
     monkeypatch.setattr(module, 'fetch_sales_needing_llm_descriptions', lambda **kw: [sale])
     def revalidate(sale, **kw):

@@ -54,7 +54,7 @@ def test_needs_heavy_enrichment_skips_complete_sale(monkeypatch) -> None:
 
     assert main._needs_heavy_enrichment(sale, use_llm=False) is False
     assert main._needs_heavy_enrichment(sale, use_llm=True) is True
-    sale.raw_payload["llm_display_description"] = "Appartement libre de 42 m2."
+    sale.raw_payload["llm_display_description"] = "Appartement libre de 42 m2. " * 4
     assert main._needs_heavy_enrichment(sale, use_llm=True) is True
     sale.raw_payload["llm_display_quality_version"] = DISPLAY_QUALITY_VERSION
     sale.raw_payload["llm_display_status"] = "accepted"
@@ -107,7 +107,7 @@ def test_heavy_enrichment_does_not_skip_stale_llm_description(monkeypatch) -> No
         raw_text="Appartement libre de 42 m2.",
         content_hash="same-content",
         raw_payload={
-            "llm_display_description": "Ancienne synthèse.",
+            "llm_display_description": "Ancienne synthèse. " * 5,
             "llm_prompt_version": "auction_llm_v4",
         },
     )

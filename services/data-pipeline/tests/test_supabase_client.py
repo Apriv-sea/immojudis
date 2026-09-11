@@ -179,7 +179,7 @@ def test_enriched_hashes_require_current_llm_description_when_requested(monkeypa
                 {
                     "content_hash": "hash-current",
                     "raw_payload": {
-                        "llm_display_description": "Synthèse IA prête.",
+                        "llm_display_description": "Synthèse IA prête. " * 5,
                         "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
                         "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v5",
@@ -311,7 +311,7 @@ def test_fetch_sales_needing_llm_descriptions_filters_current_rows(monkeypatch) 
                     "source_url": "https://example.test/current",
                     "status": "upcoming",
                     "raw_payload": {
-                        "llm_display_description": "Synthèse courante.",
+                        "llm_display_description": "Synthèse courante. " * 5,
                         "llm_display_quality_version": DISPLAY_QUALITY_VERSION,
                         "llm_display_status": "accepted",
                         "llm_prompt_version": "auction_llm_v6_display",

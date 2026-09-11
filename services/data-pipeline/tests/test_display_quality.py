@@ -10,7 +10,7 @@ from src.models import AuctionSale
 
 @pytest.mark.parametrize('status', ['accepted', 'fallback'])
 def test_legacy_display_needs_quality_revalidation(status):
-    payload = {'llm_display_description': 'Maison de 120 m².', 'llm_prompt_version': 'v1', 'llm_display_status': status}
+    payload = {'llm_display_description': 'Maison de 120 m². ' * 8, 'llm_prompt_version': 'v1', 'llm_display_status': status}
     assert not has_current_display(payload, 'v1')
     payload['llm_display_quality_version'] = DISPLAY_QUALITY_VERSION
     assert has_current_display(payload, 'v1')
@@ -102,3 +102,14 @@ def test_stale_extra_quote_is_not_reintroduced_into_new_source():
     text, quotes = preserve_source_constraints('Maison.', 'Maison.', max_chars=850, max_words=115,
                                               extra_quotes=['Ancienne servitude.'])
     assert text == 'Maison.' and quotes == []
+
+
+def test_short_cached_fallback_is_preserved_but_not_certified():
+    sale = AuctionSale(source_name='licitor', source_url='https://example.test/short',
+                       property_type='house', city='Paris', description='Maison.',
+                       raw_payload={'llm_extraction': {}})
+    apply_cached_llm_extraction_to_sale(sale, prompt_version='v1')
+    assert sale.raw_payload['llm_display_description']
+    assert len(sale.raw_payload['llm_display_description']) < 80
+    assert 'llm_display_quality_version' not in sale.raw_payload
+    assert not has_current_display(sale.raw_payload, 'v1')
