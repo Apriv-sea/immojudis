@@ -233,7 +233,7 @@ def load_settings() -> dict[str, str | float | None]:
         "licitor_max_pages": int(os.getenv("LICITOR_MAX_PAGES", "5")),
         "enable_vench_benchmark": os.getenv("ENABLE_VENCH_BENCHMARK", "true").lower()
         in {"1", "true", "yes", "on"},
-        "vench_max_pages": int(os.getenv("VENCH_MAX_PAGES", "1")),
+        "vench_max_pages": int(os.getenv("VENCH_MAX_PAGES", "100")),
         "enable_info_encheres_benchmark": os.getenv("ENABLE_INFO_ENCHERES_BENCHMARK", "true").lower()
         in {"1", "true", "yes", "on"},
         "info_encheres_max_pages": int(os.getenv("INFO_ENCHERES_MAX_PAGES", "4")),

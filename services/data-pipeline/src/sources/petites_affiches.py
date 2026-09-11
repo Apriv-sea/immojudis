@@ -13,6 +13,7 @@ from src.normalize import SURFACE_VALUE_PATTERN, clean_text
 from src.raw_models import validate_raw_sales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
+from src.sources.linked_pages import LinkedPages
 
 BASE_URL = "https://www.petitesaffiches.fr"
 LIST_URL = f"{BASE_URL}/encheres-immobilieres/"
@@ -54,22 +55,35 @@ def scrape_petites_affiches_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
+    partitions: list[dict[str, Any]] = []
+    seen_sales: set[str] = set()
     for department in _department_filters():
-        try:
-            html = _fetch_listing(client, department)
-        except Exception as exc:
-            LOGGER.error("Petites Affiches list fetch failed for department %s: %s", department, exc)
-            errors.append(f"department {department}: {exc}")
-            continue
-        for sale in parse_petites_affiches_html(html, page_url=LIST_URL, fallback_department=department):
-            if should_fetch_detail(sale, known):
-                _enrich_sale_from_detail(client, sale, errors)
-            raw_sales.append(sale)
+        pages = LinkedPages(LIST_URL, "", 1, max_pages or 100,
+                            path_pattern=r"/encheres-immobilieres/ventes-aux-encheres-immobilieres-p(\d+)\.html")
+        for page_url in pages:
+            try:
+                html = (_fetch_listing(client, department) if page_url == LIST_URL
+                        else _fetch_listing(client, department, page_url))
+            except Exception as exc:
+                LOGGER.error("Petites Affiches list fetch failed for %s: %s", page_url, exc)
+                errors.append(f"{page_url}: {exc}")
+                break
+            pages.observe(html, page_url)
+            for sale in parse_petites_affiches_html(html, page_url=page_url, fallback_department=department):
+                url = str(sale.get("source_url"))
+                if url in seen_sales:
+                    continue
+                seen_sales.add(url)
+                if should_fetch_detail(sale, known):
+                    _enrich_sale_from_detail(client, sale, errors)
+                raw_sales.append(sale)
+        partitions.append({"department": department, **pages.metrics()})
 
     return ScrapeResult(
         validate_raw_sales("petites_affiches", unique_dicts(raw_sales, "source_url"), errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(), "partitions": partitions,
+         "linked_pages_complete": all(p["linked_pages_complete"] for p in partitions)},
     )
 
 
@@ -79,17 +93,17 @@ def _department_filters() -> tuple[str | None, ...]:
     return TARGET_DEPARTMENTS
 
 
-def _fetch_listing(client: PoliteHttpClient, department: str | None) -> str:
+def _fetch_listing(client: PoliteHttpClient, department: str | None, page_url: str = LIST_URL) -> str:
     form = {"historique": "0"}
     if department is not None:
         form["select_dep"] = department
     try:
-        return client.post_form(LIST_URL, form)
+        return client.post_form(page_url, form)
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code if exc.response is not None else None
         if department is None and status in {403, 405, 406, 415, 429}:
             LOGGER.warning("Petites Affiches POST refused with %s; falling back to national GET listing", status)
-            return client.get(LIST_URL)
+            return client.get(page_url)
         raise
 
 

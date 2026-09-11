@@ -16,6 +16,7 @@ from src.raw_models import validate_raw_sales
 from src.sources.agrasc_operators import enrich_agrasc_operator
 from src.sources.common import PoliteHttpClient, ScrapeResult, unique_dicts
 from src.sources.image_candidates import html_image_candidates
+from src.sources.linked_pages import LinkedPages
 
 BASE_URL = "https://agrasc.gouv.fr"
 LIST_URL = f"{BASE_URL}/ventes-aux-encheres"
@@ -59,13 +60,21 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
     operator_clients: dict[str, PoliteHttpClient] = {}
-    try:
-        html = client.get(LIST_URL)
-    except Exception as exc:
-        LOGGER.error("AGRASC list fetch failed: %s", exc)
-        errors.append(f"{LIST_URL}: {exc}")
-    else:
-        for sale in parse_agrasc_html(html, page_url=LIST_URL):
+    pages = LinkedPages(LIST_URL, "page", 0, max_pages or 100)
+    seen_sales: set[str] = set()
+    for page_url in pages:
+        try:
+            html = client.get(page_url)
+        except Exception as exc:
+            LOGGER.error("AGRASC list fetch failed: %s", exc)
+            errors.append(f"{page_url}: {exc}")
+            break
+        pages.observe(html, page_url)
+        for sale in parse_agrasc_html(html, page_url=page_url):
+            url = str(sale.get("source_url"))
+            if url in seen_sales:
+                continue
+            seen_sales.add(url)
             if sale.get("department") in TARGET_DEPARTMENTS:
                 enrich_agrasc_operator(sale, operator_clients, settings, errors)
                 raw_sales.append(sale)
@@ -74,6 +83,7 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
         validate_raw_sales("agrasc", unique_dicts(raw_sales, "source_url"), errors),
         errors,
         {**getattr(client, "coverage_metrics", lambda: {})(),
+         **pages.metrics(),
          "operator_details": {status: sum(s.get("operator_detail_status") == status for s in raw_sales)
                               for status in ("complete", "partial", "failed", "unsupported")}},
     )

@@ -89,6 +89,8 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
+    parsed_count = 0
+    unresolved_locations: list[str] = []
     # Avoventes ignore le paramètre ?departement= et sert la liste nationale
     # complète sur une seule page : on la récupère une fois et on filtre les
     # départements en local (au lieu de re-télécharger la même page par dépt).
@@ -100,10 +102,15 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
         errors.append(f"list: {exc}")
         html = None
     if html:
-        for sale in parse_avoventes_html(html, page_url=url, fallback_department=None):
+        parsed_sales = parse_avoventes_html(html, page_url=url, fallback_department=None)
+        parsed_count = len(parsed_sales)
+        for sale in parsed_sales:
             postal_code = sale.get("postal_code")
             department = extract_department(str(postal_code) if postal_code else None)
-            if not department or department not in TARGET_DEPARTMENTS:
+            if not department:
+                unresolved_locations.append(str(sale["source_url"]))
+                continue
+            if department not in TARGET_DEPARTMENTS:
                 continue
             sale["department"] = department
             if sale["source_url"] in seen_urls:
@@ -116,7 +123,10 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
     return ScrapeResult(
         validate_raw_sales("avoventes", raw_sales, errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+         "inventory_before_department_filter": parsed_count,
+         "unresolved_location_count": len(unresolved_locations),
+         "unresolved_location_urls": unresolved_locations},
     )
 
 
@@ -497,7 +507,10 @@ def _extract_location(address: str | None, raw_text: str) -> tuple[str | None, s
     text = address or raw_text
     match = re.search(r"\b(\d{5})\s+([^,\n]+)", text)
     if not match:
-        return None, None
+        # Titles often put the postal code after the city, in parentheses.
+        # Keep the code without inventing a city from the rest of the title.
+        parenthesized = re.search(r"\((\d{5})\)", text)
+        return (parenthesized.group(1), None) if parenthesized else (None, None)
     city = clean_text(match.group(2).replace("France", "").strip(" ,"))
     return match.group(1), city
 

@@ -34,7 +34,7 @@ def page_evidence(body: str, url: str) -> dict:
     pagination = []
     for a in soup.select('a[href]'):
         href = str(a['href'])
-        if ('next' in (a.get('rel') or []) or any(marker in href for marker in ('?page=', '&page=', 'snr=', 'debut_', '/page/'))):
+        if ('next' in (a.get('rel') or []) or any(marker in href for marker in ('?page=', '&page=', '?p=', '&p=', 'snr=', 'debut_', '/page/'))):
             pagination.append(urljoin(url, href))
     return {'kind': 'html', 'pagination_links': sorted(set(pagination)),
             'title': soup.title.get_text(' ', strip=True) if soup.title else None,

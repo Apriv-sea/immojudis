@@ -17,8 +17,9 @@ from src.normalize import (
     no_lease_occupancy_status,
 )
 from src.raw_models import validate_raw_sales
-from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
+from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
+from src.sources.linked_pages import LinkedPages
 
 BASE_URL = "https://www.info-encheres.com"
 LIST_URL = f"{BASE_URL}/vente-encheres-immobilieres-annonces.html"
@@ -63,17 +64,17 @@ def scrape_info_encheres_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = []
-    pagination = PaginationCoverage()
-    for page_url in _list_urls(max_pages):
+    pagination = LinkedPages(LIST_URL, "snr", 0, max_pages,
+                             ("/vente-encheres-immobilieres-annonces.html", "/recherche.php"))
+    for page_url in pagination:
         try:
             html = client.get(page_url)
         except Exception as exc:
             LOGGER.error("Info Encheres list fetch failed for %s: %s", page_url, exc)
             errors.append(f"{page_url}: {exc}")
-            continue
-        page_sales = parse_info_encheres_list_html(html, page_url=page_url)
-        if not pagination.accept(page_sales):
             break
+        pagination.observe(html, page_url)
+        page_sales = parse_info_encheres_list_html(html, page_url=page_url)
         for sale in page_sales:
             if sale.get("department") not in TARGET_DEPARTMENTS:
                 continue
@@ -197,7 +198,7 @@ def _sale_date_with_audience_time(date_text: str | None, text: str) -> str | Non
 
 def _list_urls(max_pages: int) -> list[str]:
     urls = [LIST_URL]
-    for page_index in range(2, max_pages + 1):
+    for page_index in range(1, max_pages):
         urls.append(f"{BASE_URL}/recherche.php?1=1&cat=1&snr={page_index}")
     return urls
 
