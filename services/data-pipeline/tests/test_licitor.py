@@ -367,3 +367,34 @@ def test_parse_licitor_detail_html_extracts_ad_images_without_site_assets() -> N
 
     assert raw["raw_image_url"] == "https://www.licitor.com/data/pub/media/annonce/10/87/62/maison.jpg"
     assert raw["source_images"] == ["https://www.licitor.com/data/pub/media/annonce/10/87/62/maison.jpg"]
+
+
+def test_explicit_non_required_sale_is_withdrawn_without_inventing_result():
+    raw = parse_licitor_detail_html(
+        '<h1>Une maison</h1><p>jeudi 10 septembre 2026 à 14h</p><p>Vente non requise</p>',
+        'https://www.licitor.com/annonce/109001.html',
+    )
+    sale = normalize_sale(raw)
+    assert sale.status == 'withdrawn'
+    assert sale.adjudication_price_eur is None
+
+
+def test_explicit_postponement_protects_old_date_from_expiration():
+    from src.admission import retention_deadline
+
+    raw = parse_licitor_detail_html(
+        '<h1>Une maison</h1><p>jeudi 10 septembre 2026 à 14h</p><p>Vente reportée</p>',
+        'https://www.licitor.com/annonce/109002.html',
+    )
+    sale = normalize_sale(raw)
+    assert sale.status == 'postponed'
+    assert retention_deadline(sale) is None
+
+
+def test_unknown_adjudication_result_remains_unknown():
+    raw = parse_licitor_detail_html(
+        "<h1>Une maison</h1><p>Résultat d'adjudication inconnu</p>",
+        'https://www.licitor.com/annonce/109003.html',
+    )
+    assert raw['status'] == 'unknown'
+    assert normalize_sale(raw).adjudication_price_eur is None

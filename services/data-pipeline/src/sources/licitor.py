@@ -230,6 +230,17 @@ def parse_licitor_detail_html(html: str, source_url: str) -> dict[str, Any]:
     visit_dates = _extract_visit_dates(lines)
     occupancy_status = _extract_occupancy_status(raw_text)
     documents = _extract_documents(soup, source_url)
+    status = "unknown"
+    for line in lines:
+        if re.fullmatch(r"Vente\s+non\s+requise\.?", line, re.I):
+            status = "withdrawn"
+            break
+        if re.fullmatch(r"Vente\s+report[ée]e(?:\s+.*)?", line, re.I):
+            status = "postponed"
+            break
+        if re.fullmatch(r"Vente\s+annul[ée]e\.?", line, re.I):
+            status = "cancelled"
+            break
 
     return {
         "source_name": "licitor",
@@ -249,7 +260,7 @@ def parse_licitor_detail_html(html: str, source_url: str) -> dict[str, Any]:
         "visit_dates": visit_dates,
         "lawyer_name": lawyer_name,
         "lawyer_contact": lawyer_contact,
-        "status": "unknown",
+        "status": status,
         "occupancy_status": occupancy_status,
         "latitude": latitude,
         "longitude": longitude,

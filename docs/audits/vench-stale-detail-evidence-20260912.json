@@ -1,0 +1,62 @@
+[
+  {
+    "id": "d06381b5-0b77-449d-8189-e87f1a6e7e7c",
+    "source_url": "https://www.vench.fr/vente-165473-un-appartement-et-une-cave-nice.html",
+    "checked_at": "2026-09-12T19:37:01.329526+00:00",
+    "response_sha256": "731b179ee34657e6b1a8ff691140ae7ec1c25572153d9fcb0db7f99fb629fee9",
+    "source_text": "UN APPARTEMENT ET UNE CAVE - 63,62m² - Nice\nTribunal: Tribunal judiciaire de NICE\nAdresse: 06200 Nice\nAudience: 03/09/2026 à 09:00\nMise a prix: 40 000.00\nCaractéristiques: Balcon, Cave",
+    "sale_date": "2026-09-03T07:00:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  },
+  {
+    "id": "3a384335-7571-4a4e-b429-bc581090743a",
+    "source_url": "https://www.vench.fr/vente-165468-une-maison-d-habitation-sannois.html",
+    "checked_at": "2026-09-12T19:37:01.659309+00:00",
+    "response_sha256": "76632b3c347829272d17a018d53a502ee4e534cd5e501f2444ef632dc12582d8",
+    "source_text": "UNE MAISON D'HABITATION - 59,66m² - Sannois\nTribunal: Tribunal judiciaire de PONTOISE\nAdresse: 95110 Sannois\nAudience: 01/09/2026 à 14:00\nMise a prix: 90 000.00\nMaison • 59,66m² 95110 Sannois Description UNE MAISON D'HABITATION D'UNE SURFACE HABITABLE DE 59,66 M². (Les lieux sont loués) Cadastre : section AL n°504 Occupation Bien loué",
+    "sale_date": "2026-09-01T12:00:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  },
+  {
+    "id": "f11c4001-bbc5-4070-a9f3-1e69254583e7",
+    "source_url": "https://www.vench.fr/vente-165461-maison-dhabitation-de-14350-m-sonchamp.html",
+    "checked_at": "2026-09-12T19:37:02.737062+00:00",
+    "response_sha256": "491b9543dbbda2581ff9782c19a32e15acdb5e33bb7220330ba6f7ca6bcdcadc",
+    "source_text": "MAISON D’HABITATION de 143,50 m² - Sonchamp\nTribunal: Tribunal judiciaire de VERSAILLES\nAdresse: 78120 Sonchamp\nAudience: 09/09/2026 à 09:30\nMise a prix: 200 000.00\nMaison 78120 Sonchamp Description RdC : véranda, salon/séjour, cuisine, cellier, véranda sur jardin, 2 chambres, SdB, WC et vestibule - 1er étg : 2 chambres, SdB avec WC - Dépendance - Jardin Occupation Bien libre\nDocuments: Procès-Verbal Descriptif.pdf; DIAG.pdf; Avis Greffe.pdf",
+    "sale_date": "2026-09-09T07:30:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  },
+  {
+    "id": "9f253dfc-f149-44f0-b11e-a1a7ac255910",
+    "source_url": "https://www.vench.fr/vente-165455-appartement-de-6698-m-marseille.html",
+    "checked_at": "2026-09-12T19:37:03.850556+00:00",
+    "response_sha256": "be07b3f00c51568698bef5e228bc7067e7b81d02f215edb31f41c60840d73248",
+    "source_text": "APPARTEMENT DE 66,98 M² - Marseille\nTribunal: Tribunal judiciaire de MARSEILLE\nAdresse: 13015 Marseille\nAudience: 02/09/2026 à 09:30\nMise a prix: 12 000.00\nAppartement 13015 Marseille Description WC, SdB, cuisine, buanderie extérieure, séjour/ SàM, 2 chambres Au Ss : CAVE n°529 Au Ss : EMPLACEMENT de PARKING - Occupation Bien occupé\nDocuments: Avis Greffe.pdf; Procès-Verbal Descriptif.pdf; Procès-Verbal Descriptif.pdf; DIAGNOSTICS BIFFE.pdf; RAPPORT ERP BIFFE.pdf; URBANISME BIFFE.pdf; Cahier des Conditions de Vente.pdf",
+    "sale_date": "2026-09-02T07:30:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  },
+  {
+    "id": "d2ec314e-ee7c-4725-93f4-e45803cf34c2",
+    "source_url": "https://www.vench.fr/vente-165471-une-maison-d-habitation-aumale.html",
+    "checked_at": "2026-09-12T19:37:04.965768+00:00",
+    "response_sha256": "cc3dc77c5c7714b67db23d2291f313f0c56524f87666ad8f8cb5fbe175d89757",
+    "source_text": "UNE MAISON D'HABITATION - 152,04m² - Aumale\nTribunal: Tribunal judiciaire de DIEPPE\nAdresse: 76390 Aumale\nAudience: 02/09/2026 à 09:30\nMise a prix: 78 100.00\nMaison • 152,04m² 76390 Aumale Description MAISON D'HABITATION Surface habitable 152,04 m², comprenant : - au sous-sol : 5 compartiments principaux avec rangement et lingerie ; - au rez-de-chaussée : séjour double en entrant, chambre, dégagement, cuisine, arrière-cuisine, salle de bain, w.c ; - à l'étage : pièce palière, espace bureau, 2 chambres. Avec dépendance, jardin et moitié du lit de rivière. Occupée. Occupation Bien occupé\nCaractéristiques: Jardin",
+    "sale_date": "2026-09-02T07:30:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  },
+  {
+    "id": "fb044bb8-a62c-4895-977a-90462c363e7a",
+    "source_url": "https://www.vench.fr/vente-165458--roubaix.html",
+    "checked_at": "2026-09-12T19:37:06.092028+00:00",
+    "response_sha256": "418ec22add5186352efbc6679a913ec0e2ec67f29a3cbe29c6234babc66d57a8",
+    "source_text": "- 158,95m² - Roubaix\nTribunal: Tribunal judiciaire de LILLE\nAdresse: 59100 Roubaix\nAudience: 02/09/2026 à 14:00\nMise a prix: 50 000.00\nImmeuble • 158,95m² 59100 Roubaix Description Occupation Bien occupé\nDocuments: Procès-Verbal Descriptif.pdf; Avis Greffe.pdf; DIAGS_biffé_Partie1.pdf; DIAGS_biffé_Partie2.pdf; Cahier des Conditions de Vente.pdf",
+    "sale_date": "2026-09-02T12:00:00+00:00",
+    "audit_run": "34714668452",
+    "decision": "past"
+  }
+]
