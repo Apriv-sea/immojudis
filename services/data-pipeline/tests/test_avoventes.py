@@ -95,6 +95,26 @@ def test_parse_avoventes_detail_html_extracts_pdf_documents() -> None:
     assert details["source_blocks"]["documents"] == "Affiche greffe"
 
 
+def test_catalogue_returned_for_removed_detail_is_not_parsed_as_property():
+    import pytest
+    from src.sources.avoventes import _enrich_sale_from_detail
+
+    html = '<html><title>AVOVENTES - Ventes aux enchères publiques immobilières</title><select>'
+    html += ''.join(f'<option>Ville {i}</option>' for i in range(101))
+    html += '</select><h2>Appartement à vendre à Riorges 42120</h2></html>'
+    with pytest.raises(ValueError, match='identity unverified'):
+        parse_avoventes_detail_html(html, 'https://avoventes.fr/enchere/le-cannet')
+    class Client:
+        def get(self, url):
+            return html
+    sale = {'source_url':'https://avoventes.fr/enchere/le-cannet','postal_code':'06110'}
+    errors = []
+    _enrich_sale_from_detail(Client(), sale, errors)
+    assert sale['_detail_fetch_failed']
+    assert sale['postal_code'] == '06110'
+    assert len(errors) == 1
+
+
 def test_parse_avoventes_detail_html_extracts_lot_superficie() -> None:
     html = """
     <html>

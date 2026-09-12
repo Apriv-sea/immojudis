@@ -59,6 +59,16 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       {Array.isArray(sale.quality_flags) && sale.quality_flags.includes("address_unverified") ? (
         <p>Adresse précise non vérifiée. Confirmez la localisation auprès de la source.</p>
       ) : null}
+      {Array.isArray(sale.quality_flags) && sale.quality_flags.includes("multi_lot_sale") ? (
+        <p>
+          Plusieurs lots de vente sont décrits. Vérifiez le prix, les surfaces et l’occupation de
+          chaque lot.
+        </p>
+      ) : null}
+      {Array.isArray(sale.quality_flags) &&
+      sale.quality_flags.includes("surface_scope_unverified") ? (
+        <p>Les surfaces décrivent différentes parties du bien. Leur total reste à confirmer.</p>
+      ) : null}
       {Array.isArray(sale.quality_flags) &&
       sale.quality_flags.includes("parcel_surface_scope_unverified") ? (
         <p>Plusieurs parcelles sont décrites. La surface totale du terrain reste à confirmer.</p>

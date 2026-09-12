@@ -645,6 +645,9 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
         raise ValueError("raw sale is missing source_url")
 
     source_text = _normalization_text(raw_sale)
+    if re.search(r'vente.{0,40}\ben\s+[2-9][0-9]*\s+lots|premier\s+lot\s+de\s+vente.*second\s+lot\s+de\s+vente', source_text, re.I | re.S):
+        raw_sale = dict(raw_sale)
+        raw_sale['quality_flags'] = [*(raw_sale.get('quality_flags') or []), 'multi_lot_sale']
     title = clean_text(raw_sale.get("title"))
     detail_title = clean_text(_source_block_lookup(raw_sale, "titre_detail", "detail_titre", "asset_title"))
     if _is_generic_listing_title(title) and detail_title:

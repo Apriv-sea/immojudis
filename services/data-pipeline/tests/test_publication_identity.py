@@ -156,3 +156,11 @@ def test_several_parcel_areas_do_not_become_one_uncertain_total():
     normalize_asset_features(result)
     assert result.land_surface_m2 is None
     assert 'parcel_surface_scope_unverified' in result.quality_flags
+
+
+def test_different_sale_lots_are_explicitly_reserved():
+    result = normalize_sale({'source_name':'avoventes','source_url':'https://example.test/lots',
+        'title':'Appartement / local commercial (vente en 2 lots)',
+        'description':'PREMIER LOT DE VENTE : surface loi Carrez totale de 51,82 m². SECOND LOT DE VENTE : superficie loi Carrez de 42,90 m².'})
+    assert 'multi_lot_sale' in result.quality_flags
+    assert str(result.carrez_surface_m2) == '51.82'
