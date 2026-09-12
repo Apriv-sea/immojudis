@@ -1241,7 +1241,10 @@ def _surface_reasoning_context_for_sale(sale: AuctionSale) -> str:
         payload.get("source_description"),
         *block_values,
     ]
-    return clean_text("\n".join(str(value) for value in values if value)) or ""
+    # Source descriptions are often copied into several payload fields. Keep
+    # each distinct field once without truncating or deduplicating within it.
+    parts = dict.fromkeys(clean_text(str(value)) for value in values if value)
+    return "\n".join(part for part in parts if part)
 
 
 def _needs_heavy_enrichment(

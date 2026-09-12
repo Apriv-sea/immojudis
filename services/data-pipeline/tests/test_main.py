@@ -1098,3 +1098,11 @@ def test_prepared_batch_survives_interruption_on_next_listing(monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         main.run_pipeline(main.PipelineOptions(use_llm=False))
     assert committed == sales[:25]
+
+
+def test_surface_context_deduplicates_copied_fields_without_losing_distinct_evidence():
+    repeated = 'Chambre 12 m². Chambre 12 m².'
+    sale = AuctionSale(source_name='test', source_url='https://example.test/context',
+                       description=repeated, raw_text=repeated,
+                       raw_payload={'source_description': repeated, 'source_blocks': {'extra': 'Terrain 500 m².'}})
+    assert main._surface_reasoning_context_for_sale(sale) == repeated + '\nTerrain 500 m².'
