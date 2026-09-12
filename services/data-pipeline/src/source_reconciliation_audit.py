@@ -15,7 +15,7 @@ from src.sources.common import PoliteHttpClient, is_allowed_origin_url
 
 TARGETS = Path(__file__).resolve().parents[1] / 'config/reconciliation-remaining-20260912.json'
 ORIGINS = {'avoventes':'https://avoventes.fr', 'cessions_etat':'https://cessions.immobilier-etat.gouv.fr',
-           'agrasc':'https://www.agorastore-immo.fr'}
+           'agrasc':'https://www.agorastore-immo.fr', 'info_encheres':'https://www.info-encheres.com'}
 
 
 def audit(source: str, output: Path) -> None:
@@ -46,6 +46,9 @@ def audit(source: str, output: Path) -> None:
             if not is_allowed_origin_url(row['source_url'],(base,)):
                 raise ValueError('Unexpected source origin')
             body = client.get(row['source_url'])
+            if source == 'agrasc':
+                from src.sources.agrasc_operators import parse_agora_operator_detail
+                row['operator_details'] = parse_agora_operator_detail(body, row['source_url'])
             soup = BeautifulSoup(body,'html.parser')
             for node in soup(['script','style','select','nav','footer']):
                 node.decompose()

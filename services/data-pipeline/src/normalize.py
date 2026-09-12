@@ -79,7 +79,7 @@ PROPERTY_TYPE_CODE_MAP = {
 }
 
 VALID_STATUSES = {"upcoming", "past", "adjudicated", "unknown", "postponed", "cancelled", "withdrawn"}
-SURFACE_VALUE_PATTERN = r"([0-9]+(?:[\s.][0-9]{3})*(?:[,.][0-9]+)?|[0-9]+(?:[,.][0-9]+)?)"
+SURFACE_VALUE_PATTERN = r"([0-9]+(?:[\s.][0-9]{3})*(?:[,.]\s*[0-9]+)?|[0-9]+(?:[,.]\s*[0-9]+)?)"
 LATIN_LETTERS_PATTERN = r"A-Za-zÀ-ÖØ-öø-ÿŒœŸ"
 
 
@@ -197,7 +197,6 @@ def extract_adjudication_price(raw_sale: dict[str, object]) -> Decimal | None:
             "prix_adjudication",
             "prix_adjuge",
             "prix_adjude",
-            "adjudication",
         )
     )
     if explicit is not None:
@@ -215,7 +214,7 @@ def extract_adjudication_price(raw_sale: dict[str, object]) -> Decimal | None:
     for pattern in (
         r"\badjug[ée]\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?)?",
         r"\bprix\s+d['’]adjudication\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?)?",
-        r"\badjudication\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?)?",
+        r"\badjudication\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?\b)",
     ):
         match = re.search(pattern, text, re.I)
         if match:
@@ -696,7 +695,13 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
     adjudication_price = extract_adjudication_price(raw_sale)
     status = normalize_status(_field_or_source_block(raw_sale, "status", "status", "statut"), sale_date)
     if adjudication_price is not None:
-        status = "adjudicated"
+        if sale_date is not None and sale_date > datetime.now(UTC):
+            raw_sale = {**raw_sale, "unverified_adjudication_candidate": str(adjudication_price),
+                        "quality_flags": list(raw_sale.get("quality_flags") or []) + ["sale_procedure_conflict"]}
+            adjudication_price = None
+            status = "quarantined"
+        else:
+            status = "adjudicated"
     rooms_count = parse_rooms_count(
         _field_or_source_block(
             raw_sale,

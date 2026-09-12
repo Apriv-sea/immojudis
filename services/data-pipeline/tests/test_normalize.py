@@ -589,3 +589,34 @@ def test_normalize_sale_does_not_promote_stored_partial_surface() -> None:
     assert sale.app_surface_m2 is None
     assert sale.app_surface_kind is None
     assert sale.surface_scope == "partial"
+
+
+def test_adjudication_calendar_numbers_are_not_sale_results():
+    from src.normalize import extract_adjudication_price
+    for raw in (
+        {'raw_text': "Date et lieu de l'adjudication : 5 novembre 2026 - 14h30. Mise à prix : 252 000 €"},
+        {'raw_text': 'Adjudication : 05/11/2026'},
+        {'source_blocks': {'adjudication': '5 novembre 2026'}},
+    ):
+        assert extract_adjudication_price(raw) is None
+    assert extract_adjudication_price({'raw_text': 'Adjudication : 252 000 €'}) == Decimal('252000')
+
+
+def test_notarial_decimal_space_preserves_full_carrez_area():
+    import json
+
+    from src.sources.notaires import parse_notaires_detail_json
+    detail = parse_notaires_detail_json(json.dumps({'typeTransaction':'VNI',
+        'vni': {'descriptions':[{'langue':'fr','descLongue':'Studio de 17, 11 m2 carrez/21,31 m2 au sol.'}]},
+        'bien': {'typeBien':'APP','appartement':{'typeBien':'APP'}}}))
+    assert detail['carrez_surface_m2'] == 17.11
+    assert detail['habitable_surface_m2'] is None
+
+
+def test_future_sale_with_result_price_is_quarantined_not_certified_sold():
+    sale = normalize_sale({'source_name':'licitor','source_url':'https://example.test/conflict',
+        'sale_date':'2099-10-14T07:30:00Z','adjudication_price_eur':445000,'status':'upcoming'})
+    assert sale.status == 'quarantined'
+    assert sale.adjudication_price_eur is None
+    assert sale.raw_payload['unverified_adjudication_candidate'] == '445000'
+    assert 'sale_procedure_conflict' in sale.quality_flags

@@ -74,3 +74,12 @@ def test_missing_secondary_data_does_not_quarantine_but_procedure_conflict_does(
     assert quarantine_reason(sale) is None
     sale.sale_verification_status = 'conflict'
     assert quarantine_reason(sale) == 'conflicting_sale_procedure'
+
+
+def test_explicit_no_auction_conflicts_with_catalogue_scope():
+    from src.admission import quarantine_reason
+    sale = AuctionSale(source_name='notaires',source_url='https://example.org/sale',
+        raw_payload={'description':'VENTE AU PRIX – PAS D’ENCHERES SUR CE BIEN'})
+    assert quarantine_reason(sale) == 'fixed_price_sale_conflicts_with_auction_scope'
+    sale.raw_payload={'description':'Vente avec un pas d’enchères de 5 000 euros.'}
+    assert quarantine_reason(sale) is None
