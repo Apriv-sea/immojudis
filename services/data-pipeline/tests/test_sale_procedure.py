@@ -202,3 +202,23 @@ def test_conflicting_explicit_venues_are_not_silently_resolved() -> None:
     assert classified.sale_verification_status == "conflict"
     assert "sale_procedure_conflict" in classified.quality_flags
     assert classified.sale_procedure["rules"]["lawyer_required"] is None
+
+
+def test_state_owner_and_notarial_venue_are_compatible_without_inventing_rules():
+    sale = make_sale(source_name="cessions_etat", description="Vente domaniale à la Chambre des notaires de Montpellier.", raw_payload={})
+    classify_sale_procedure(sale)
+    assert sale.sale_venue_type == "notary"
+    assert sale.sale_legal_framework == "state_sale"
+    assert sale.sale_verification_status != "conflict"
+    assert sale.sale_procedure["rules"]["payment_deadline_days"] is None
+    assert sale.sale_procedure["rules"]["lawyer_required"] is None
+
+
+def test_notarial_payment_deadline_requires_case_evidence():
+    sale = make_sale(source_name="notaires", description="Vente notariale. Paiement du prix : intégralité au plus tard le 40e jour suivant l’adjudication.", raw_payload={})
+    classify_sale_procedure(sale)
+    assert sale.sale_procedure["rules"]["payment_deadline_days"] == 40
+    assert sale.sale_procedure["rules"]["payment_deadline_source_url"] == sale.source_url
+    other = make_sale(source_name="notaires", description="Vente notariale.", raw_payload={})
+    classify_sale_procedure(other)
+    assert other.sale_procedure["rules"]["payment_deadline_days"] is None
