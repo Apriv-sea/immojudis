@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import json
 import logging
+import os
 import sys
 import time
 from collections.abc import Callable
@@ -29,7 +31,7 @@ from src.enrichment.surface_reasoning import extract_and_apply_deterministic_sur
 from src.export import export_sales
 from src.freshness import detail_is_fresh, documents_are_current, record_source_checks
 from src.geocode import geocode_sale
-from src.lifecycle import mark_past_sales
+from src.lifecycle import SaleLifecycleStats, mark_past_sales
 from src.models import AuctionSale
 from src.normalize import clean_text, normalize_sale, parse_price
 from src.outcome_ingestion.catalogue_bridge import bridge_auction_sales_before_cleanup
@@ -266,6 +268,9 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 "configured_page_limit": _configured_page_limit(name, settings),
             }
             raw_sales.extend(result.sales)
+            LOGGER.info("Source complete source=%s rows=%s seconds=%.1f errors=%s", name, len(result.sales), seconds, len(result.errors))
+            if options.upsert:
+                _report_collection_progress(run_id, "scraping", raw_by_source, scrape_coverage, timings, errors)
     collection_failed = any(errors.get(name) for name in scrapers)
     coverage_incomplete = any(item.get("coverage_complete") is False for item in scrape_coverage.values())
     timings["scrape_total_seconds"] = round(time.perf_counter() - scrape_overall_started, 2)
@@ -351,32 +356,47 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     early_upserted = 0
     early_observations_upserted = 0
     app_ready: list[AuctionSale] = []
-    started = time.perf_counter()
-    for sale in canonical_sales:
-        try:
-            _finalize_sale_for_app(sale, geocode=False)
-            app_ready.append(sale)
-        except Exception as exc:
-            LOGGER.exception("Light finalisation failed for %s: %s", sale.source_url, exc)
-            errors.setdefault(str(sale.source_name or "unknown"), []).append(str(exc))
-    timings["app_ready_seconds"] = round(time.perf_counter() - started, 2)
-    lifecycle_stats = mark_past_sales(app_ready)
-
-    early_admitted = [sale for sale in app_ready if has_price_or_surface(sale) and not is_expired(sale)]
-    if options.upsert and early_admitted:
-        try:
+    early_publication_fingerprints = {}
+    lifecycle_stats = SaleLifecycleStats()
+    preparation_seconds = 0.0
+    publication_seconds = 0.0
+    for offset in range(0, len(canonical_sales), 25):
+        batch = []
+        started = time.perf_counter()
+        for sale in canonical_sales[offset:offset + 25]:
+            LOGGER.info("Preparing listing source=%s index=%s/%s", sale.source_name, offset + len(batch) + 1, len(canonical_sales))
+            try:
+                _finalize_sale_for_app(sale, geocode=False)
+                batch.append(sale)
+            except Exception as exc:
+                LOGGER.exception("Light finalisation failed for %s: %s", sale.source_url, exc)
+                errors.setdefault(str(sale.source_name or "unknown"), []).append(str(exc))
+        preparation_seconds += time.perf_counter() - started
+        lifecycle_stats.marked_past += mark_past_sales(batch).marked_past
+        app_ready.extend(batch)
+        admitted = [sale for sale in batch if has_price_or_surface(sale) and not is_expired(sale)]
+        if options.upsert and admitted:
             started = time.perf_counter()
-            early_upserted = upsert_sales_to_supabase(early_admitted)
-            early_observations_upserted = upsert_observations_to_supabase(early_admitted)
-            timings["early_supabase_seconds"] = round(time.perf_counter() - started, 2)
-        except Exception as exc:
-            LOGGER.exception("Early Supabase upsert failed: %s", exc)
-            errors.setdefault("supabase", []).append(str(exc))
-    early_publication_fingerprints = (
-        _sale_publication_fingerprints(early_admitted) if options.upsert and early_upserted > 0 else {}
-    )
-
+            try:
+                early_upserted += upsert_sales_to_supabase(admitted)
+                early_publication_fingerprints.update(_sale_publication_fingerprints(admitted))
+                early_observations_upserted += upsert_observations_to_supabase(admitted)
+            except Exception as exc:
+                LOGGER.exception("Early Supabase batch failed at offset %s: %s", offset, exc)
+                errors.setdefault("supabase", []).append(str(exc))
+            publication_seconds += time.perf_counter() - started
+        LOGGER.info("Collection prepared=%s/%s published=%s", min(offset + 25, len(canonical_sales)), len(canonical_sales), early_upserted)
+        if options.upsert:
+            _report_collection_progress(run_id, "publishing", raw_by_source, scrape_coverage, timings, errors,
+                                        prepared=min(offset + 25, len(canonical_sales)), published=early_upserted)
+    timings["app_ready_seconds"] = round(preparation_seconds, 2)
+    timings["early_supabase_seconds"] = round(publication_seconds, 2)
+    # Expired listings remain counted in the final admission report, but do not
+    # consume document, AI or network enrichment before being rejected.
+    expired_before_enrichment = [sale for sale in app_ready if is_expired(sale)]
+    app_ready = [sale for sale in app_ready if not is_expired(sale)]
     cached_llm_display_refreshed = 0
+
     prompt_version = str(settings["llm_prompt_version"])
     if options.use_llm:
         for sale in app_ready:
@@ -512,7 +532,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     for sale in admission_rejected:
         LOGGER.info("Collection admission rejected source=%s url=%s reason=missing_price_and_surface",
                     sale.source_name, sale.source_url)
-    expired_rejected = sum(is_expired(sale) for sale in app_ready)
+    expired_rejected = len(expired_before_enrichment) + sum(is_expired(sale) for sale in app_ready)
     app_ready = [sale for sale in app_ready if has_price_or_surface(sale) and not is_expired(sale)]
     admitted_urls = {sale.source_url for sale in app_ready}
     cadastre_rows = [row for row in cadastre_rows if row.get("source_url") in admitted_urls]
@@ -1183,6 +1203,17 @@ def _timed_scrape(name: str, fn: Callable[[], ScrapeResult]) -> tuple[ScrapeResu
     return result, round(time.perf_counter() - started, 2)
 
 
+def _report_collection_progress(run_id, phase, counts, coverage, timings, errors, **progress):
+    try:
+        update_run_progress_in_supabase(run_id, {
+            "mode": "collect", "phase": phase, "collected_by_source": counts,
+            "scrape_coverage": coverage, "timings": timings, **progress,
+            "last_progress_at": datetime.now(UTC).isoformat(),
+        }, errors)
+    except Exception:
+        LOGGER.warning("Unable to publish collection progress", exc_info=True)
+
+
 def _finalize_sale_for_app(sale: AuctionSale, *, geocode: bool = True) -> None:
     source_description = extract_source_description(sale)
     if source_description:
@@ -1210,7 +1241,10 @@ def _surface_reasoning_context_for_sale(sale: AuctionSale) -> str:
         payload.get("source_description"),
         *block_values,
     ]
-    return clean_text("\n".join(str(value) for value in values if value)) or ""
+    # Source descriptions are often copied into several payload fields. Keep
+    # each distinct field once without truncating or deduplicating within it.
+    parts = dict.fromkeys(clean_text(str(value)) for value in values if value)
+    return "\n".join(part for part in parts if part)
 
 
 def _needs_heavy_enrichment(
@@ -1498,4 +1532,6 @@ def parse_args(argv: list[str] | None = None) -> PipelineOptions:
 
 
 if __name__ == "__main__":
+    if os.getenv("PIPELINE_TRACEBACK_SECONDS"):
+        faulthandler.dump_traceback_later(max(60, int(os.environ["PIPELINE_TRACEBACK_SECONDS"])), repeat=True)
     sys.exit(run_from_options(parse_args()))

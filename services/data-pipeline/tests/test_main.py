@@ -1077,3 +1077,32 @@ def _fake_geocode(sale: AuctionSale) -> AuctionSale:
 
 def _raise_pdf() -> None:
     raise RuntimeError("pdf boom")
+
+
+def test_prepared_batch_survives_interruption_on_next_listing(monkeypatch):
+    sales = [AuctionSale(source_name='avoventes', source_url=f'https://example.test/{i}',
+                         starting_price_eur=10000) for i in range(26)]
+    monkeypatch.setattr(main, 'load_settings', _settings)
+    monkeypatch.setattr(main, 'create_run_in_supabase', lambda *a, **kw: 'batch-run')
+    monkeypatch.setattr(main, 'fetch_known_sale_details', lambda: {})
+    monkeypatch.setattr(main, 'fetch_enriched_content_hashes', lambda *a, **kw: set())
+    monkeypatch.setattr(main, '_enabled_scrapers', lambda *a, **kw: {})
+    monkeypatch.setattr(main, 'merge_duplicate_sales', lambda rows: sales)
+    committed = []
+    def prepare(sale, **kw):
+        if sale is sales[-1]:
+            raise KeyboardInterrupt('runner interrupted')
+    monkeypatch.setattr(main, '_finalize_sale_for_app', prepare)
+    monkeypatch.setattr(main, 'upsert_sales_to_supabase', lambda rows: committed.extend(rows) or len(rows))
+    monkeypatch.setattr(main, 'upsert_observations_to_supabase', lambda rows: len(rows))
+    with pytest.raises(KeyboardInterrupt):
+        main.run_pipeline(main.PipelineOptions(use_llm=False))
+    assert committed == sales[:25]
+
+
+def test_surface_context_deduplicates_copied_fields_without_losing_distinct_evidence():
+    repeated = 'Chambre 12 m². Chambre 12 m².'
+    sale = AuctionSale(source_name='test', source_url='https://example.test/context',
+                       description=repeated, raw_text=repeated,
+                       raw_payload={'source_description': repeated, 'source_blocks': {'extra': 'Terrain 500 m².'}})
+    assert main._surface_reasoning_context_for_sale(sale) == repeated + '\nTerrain 500 m².'
