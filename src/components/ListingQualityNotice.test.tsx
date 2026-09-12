@@ -45,3 +45,18 @@ it("shows the actual verification timestamp and rejects unsafe provenance links"
   expect(screen.queryByText(/Analyse en cours/)).toBeNull();
   expect(screen.queryByRole("link")).toBeNull();
 });
+it("exposes legacy critical reservations even without structured conflicts", () => {
+  render(
+    <ListingQualityNotice
+      sale={
+        {
+          quality_flags: ["ambiguous_surface", "occupation_conflict", "tribunal_inconsistent"],
+          documents: [],
+        } as unknown as AuctionSale
+      }
+    />,
+  );
+  expect(screen.getByText(/Surfaces à confirmer/)).toBeTruthy();
+  expect(screen.getByText(/Occupation à confirmer/)).toBeTruthy();
+  expect(screen.getByText(/Tribunal à confirmer/)).toBeTruthy();
+});

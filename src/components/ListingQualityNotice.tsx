@@ -29,6 +29,7 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
     ["unavailable", "access_denied"].includes(item.availability ?? ""),
   );
   const missing = parseDocs(sale.documents).length === 0;
+  const flags = Array.isArray(sale.quality_flags) ? sale.quality_flags : [];
   return (
     <aside
       className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm"
@@ -72,6 +73,25 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       {Array.isArray(sale.quality_flags) &&
       sale.quality_flags.includes("parcel_surface_scope_unverified") ? (
         <p>Plusieurs parcelles sont décrites. La surface totale du terrain reste à confirmer.</p>
+      ) : null}
+      {["ambiguous_surface", "surface_contradiction", "surface_unit_or_consistency_warning"].some(
+        (flag) => flags.includes(flag),
+      ) ? (
+        <p>
+          Surfaces à confirmer : les données disponibles présentent une ambiguïté ou une
+          contradiction.
+        </p>
+      ) : null}
+      {flags.includes("occupation_conflict") ? (
+        <p>
+          Occupation à confirmer : les informations disponibles ne permettent pas de conclure avec
+          certitude.
+        </p>
+      ) : null}
+      {flags.includes("tribunal_inconsistent") ? (
+        <p>
+          Tribunal à confirmer auprès de la source : les références disponibles sont incohérentes.
+        </p>
       ) : null}
       {missing ? (
         <p>Documents non disponibles à ce stade. Vérifiez les pièces auprès de la source.</p>

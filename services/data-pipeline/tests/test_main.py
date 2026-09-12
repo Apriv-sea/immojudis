@@ -643,7 +643,12 @@ def test_pipeline_enriches_dpe_after_final_geocode(monkeypatch) -> None:
     ]
 
 
-def test_incremental_skip_only_skips_heavy_enrichment_not_publication(monkeypatch) -> None:
+@pytest.mark.parametrize("autonomous", [False, True])
+def test_incremental_skip_only_skips_heavy_enrichment_not_publication(monkeypatch, autonomous) -> None:
+    if autonomous:
+        monkeypatch.setenv("PIPELINE_AUTONOMOUS_RUN_ID", "test-autonomous")
+    else:
+        monkeypatch.delenv("PIPELINE_AUTONOMOUS_RUN_ID", raising=False)
     calls: list[str] = []
     settings = _settings()
     settings["incremental_enrichment"] = True
@@ -673,7 +678,7 @@ def test_incremental_skip_only_skips_heavy_enrichment_not_publication(monkeypatc
 
     assert main.run_pipeline(main.PipelineOptions(source="avoventes", use_llm=False, upsert=True)) == 0
     assert "pdf" not in calls
-    assert "geocode" in calls
+    assert ("geocode" in calls) is (not autonomous)
     assert calls.count("upsert") == 2
 
 

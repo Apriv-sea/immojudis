@@ -520,7 +520,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     started = time.perf_counter()
     for sale in app_ready:
         try:
-            _finalize_sale_for_app(sale)
+            _finalize_sale_for_app(sale, geocode=not bool(os.getenv("PIPELINE_AUTONOMOUS_RUN_ID")))
         except Exception as exc:
             LOGGER.exception("Finalisation failed for %s: %s", sale.source_url, exc)
             errors.setdefault(str(sale.source_name or "unknown"), []).append(str(exc))

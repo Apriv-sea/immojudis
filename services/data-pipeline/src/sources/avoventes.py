@@ -280,6 +280,14 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
     location = _property_location_codes(description)
     lawyer_contact = _extract_after_label(raw_text, r"(?:Téléphone|Tél\.?|Tel\.?)\s*:?\s*([^\n]+)")
     adjudication_price = _extract_after_label(raw_text, r"Adjug[ée]\s*:?\s*([0-9][0-9\s,.]*\s*(?:€|euros?)?)")
+    own_header = re.split(r"[ÀA] propos du bien|Autres biens", raw_text, maxsplit=1, flags=re.I)[0]
+    event = None
+    for pattern, value in ((r"vente\s+report[ée]e?", "postponed"),
+                           (r"vente\s+annul[ée]e?", "cancelled"),
+                           (r"vente\s+retir[ée]e?", "withdrawn")):
+        if re.search(pattern, own_header, re.I):
+            event = value
+            break
     surface = _extract_after_label(
         raw_text,
         r"(?:Surface(?:\s+(?:habitable|totale))?|Superficie(?:\s+(?:des\s+)?Lots?\b[^:\n]{0,80})?)\s*:?\s*([0-9\s,.]+)\s*m",
@@ -295,7 +303,7 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
         "description": description,
         "lawyer_contact": lawyer_contact,
         "adjudication_price_eur": adjudication_price,
-        "status": "adjudicated" if adjudication_price else None,
+        "status": event or ("adjudicated" if adjudication_price else None),
         "surface_m2": surface,
         "source_blocks": {
             key: value

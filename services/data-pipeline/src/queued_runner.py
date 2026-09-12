@@ -14,6 +14,7 @@ from src.dpe import enrich_dpe_sales
 from src.enrichment.extract_structured import enrich_sale_with_llm
 from src.enrichment.llm_client import create_llm_client
 from src.freshness import documents_are_current
+from src.geocode import geocode_sale
 from src.information_agent_evidence import run_information_agent_evidence_batch
 from src.main import (
     SOURCE_NAMES,
@@ -241,7 +242,7 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                     error_message="sale not found",
                 )
             continue
-        if is_expired(sale) or sale.status in {'cancelled', 'withdrawn', 'adjudicated'}:
+        if is_expired(sale) or sale.status in {'cancelled', 'withdrawn', 'adjudicated', 'quarantined'}:
             for job in sale_jobs:
                 _finish_job(job, succeeded=True)
             continue
@@ -277,6 +278,8 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                         raise RuntimeError("Fact extraction coverage incomplete")
             if "display_description" in job_types or "fact_extraction" in job_types:
                 sale.raw_payload.pop("source_content_changed", None)
+            if sale.latitude is None or sale.longitude is None:
+                geocode_sale(sale)
             fill_tribunal(sale)
             classify_sale_procedure(sale)
             normalize_asset_features(sale)

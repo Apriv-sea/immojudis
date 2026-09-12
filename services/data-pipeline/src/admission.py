@@ -60,6 +60,10 @@ def is_expired(sale: AuctionSale, now=None) -> bool:
 
 def quarantine_reason(sale: AuctionSale) -> str | None:
     """Only positive evidence of inconsistency blocks publication, never a missing secondary fact."""
+    import re
+    text = str(sale.raw_payload.get("description") or sale.raw_payload.get("raw_text") or "")
+    if re.search(r"\bpas\s+d['’]ench[eè]res\s+sur\s+ce\s+bien", text, re.I):
+        return "fixed_price_sale_conflicts_with_auction_scope"
     if sale.sale_verification_status == "conflict" or "sale_procedure_conflict" in sale.quality_flags:
         return "conflicting_sale_procedure"
     for flag in ("property_identity_conflict", "lot_identity_conflict", "source_identity_mismatch"):

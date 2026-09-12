@@ -74,5 +74,261 @@
   {
     "source_name": "cessions_etat",
     "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/maison-situee-saint-aignan-grandlieu-ayant-vocation-perdre-son-usage-dhabitation"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/2-appartements-4-emplacements-de-stationnement-a-sainte-maxime-vente-en-6-lots"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/2-studios-cave-a-paris-vente-en-2-lots"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-a-marseille-14"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-a-saint-denis-5"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-a-saint-maur-des-fosses"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-box-a-vitry-sur-seine"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-cave-a-villeneuve-saint-georges-4"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-cave-box-a-asnieres-sur-seine"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-cave-emplacement-de-stationnement-a-grigny-2"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-de-3-pieces-64m2-avec-cave-et-parking-a-cagnes-sur-mer"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-de-3-pieces-6887-m2-avec-cave-et-parking-a-le-cannet"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-de-deux-pieces-66-m2-avec-cave-et-garage-a-grasse"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-deux-places-de-parking-a-saint-orens-de-gameville"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-en-duplex-7"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-grenier-remise-a-creil"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-parking-a-courbevoie"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-t3-quartier-saint-esprit-a-bayonne"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/deux-appartements-combles"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/deux-grandes-cellules-commerciales-avec-un-bureau-borgne-et-un-espace-sanitaire-a-dijon"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/ensemble-de-batiments-pour-partie-non-acheves-a-perreux"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/ensemble-immobilier-a-usage-commercial-a-furiani"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/ensemble-immobilier-compose-de-deux-logements-a-cognac"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/immeuble-en-pierre-a-lesparre-medoc"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/logement-place-de-parking-jouissance-place-de-parking-a-gisors"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-aumale"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-bures-en-bray"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-houilles"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-isolaccio-di-fiumorbo"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-le-lesme"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-ormoy-la-riviere"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-sonchamp"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-a-tournus"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-de-maitre-a-gagnieres-gard"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-de-village-a-mareuil-sur-ourcq"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-dhabitation-a-cabanac-et-villagrains"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-dhabitation-vue-montagne-a-hasparren"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/maison-parcelle-de-bois-a-elbeuf-en-bray"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/studio-cave-a-paris-2"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-appartement-a-cannes-8"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-appartement-un-cellier-et-une-remise-a-sainte-genevieve-des-bois"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-appartement-une-cave-un-emplacement-de-stationnement-pour-une-voiture-et-un-garage-a-essey-les-nancy"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-ensemble-de-terrains-a-chabeuil-et-chateaudouble"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-hangar-a-hericourt"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-pavillon-dhabitation-a-champigny-sur-marne-1"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/une-maison-a-la-salle"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/une-maison-dhabitation-a-marsannay-la-cote"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/une-maison-dhabitation-de-plein-pied-sur-une-parcelle-de-1-300-m2-avec-garage-attenant-a-le-born"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/une-maison-et-ses-dependances-a-uzemain"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/une-maison-et-un-parking-a-tourrettes"
+  },
+  {
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/vente-aux-encheres-maison-de-maitre-a-baud-de-33655-m2"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108244-d-vente-encheres-immobilieres-appartement-t2-et-deux-parkings-saint-orens-de-gameville-31-ref-6010.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108247-d-vente-encheres-immobilieres-appartement-en-duplex-et-deux-caves-lyon-69-ref-6012.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108248-d-vente-encheres-immobilieres-appartement-et-trois-caves-lyon-69-ref-6013.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108251-d-vente-encheres-immobilieres-appartement-avec-sacchoir-et-cave-toulouse-31-ref-6015.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108252-d-vente-encheres-immobilieres-maison-d-habitation-tournus-71-ref-6016.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108254-d-vente-encheres-immobilieres-un-ensemble-de-terrains-chabeuil-26-ref-6018.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108256-d-vente-encheres-immobilieres-un-ensemble-de-terrains-chateaudouble-26-ref-6019.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108258-d-vente-encheres-immobilieres-deux-appartements-et-des-combles-angouleme-16-ref-6020.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108260-d-vente-encheres-immobilieres-appartement-t5-avec-terrasse-garage-en-sous-sol-et-emplacement-de-stationnement-aacrien-toulouse-31-ref-6021.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108263-d-vente-encheres-immobilieres-appartement-t2-en-copropriactac-dax-40-ref-6024.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108268-d-vente-encheres-immobilieres-locaux-commerciaux-bagneres-de-bigorre-65-ref-6029.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108269-d-vente-encheres-immobilieres-appartement-avec-cellier-casier-an-skis-et-emplacement-pour-voiture-bagneres-de-bigorre-65-ref-6030.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108270-d-vente-encheres-immobilieres-maison-lourdes-65-ref-6031.html"
+  },
+  {
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108285-d-vente-encheres-immobilieres-maison-perpignan-66-ref-6046.html"
   }
 ]
