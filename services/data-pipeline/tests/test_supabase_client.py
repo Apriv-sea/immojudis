@@ -8,6 +8,7 @@ import pytest
 
 from src.court_competence import CompetentCourtAssignment
 from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION
+from src.models import AuctionSale
 from src.normalize import normalize_sale
 from src.storage import supabase_client
 from src.storage.supabase_client import _sanitize_postgrest_payload, _secondary_source_urls
@@ -1304,3 +1305,36 @@ def test_fetch_sale_for_data_refresh_returns_auction_sale(monkeypatch) -> None:
     assert sale.source_name == "avoventes"
     assert sale.source_url == "https://example.test/sale"
     assert float(sale.latitude or 0) == 44.84
+
+
+def test_publication_commits_completed_batches_before_later_batch_failure(monkeypatch):
+    from contextlib import contextmanager
+    monkeypatch.setattr(supabase_client, 'load_settings', lambda: {
+        'supabase_url': 'https://supabase.test', 'supabase_service_role_key': 'test',
+        'supabase_db_url': 'postgresql://test',
+    })
+    events = []
+    @contextmanager
+    def connect(url):
+        try:
+            yield SimpleNamespace(execute=lambda *args: None)
+        except RuntimeError:
+            events.append('rollback')
+            raise
+        else:
+            events.append('commit')
+    monkeypatch.setattr(supabase_client, '_postgres_connect', connect)
+    batch_sizes = []
+    def write(table, payload, conflict):
+        batch_sizes.append(len(payload))
+        if len(batch_sizes) == 2:
+            raise RuntimeError('second batch failed')
+    monkeypatch.setattr(supabase_client, '_transaction_write', write)
+    for name in ['_sync_normalized_sale_tables_with_rest', '_upsert_asset_tables_with_rest', '_enqueue_due_enrichment']:
+        monkeypatch.setattr(supabase_client, name, lambda *args, **kwargs: None)
+    sales = [AuctionSale(source_name='test', source_url=f'https://example.test/{i}', starting_price_eur=100) for i in range(26)]
+    with pytest.raises(RuntimeError, match='second batch'):
+        supabase_client.upsert_sales_to_supabase(sales)
+    assert batch_sizes == [25, 1]
+    assert events == ['commit', 'rollback']
+    assert supabase_client._PUBLICATION_CONNECTION.get() is None

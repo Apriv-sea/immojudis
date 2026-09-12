@@ -58,11 +58,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     name: Run data pipeline
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     defaults:
       run:
         working-directory: services/data-pipeline
     env:
+      PYTHONUNBUFFERED: "1"
+      PIPELINE_TRACEBACK_SECONDS: "300"
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SOURCE_FETCH_RELAY_URL: ${{ vars.SOURCE_FETCH_RELAY_URL }}
       SOURCE_FETCH_RELAY_TOKEN: ${{ secrets.SOURCE_FETCH_RELAY_TOKEN }}

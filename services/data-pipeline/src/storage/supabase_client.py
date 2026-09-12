@@ -253,6 +253,7 @@ def _transaction_write(table: str, payload: list[dict[str, object]], on_conflict
         statement += (sql.SQL("do update set ") + sql.SQL(", ").join(
             sql.SQL("{} = excluded.{}").format(sql.Identifier(column), sql.Identifier(column)) for column in updates
         )) if updates else sql.SQL("do nothing")
+    LOGGER.info("Publication write table=%s rows=%s", table, len(payload))
     connection.execute(statement, (Jsonb(_sanitize_postgrest_payload(payload)),))
 
 
@@ -314,8 +315,14 @@ def upsert_sales_to_supabase(
     if not url or not key:
         LOGGER.info("Supabase variables are missing; skipping upsert")
         return 0
+    if db_url and _PUBLICATION_CONNECTION.get() is None and len(sales) > 25:
+        committed = 0
+        for offset in range(0, len(sales), 25):
+            committed += upsert_sales_to_supabase(sales[offset:offset + 25], refresh_last_seen=refresh_last_seen)
+            LOGGER.info("Publication committed %s/%s sales", committed, len(sales))
+        return committed
     if db_url and _PUBLICATION_CONNECTION.get() is None:
-        # All product tables commit together. A failed transaction never falls
+        # All product tables for each bounded batch commit together. A failed transaction never falls
         # back to partially committed REST writes.
         with _postgres_connect(str(db_url)) as connection:
             connection.execute("select set_config('app.pipeline_queue_owner', 'python', true)")
