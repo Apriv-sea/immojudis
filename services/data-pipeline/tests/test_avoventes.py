@@ -97,6 +97,7 @@ def test_parse_avoventes_detail_html_extracts_pdf_documents() -> None:
 
 def test_catalogue_returned_for_removed_detail_is_not_parsed_as_property():
     import pytest
+
     from src.sources.avoventes import _enrich_sale_from_detail
 
     html = '<html><title>AVOVENTES - Ventes aux enchères publiques immobilières</title><select>'
