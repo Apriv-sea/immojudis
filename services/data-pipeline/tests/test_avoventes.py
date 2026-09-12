@@ -162,3 +162,14 @@ def test_parse_avoventes_detail_html_extracts_source_images() -> None:
         "https://avoventes.fr/public/uploads/cabinet/114/images/cropped_photo.jpg",
         "https://avoventes.fr/public/uploads/cabinet/114/images/resized_photo.jpg",
     ]
+
+
+def test_detail_postponement_is_not_replaced_by_nearby_sale_date():
+    from src.sources.avoventes import parse_avoventes_detail_html
+    detail = parse_avoventes_detail_html('''<h1>Maison à Marsannay-la-Côte</h1>
+        <div>Adjudication : VENTE REPORTÉE</div><div>Vente reportée</div>
+        <h2>À propos du bien</h2><p>Maison 127,31 m²</p>
+        <h2>Autres biens à proximité</h2><div>Appartement, vente le 16 septembre 2026</div>''',
+        'https://avoventes.fr/enchere/une-maison-dhabitation-a-marsannay-la-cote')
+    assert detail['status'] == 'postponed'
+    assert detail.get('sale_date') is None
