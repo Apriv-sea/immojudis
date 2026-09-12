@@ -7,6 +7,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 from bs4 import BeautifulSoup
 
 from src.sources.cessions_etat import cessions_tls_context
@@ -33,7 +34,12 @@ def audit(source: str, output: Path) -> None:
         temporary.replace(output)
 
     save()
+    denied = 0
     for row in rows:
+        if denied >= 2:
+            row.update(status="unverified", reason="source_access_denied_circuit_open")
+            save()
+            continue
         row.update(status='in_progress_or_interrupted',checked_at=datetime.now(UTC).isoformat())
         save()
         try:
@@ -47,6 +53,8 @@ def audit(source: str, output: Path) -> None:
                 title=soup.title.get_text(' ',strip=True) if soup.title else None,
                 source_text=soup.get_text('\n',strip=True)[:60000])
         except Exception as exc:
+            if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403):
+                denied += 1
             row.update(status='unverified',reason=str(exc)[:1000])
         save()
     print(json.dumps({'source':source,'rows':len(rows),'fetched':sum(r['status']=='review_required' for r in rows)}))

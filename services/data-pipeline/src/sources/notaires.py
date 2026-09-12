@@ -203,6 +203,8 @@ def parse_notaires_detail_json(payload: str, fallback: dict[str, Any] | None = N
     source_images = _multimedia_images(transaction.get("multimedias"))
     address = _address(property_block, postal_code, city, description_text)
     text_surface, text_surface_evidence = _built_surface_from_text(description_text, description.get("short"))
+    generic_text_surface, generic_text_evidence = text_surface, text_surface_evidence
+    text_surface, text_surface_evidence = _habitable_surface_from_text(description_text, description.get("short"))
     text_carrez_surface, _ = _carrez_surface_from_text(description_text, description.get("short"))
     api_habitable_surface = _usable_habitable_surface(property_block.get("surfaceHabitable"), description_text)
     if _should_prefer_text_surface(api_habitable_surface, text_surface, text_surface_evidence):
@@ -235,6 +237,9 @@ def parse_notaires_detail_json(payload: str, fallback: dict[str, Any] | None = N
     cadastral_surface, cadastral_evidence = _cadastral_surface_from_text(description_text)
     land_surface = source_land_surface or cadastral_surface
     generic_surface = _usable_generic_surface(property_block.get("surface"), land_surface)
+    generic_from_text = generic_surface is None and generic_text_surface is not None
+    if generic_from_text:
+        generic_surface = generic_text_surface
     if source_land_surface is not None:
         land_surface_source = "notaires.surfaceTerrain"
         land_surface_evidence = cadastral_evidence or f"surfaceTerrain: {source_land_surface} m²"
@@ -250,9 +255,9 @@ def parse_notaires_detail_json(payload: str, fallback: dict[str, Any] | None = N
         surface_confidence = habitable_surface_confidence
         surface_evidence = habitable_surface_evidence
     elif generic_surface is not None:
-        surface_source = "notaires.surface"
+        surface_source = "notaires.description.surface_batie" if generic_from_text else "notaires.surface"
         surface_confidence = 0.8
-        surface_evidence = f"surface: {generic_surface} m²"
+        surface_evidence = generic_text_evidence if generic_from_text else f"surface: {generic_surface} m²"
     elif is_land_only_surface:
         surface_source = land_surface_source
         surface_confidence = 0.9
@@ -274,8 +279,16 @@ def parse_notaires_detail_json(payload: str, fallback: dict[str, Any] | None = N
         ]
     )
 
+    conflicts = []
+    if api_habitable_surface and text_surface and abs(float(api_habitable_surface) - float(text_surface)) > max(1, float(text_surface) * 0.01):
+        source_url = (fallback or {}).get("source_url") or f"{API_URL}/{data.get('id', '')}"
+        conflicts.append({"code": "source_surface_disagreement", "field": "habitable_surface_m2",
+            "selected": habitable_surface, "alternative": text_surface if habitable_surface != text_surface else api_habitable_surface,
+            "selected_source": source_url, "alternative_source": source_url,
+            "evidence": {"api_surfaceHabitable": api_habitable_surface, "description": text_surface_evidence}})
     latitude, longitude = _coordinates(property_block)
     return {
+        "source_conflicts": conflicts,
         "department": clean_text(property_block.get("inseeDepartement")),
         "city": city,
         "postal_code": postal_code,
@@ -588,6 +601,19 @@ def _usable_generic_surface(value: object | None, land_surface: object | None) -
     if land_surface is not None and surface < 9:
         return None
     return surface
+
+
+def _habitable_surface_from_text(*values: str | None) -> tuple[int | float | None, str | None]:
+    text = clean_text("\n".join(value for value in values if value)) or ""
+    patterns = (
+        rf"\b(?:surface|superficie)\s+habitable\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
+        rf"\b{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+habitables?\b",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, re.I):
+            if not _is_surface_context_excluded(text, match.start(), match.end()):
+                return _surface_value(match.group(1)), _evidence_sentence(text, match.start(), match.end())
+    return None, None
 
 
 def _built_surface_from_text(*values: str | None) -> tuple[int | float | None, str | None]:
