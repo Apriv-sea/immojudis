@@ -1124,7 +1124,7 @@ def test_parse_notaires_detail_api_payload_extracts_rich_fields() -> None:
     assert detail["land_surface_m2"] == 266
     assert detail["surface_source"] == "notaires.surfaceHabitable"
     assert detail["surface_confidence"] == 0.95
-    assert "immeuble en pierre" in detail["surface_evidence"]
+    assert "surfaceHabitable" in detail["surface_evidence"]
     assert detail["bedrooms_count"] == 2
     assert detail["bathrooms_count"] == 1
     assert detail["has_garage"] is True
@@ -1350,7 +1350,7 @@ def test_parse_notaires_detail_extracts_address_from_description() -> None:
     assert detail["address"] == "20 Rue du Milon, 33470 Teich"
     assert detail["property_type"] == "maison"
     assert detail["surface_m2"] == 52
-    assert detail["habitable_surface_m2"] == 52
+    assert detail["habitable_surface_m2"] is None
     assert detail["land_surface_m2"] == 322
     assert detail["surface_source"] == "notaires.description.surface_batie"
     assert "Maison à démolir 52 m² environ" in detail["surface_evidence"]
@@ -1394,7 +1394,7 @@ def test_parse_notaires_detail_extracts_main_surface_from_description_without_st
 
     assert detail["property_type"] == "immeuble"
     assert detail["surface_m2"] == 206.9
-    assert detail["habitable_surface_m2"] == 206.9
+    assert detail["habitable_surface_m2"] is None
     assert detail["land_surface_m2"] == 266
     assert detail["surface_source"] == "notaires.description.surface_batie"
     assert "immeuble en pierre" in detail["surface_evidence"]
@@ -1482,3 +1482,22 @@ def test_parse_notaires_detail_keeps_thousands_cadastral_surface_as_land() -> No
     assert detail["land_surface_m2"] == 2464.7
     assert detail["surface_source"] == "notaires.description.cadastre"
     assert "2 464,70 m²" in detail["surface_evidence"]
+
+
+def test_notarial_generic_area_is_not_promoted_to_habitable():
+    detail = parse_notaires_detail_json(json.dumps({
+        'typeTransaction': 'VNI', 'vni': {'descriptions': [{'langue':'fr', 'descLongue':
+            'Maison de 176 m² au sol, dont environ 150 m² habitables.'}]},
+        'bien': {'typeBien':'MAI', 'maison': {'typeBien':'MAI'}}}))
+    assert detail['habitable_surface_m2'] == 150
+
+
+def test_notarial_api_description_contradiction_keeps_both_values():
+    detail = parse_notaires_detail_json(json.dumps({
+        'id': 2069118, 'typeTransaction': 'VNI', 'vni': {'descriptions': [{'langue':'fr', 'descLongue':
+            'Maison de 176 m² au sol, dont environ 150 m² habitables.'}]},
+        'bien': {'typeBien':'MAI', 'maison': {'typeBien':'MAI','surfaceHabitable':176.89}}}))
+    conflict = detail['source_conflicts'][0]
+    assert {conflict['selected'], conflict['alternative']} == {176.89, 150}
+    assert conflict['selected_source'].endswith('/2069118')
+    assert conflict['evidence']['api_surfaceHabitable'] == 176.89

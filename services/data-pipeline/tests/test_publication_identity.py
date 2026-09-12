@@ -164,3 +164,34 @@ def test_different_sale_lots_are_explicitly_reserved():
         'description':'PREMIER LOT DE VENTE : surface loi Carrez totale de 51,82 m². SECOND LOT DE VENTE : superficie loi Carrez de 42,90 m².'})
     assert 'multi_lot_sale' in result.quality_flags
     assert str(result.carrez_surface_m2) == '51.82'
+
+
+def test_notarial_opening_is_not_an_expiration_deadline():
+    import json
+    from datetime import UTC, datetime
+
+    from src.admission import is_expired, retention_deadline
+    from src.sources.notaires import parse_notaires_json
+
+    payload = {'annonceResumeDto':[{'annonceId':1,'typeTransaction':'VNI',
+        'urlDetailAnnonceFr':'https://example.test/1','dateDebutEncheres':'2026-09-10T10:00:00Z',
+        'dateFinEncheres':'2026-09-15T10:00:00Z'}]}
+    raw = parse_notaires_json(json.dumps(payload))[0]
+    sale = normalize_sale(raw)
+    assert sale.sale_date == datetime(2026,9,15,10,tzinfo=UTC)
+    assert not is_expired(sale,datetime(2026,9,12,12,tzinfo=UTC))
+    assert is_expired(sale,datetime(2026,9,16,11,tzinfo=UTC))
+    payload['annonceResumeDto'][0].pop('dateFinEncheres')
+    incomplete = normalize_sale(parse_notaires_json(json.dumps(payload))[0])
+    assert retention_deadline(incomplete) is None
+
+
+def test_verified_closing_clears_only_its_temporary_reservation():
+    before = sale('https://example.test/online')
+    before.raw_payload['source_conflicts'] = [
+        {'code':'closing_time_unverified','field':'sale_date','selected_source':before.source_url},
+        {'field':'carrez_surface_m2','selected_source':before.source_url}]
+    incoming = sale(before.source_url,checked='2026-09-12T12:00:00Z')
+    incoming.raw_payload['source_sale_schedule'] = {'opens_at':'2026-09-14T10:00:00Z','closes_at':'2026-09-15T10:00:00Z'}
+    result = merge_revision(before,incoming)
+    assert result.raw_payload['source_conflicts'] == [{'field':'carrez_surface_m2','selected_source':before.source_url}]

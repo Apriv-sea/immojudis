@@ -191,7 +191,7 @@ def parse_info_encheres_detail_html(html: str, source_url: str) -> dict[str, Any
 def _sale_date_with_audience_time(date_text: str | None, text: str) -> str | None:
     if not date_text or not re.fullmatch(r"\d{2}/\d{2}/\d{4}", date_text.strip()):
         return date_text
-    match = re.search(r"audience[^.\n]{0,70}d[ée]bute\s+[àa]\s+(\d{1,2})[hH:](\d{2})?\b", text, re.I)
+    match = re.search(r"audience[^.\n]{0,70}d[ée]bute(?:nt)?\s+[àa]\s+(\d{1,2})[hH:](\d{2})?\b", text, re.I)
     if match and int(match.group(1)) < 24 and int(match.group(2) or 0) < 60:
         return f"{date_text} à {match.group(1)}h{match.group(2) or '00'}"
     return date_text

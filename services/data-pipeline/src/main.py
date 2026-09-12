@@ -221,7 +221,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     timings: dict[str, float] = {}
 
     # Données connues en base : Vench s'en sert comme fallback quand la page est
-    # paywall/sparse ; seules les lignes scorées peuvent servir au skip détail.
+    # paywall/sparse ; la fraîcheur source est indépendante de l’analyse IA.
     try:
         known_details: dict[str, dict[str, object]] = (
             fetch_known_sale_details()
@@ -236,7 +236,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     known_signatures = {
         source_url: str(row["_signature"])
         for source_url, row in known_details.items()
-        if row.get("_signature") and row.get("score_version") and detail_is_fresh(row, source_url)
+        if row.get("_signature") and detail_is_fresh(row, source_url)
     }
 
     # ── Scraping des sources en parallèle ────────────────────────────────────

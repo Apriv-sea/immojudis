@@ -165,7 +165,8 @@ def run_audit(source: str, output: Path, *, max_pages: int = 100,
         'inventory_certified': certificate['all_discovered_announcements_emitted'],
         'error_count': len(errors), 'errors': errors[:20], 'requests': trace,
         'inventory': [{'url': s.get('source_url'), 'external_id': s.get('external_id'),
-                       'department': s.get('department'), 'sale_date': s.get('sale_date')} for s in sales],
+                       'department': s.get('department'), 'sale_date': s.get('sale_date'),
+                       'status': s.get('status'), 'source_sale_schedule': s.get('source_sale_schedule')} for s in sales],
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str))

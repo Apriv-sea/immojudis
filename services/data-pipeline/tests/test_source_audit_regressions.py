@@ -182,3 +182,8 @@ def test_subscription_footer_alone_does_not_mark_the_detail_restricted(module, r
     sale = {"source_url": module.BASE_URL + "/test"}
     module._enrich_sale_from_detail(Client(), sale, [])
     assert sale["source_detail_status"] == ("restricted" if restricted else "complete")
+
+
+def test_info_encheres_plural_audience_time_does_not_regress_to_midnight():
+    from src.sources.info_encheres import _sale_date_with_audience_time
+    assert _sale_date_with_audience_time("08/10/2026", "Les audiences de vente débutent à 13h30 salle 5.") == "08/10/2026 à 13h30"
