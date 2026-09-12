@@ -7,17 +7,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from psycopg.rows import dict_row
 
 from src.config import load_settings
 from src.normalize import normalize_sale
-from src.sources.common import PoliteHttpClient, is_allowed_origin_url
+from src.source_detail import fetch_public_detail
 from src.storage.supabase_client import _postgres_connect
 
 FIELDS = ('address', 'city', 'postal_code', 'sale_date', 'starting_price_eur',
@@ -54,7 +52,6 @@ def audit_source(source: str, output: Path, sample: Path = SAMPLE) -> None:
         with db.cursor(row_factory=dict_row) as cursor:
             cursor.execute('select * from public.auction_sales where id=any(%s::uuid[])', ([row['id'] for row in targets],))
             stored = {str(row['id']): row for row in cursor.fetchall()}
-    module = importlib.import_module('src.sources.' + source)
     clients = {}
     records = [{**target, 'status': 'unverified', 'reason': 'not_attempted'} for target in targets]
     def save_report():
@@ -82,49 +79,7 @@ def audit_source(source: str, output: Path, sample: Path = SAMPLE) -> None:
             ('document_analysis', 'surface_extraction', 'land_surface_extraction', 'starting_price_extraction')}
         record['documents'] = row.get('documents') or []
         try:
-            endpoint = target['source_url']
-            parser = getattr(module, 'parse_' + source + '_detail_html', None)
-            base = module.BASE_URL
-            if source == 'notaires':
-                marker = urlsplit(endpoint).path.rstrip('/').split('/')[-1]
-                if not marker.isdigit():
-                    raise ValueError('Unsupported notarial URL identity')
-                endpoint = module._detail_api_url({'external_id': marker})
-                def parser(body, url, listing_url=target['source_url']):
-                    return module.parse_notaires_detail_json(body, fallback={'source_url': listing_url})
-            elif source == 'agrasc':
-                from src.sources.agrasc_operators import (
-                    AGORA_ORIGIN,
-                    IMMO_ORIGIN,
-                    parse_agora_operator_detail,
-                    parse_immo_operator_json,
-                )
-                from src.sources.notaires import API_URL, BASE_URL
-                if is_allowed_origin_url(endpoint, (AGORA_ORIGIN,)):
-                    base, parser = AGORA_ORIGIN, parse_agora_operator_detail
-                elif is_allowed_origin_url(endpoint, (IMMO_ORIGIN,)):
-                    marker = urlsplit(endpoint).path.rstrip('/').split('/')[-1]
-                    if not marker.isdigit():
-                        raise ValueError('Unsupported operator identity')
-                    base, endpoint = BASE_URL, f'{API_URL}/{marker}'
-                    def parser(body, url, expected_id=marker):
-                        return parse_immo_operator_json(body, expected_id)
-                else:
-                    raise ValueError('Unsupported operator: document review required')
-            if not endpoint or not parser or not is_allowed_origin_url(endpoint, (base,)):
-                raise ValueError('Unsupported source endpoint')
-            if base not in clients:
-                clients[base] = PoliteHttpClient(base_url=base, user_agent=str(settings['user_agent']),
-                    delay_seconds=1, timeout_seconds=30,
-                    accept="application/json,text/plain,*/*" if source == "notaires" or (source == "agrasc" and "pub-services" in endpoint) else "text/html,*/*")
-                if source == 'licitor':
-                    rules = module.RobotsRules.parse(clients[base].get(base + '/robots.txt'), str(settings['user_agent']))
-                    clients[base].audit_robots = rules
-            client = clients[base]
-            if source == 'licitor' and not client.audit_robots.can_fetch(endpoint):
-                raise ValueError('Robots access refused')
-            body = client.get(endpoint)
-            raw = parser(body, endpoint)
+            endpoint, body, raw = fetch_public_detail(source, target['source_url'], settings, clients)
             extracted = normalize_sale({**raw, 'source_name': source, 'source_url': target['source_url']}).to_storage_dict()
             record.update(status='review_required', endpoint=endpoint,
                 response_sha256=hashlib.sha256(body.encode()).hexdigest(),
