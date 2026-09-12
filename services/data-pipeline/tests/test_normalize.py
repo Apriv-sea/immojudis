@@ -620,3 +620,13 @@ def test_future_sale_with_result_price_is_quarantined_not_certified_sold():
     assert sale.adjudication_price_eur is None
     assert sale.raw_payload['unverified_adjudication_candidate'] == '445000'
     assert 'sale_procedure_conflict' in sale.quality_flags
+
+
+def test_adjudication_phrase_cannot_borrow_amount_from_another_source_block():
+    from src.normalize import extract_adjudication_price
+
+    raw = {'description': "Frais payables en sus du prix d'adjudication",
+           'source_blocks': {'description': "Frais payables en sus du prix d'adjudication",
+                             'mise_a_prix': '445 000 €'}}
+    assert extract_adjudication_price(raw) is None
+    assert extract_adjudication_price({'source_blocks': {'resultat': 'Prix d’adjudication : 510 000 €'}}) == Decimal('510000')

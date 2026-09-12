@@ -201,24 +201,23 @@ def extract_adjudication_price(raw_sale: dict[str, object]) -> Decimal | None:
     )
     if explicit is not None:
         return explicit
-    text = " ".join(
-        filter(
-            None,
-            (
-                clean_text(raw_sale.get("raw_text")),
-                clean_text(raw_sale.get("description")),
-                _source_blocks_text(raw_sale),
-            ),
-        )
-    )
+    # A fee clause ending in “prix d’adjudication” must not consume a
+    # separate block containing the starting price.
+    texts = [raw_sale.get("raw_text"), raw_sale.get("description")]
+    texts.extend(value for _, value in _walk_source_blocks(raw_sale.get("source_blocks"))
+                 if not isinstance(value, (dict, list)))
     for pattern in (
         r"\badjug[ée]\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?)?",
         r"\bprix\s+d['’]adjudication\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?)?",
         r"\badjudication\s*:?\s*([0-9][0-9\s.,]*)\s*(?:€|euros?\b)",
     ):
-        match = re.search(pattern, text, re.I)
-        if match:
-            return parse_price(match.group(1))
+        for value in texts:
+            text = clean_text(value)
+            if not text:
+                continue
+            match = re.search(pattern, text, re.I)
+            if match:
+                return parse_price(match.group(1))
     return None
 
 

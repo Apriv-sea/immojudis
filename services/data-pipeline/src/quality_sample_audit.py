@@ -43,8 +43,8 @@ def compare_fields(stored: dict, extracted: dict) -> dict:
     return results
 
 
-def audit_source(source: str, output: Path) -> None:
-    targets = [row for row in json.loads(SAMPLE.read_text()) if row['source_name'] == source]
+def audit_source(source: str, output: Path, sample: Path = SAMPLE) -> None:
+    targets = [row for row in json.loads(sample.read_text()) if row['source_name'] == source]
     if not targets:
         raise ValueError('Source outside the frozen sample')
     settings = load_settings()
@@ -58,7 +58,7 @@ def audit_source(source: str, output: Path) -> None:
     clients = {}
     records = [{**target, 'status': 'unverified', 'reason': 'not_attempted'} for target in targets]
     def save_report():
-        report = {'source': source, 'checked_at': datetime.now(UTC).isoformat(), 'scope':
+        report = {'source': source, 'sample_file': sample.name, 'checked_at': datetime.now(UTC).isoformat(), 'scope':
             'Frozen sample; read-only source fetch and comparison. PDF evidence is stored provenance, not independently revalidated here.',
             'rows': records}
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -143,5 +143,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', required=True)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--sample', type=Path, default=SAMPLE)
     args = parser.parse_args()
-    audit_source(args.source, args.output)
+    audit_source(args.source, args.output, args.sample)
