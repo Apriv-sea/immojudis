@@ -17,6 +17,7 @@ from src.normalize import (
     no_lease_occupancy_status,
 )
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 from src.sources.linked_pages import LinkedPages
@@ -63,7 +64,7 @@ def scrape_info_encheres_aquitaine_result(
     max_pages = max_pages or int(settings["info_encheres_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     pagination = LinkedPages(LIST_URL, "snr", 0, max_pages,
                              ("/vente-encheres-immobilieres-annonces.html", "/recherche.php"))
     for page_url in pagination:
@@ -212,6 +213,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("Info Encheres detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
     sale["source_detail_status"] = "complete"
     details = parse_info_encheres_detail_html(html, source_url)

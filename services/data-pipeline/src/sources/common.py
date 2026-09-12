@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import ssl
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -15,6 +18,23 @@ from src.sources.cloud_transport import configured_transport
 LOGGER = logging.getLogger(__name__)
 REDIRECT_STATUS_CODES = {301, 302, 303, 307, 308}
 MAX_SAFE_REDIRECTS = 5
+
+
+def retry_after_seconds(value: str | None, *, now: datetime | None = None) -> float:
+    """HTTP delta-seconds and HTTP-date share the same minimum retry deadline."""
+    if not value:
+        return 0
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            deadline = parsedate_to_datetime(value)
+            if deadline.tzinfo is None:
+                return 0
+            seconds = (deadline - (now or datetime.now(UTC))).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return 0
+    return max(0, seconds) if math.isfinite(seconds) else 0
 
 
 def is_allowed_origin_url(url: str, allowed_origins: tuple[str, ...]) -> bool:
@@ -171,6 +191,8 @@ class PoliteHttpClient:
         self._requests_succeeded = 0
         self._requests_failed = 0
         self._visited_urls: list[str] = []
+        self._retry_not_before: str | None = None
+        self._access_denials = 0
         headers = {
             "User-Agent": self.user_agent,
             "Accept": self.accept,
@@ -232,6 +254,10 @@ class PoliteHttpClient:
             raise RuntimeError(f"robots.txt does not allow fetching {url}")
 
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        if self._retry_not_before:
+            raise RuntimeError(f"Source deferred until {self._retry_not_before}")
+        if self._access_denials >= 2:
+            raise RuntimeError("Source suspended after repeated access refusals")
         elapsed = time.monotonic() - self._last_request_at
         if elapsed < self.delay_seconds:
             time.sleep(self.delay_seconds - elapsed)
@@ -270,27 +296,27 @@ class PoliteHttpClient:
     def _request_with_retries(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         # Retry only transient reads. Access refusals and invalid TLS chains
         # need an operator/source fix, not repeated traffic.
-        for attempt in range(3):
+        for attempt in range(4):
+            self._http_attempts = getattr(self, '_http_attempts', 0) + 1
             try:
                 response = self._client.request(method, url, **kwargs)
             except (httpx.TimeoutException, httpx.NetworkError) as exc:
-                if attempt == 2 or "CERTIFICATE_VERIFY_FAILED" in str(exc):
+                if attempt == 3 or "CERTIFICATE_VERIFY_FAILED" in str(exc):
                     raise
             else:
-                if response.status_code not in {408, 429, 500, 502, 503, 504} or attempt == 2:
+                if response.status_code in {401, 403}:
+                    self._access_denials = getattr(self, "_access_denials", 0) + 1
+                if response.status_code not in {408, 429, 500, 502, 503, 504}:
                     return response
-                retry_after = response.headers.get("retry-after")
-                if retry_after:
-                    # Do not retry before the source's deadline, nor block a
-                    # collector indefinitely. Long/date-form delays defer the source.
+                requested_delay = retry_after_seconds(response.headers.get("retry-after"))
+                if requested_delay > 60 or (attempt == 3 and requested_delay):
                     try:
-                        requested_delay = float(retry_after)
-                    except ValueError:
-                        return response
-                    if requested_delay > 60:
-                        return response
-                else:
-                    requested_delay = 0
+                        self._retry_not_before = (datetime.now(UTC) + timedelta(seconds=requested_delay)).isoformat()
+                    except OverflowError:
+                        self._retry_not_before = datetime.max.replace(tzinfo=UTC).isoformat()
+                    return response
+                if attempt == 3:
+                    return response
                 response.close()
                 time.sleep(max(self.delay_seconds, 2 ** attempt, requested_delay))
                 continue
@@ -300,10 +326,13 @@ class PoliteHttpClient:
     def coverage_metrics(self) -> dict[str, Any]:
         return {
             "fetch_transport": self._fetch_transport,
+            "http_attempts_including_retries": getattr(self, '_http_attempts', 0),
             "requests_attempted": self._requests_attempted,
             "requests_succeeded": self._requests_succeeded,
             "requests_failed": self._requests_failed,
             "unique_urls_visited": len(set(self._visited_urls)),
+            "retry_not_before": self._retry_not_before,
+            "access_denials": self._access_denials,
         }
 
 
@@ -325,6 +354,9 @@ def should_fetch_detail(sale: dict[str, Any], known: dict[str, str] | None) -> b
     in DB whose list-page price/date are unchanged. Marks the sale so the
     pipeline can drop it before normalization/enrichment. Sources that only
     expose price/date on the detail page (no list signature) always fetch."""
+    from src.source_checkpoint import restore_detail
+    if restore_detail(sale):
+        return False
     if not known:
         return True
     source_url = str(sale.get("source_url") or "")

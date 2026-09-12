@@ -78,7 +78,7 @@ PROPERTY_TYPE_CODE_MAP = {
     "pkg": "parking",
 }
 
-VALID_STATUSES = {"upcoming", "past", "adjudicated", "unknown"}
+VALID_STATUSES = {"upcoming", "past", "adjudicated", "unknown", "postponed", "cancelled", "withdrawn"}
 SURFACE_VALUE_PATTERN = r"([0-9]+(?:[\s.][0-9]{3})*(?:[,.][0-9]+)?|[0-9]+(?:[,.][0-9]+)?)"
 LATIN_LETTERS_PATTERN = r"A-Za-zÀ-ÖØ-öø-ÿŒœŸ"
 
@@ -468,6 +468,12 @@ def has_no_lease_signal(text: str) -> bool:
 
 def normalize_status(value: object | None, sale_date: datetime | None = None) -> str:
     text = strip_accents(clean_text(value) or "").lower()
+    if re.search(r"\b(reportee?s?|postponed|reported)\b", text):
+        return "postponed"
+    if re.search(r"\b(annulee?s?|cancelled|canceled)\b", text):
+        return "cancelled"
+    if re.search(r"\b(retiree?s?|withdrawn)\b", text):
+        return "withdrawn"
     if re.search(r"\badjuge(?:e|es|s)?\b|\badjudicated\b", text):
         return "adjudicated"
     if "passee" in text or "passe" in text:

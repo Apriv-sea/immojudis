@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup, Tag
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text, extract_department, strip_accents
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.agrasc_operators import enrich_agrasc_operator
 from src.sources.common import PoliteHttpClient, ScrapeResult, unique_dicts
 from src.sources.image_candidates import html_image_candidates
@@ -58,7 +59,7 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
         timeout_seconds=float(settings["request_timeout_seconds"]),
     )
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     operator_clients: dict[str, PoliteHttpClient] = {}
     pages = LinkedPages(LIST_URL, "page", 0, max_pages or 100)
     seen_sales: set[str] = set()
@@ -76,7 +77,9 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
                 continue
             seen_sales.add(url)
             if sale.get("department") in TARGET_DEPARTMENTS:
-                enrich_agrasc_operator(sale, operator_clients, settings, errors)
+                from src.source_checkpoint import restore_detail
+                if not restore_detail(sale):
+                    enrich_agrasc_operator(sale, operator_clients, settings, errors)
                 raw_sales.append(sale)
 
     return ScrapeResult(

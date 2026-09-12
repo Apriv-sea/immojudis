@@ -33,6 +33,7 @@ export function saleStatusLabel(status: string | null | undefined): string | nul
     unknown: "Statut à confirmer",
     past: "Vente passée",
     adjudicated: "Adjugée",
+    postponed: "Vente reportée",
     cancelled: "Annulée",
     withdrawn: "Retirée",
   };

@@ -1,4 +1,7 @@
 export type AuctionSale = {
+  source_checks?: Record<string, { checked_at?: string }> | null;
+  source_conflicts?: Array<{ field?: string; selected?: string; alternative?: string; selected_source?: string; alternative_source?: string }> | null;
+  analysis_status?: string | null;
   id: string;
   title: string | null;
   description: string | null;

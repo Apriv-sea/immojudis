@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup, Tag
 from src.config import FRANCE_DEPARTMENTS, FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import SURFACE_VALUE_PATTERN, clean_text
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 from src.sources.linked_pages import LinkedPages
@@ -54,7 +55,7 @@ def scrape_petites_affiches_aquitaine_result(
     )
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     partitions: list[dict[str, Any]] = []
     seen_sales: set[str] = set()
     for department in _department_filters():
@@ -230,6 +231,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("Petites Affiches detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
     access_text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     restricted = re.search(

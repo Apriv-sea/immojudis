@@ -52,11 +52,9 @@ def record_source_checks(raw_sales: list, known: dict) -> None:
         content = {key: sale.get(key) for key in ("raw_text", "documents", "visit_dates", "occupancy_status", "sale_date", "starting_price_eur")}
         fingerprint = hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
         old = previous.get(url) or {}
-        payload["source_checks"][url] = {"checked_at": datetime.now(UTC).isoformat(), "fingerprint": fingerprint, "extractor_version": SOURCE_EXTRACTION_VERSION}
+        payload["source_checks"][url] = {"checked_at": sale.get("_checkpoint_checked_at") or datetime.now(UTC).isoformat(), "fingerprint": fingerprint, "extractor_version": SOURCE_EXTRACTION_VERSION}
         if old.get("fingerprint") != fingerprint:
-            payload["source_content_changed"] = True
-            for key in ("document_facts_version", "llm_prompt_version"):
-                payload.pop(key, None)
+            invalidate_analysis(payload, "source_content_changed")
 
 
 def documents_are_current(sale: Any) -> bool:
@@ -66,3 +64,19 @@ def documents_are_current(sale: Any) -> bool:
         and timestamp_is_fresh(analysis.get("checked_at"))
         and not analysis.get("failed_documents")
     )
+
+
+def invalidate_analysis(payload: dict, reason: str) -> None:
+    """Retain dated evidence, never publish the superseded synthesis as current."""
+    payload["source_content_changed"] = True
+    if payload.get("llm_display_description"):
+        payload["superseded_analysis"] = {
+            "description": payload.pop("llm_display_description"),
+            "prompt_version": payload.get("llm_prompt_version"),
+            "superseded_at": datetime.now(UTC).isoformat(),
+            "reason": reason,
+        }
+    payload["llm_display_status"] = "pending"
+    for key in ("document_facts_version", "llm_prompt_version", "llm_fact_prompt_version",
+                "llm_fact_extraction", "llm_extraction", "llm_due_diligence", "investment_analysis"):
+        payload.pop(key, None)

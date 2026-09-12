@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingQualityNotice } from "@/components/ListingQualityNotice";
 import { DeferredInformationRequest } from "@/components/DeferredInformationRequest";
 import { ListingPhoto } from "@/components/ListingPhoto";
 
@@ -210,6 +211,8 @@ function SimplifiedSaleDetailView({
             <SaleProcedureSummary sale={sale} showBadge={false} />
           </div>
         </div>
+
+        <ListingQualityNotice sale={sale} />
 
         <div className={listingStyles.analysisHeading}>
           <ChartNoAxesCombined className="h-6 w-6 shrink-0 text-slate-500" aria-hidden />

@@ -59,7 +59,7 @@ for (const cron of vercelConfig.crons ?? []) {
 const collectorPath = "services/licitor-collector/vercel.json";
 const collector = JSON.parse(await readFile(path.join(root, collectorPath), "utf8"));
 if (collector.crons?.length) {
-  failures.push(`${collectorPath}: collection must be initiated manually`);
+  failures.push(`${collectorPath}: collection must use the primary dispatch scheduler`);
 }
 
 const migrationDirectory = path.join(root, "supabase/migrations");
@@ -87,11 +87,11 @@ for (const entry of await readdir(migrationDirectory, { withFileTypes: true })) 
 }
 
 if (failures.length) {
-  console.error("Automatic data collection is not allowed:\n- " + failures.join("\n- "));
+  console.error("Competing collection schedules are not allowed:\n- " + failures.join("\n- "));
   process.exitCode = 1;
 } else {
   console.log(
-    `Manual collection and enrichment verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
+    `Single dispatch scheduler verified for ${collectionWorkflows.length} workflows and Vercel crons.`,
   );
 }
 

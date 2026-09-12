@@ -1,0 +1,66 @@
+import type { AuctionSale } from "@/lib/types";
+import { parseDocs } from "@/lib/documents";
+import { safeExternalHttpUrl } from "@/lib/external-url";
+const labels: Record<string, string> = {
+  sale_date: "date de vente",
+  starting_price_eur: "mise à prix",
+  occupancy_status: "occupation",
+  habitable_surface_m2: "surface habitable",
+  carrez_surface_m2: "surface Carrez",
+  land_surface_m2: "terrain",
+  address: "adresse",
+  postal_code: "code postal",
+  city: "commune",
+};
+export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
+  const checks = Object.values(sale.source_checks ?? {})
+    .map((check) => Date.parse(check.checked_at ?? ""))
+    .filter(Number.isFinite);
+  const checked = checks.length ? new Date(Math.max(...checks)).toLocaleString("fr-FR") : null;
+  const conflicts = (sale.source_conflicts ?? []).filter(
+    (conflict) => conflict.field && labels[conflict.field],
+  );
+  const pending =
+    (sale.analysis_status !== "complete" && !sale.llm_display_description) ||
+    sale.analysis_status === "pending";
+  const missing = parseDocs(sale.documents).length === 0;
+  return (
+    <aside
+      className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm"
+      aria-label="Vérification et réserves"
+    >
+      <p>Dernière vérification de la source : {checked ?? "non établie"}.</p>
+      {pending ? (
+        <p>Analyse en cours. Les informations de la source sont déjà disponibles.</p>
+      ) : null}
+      {missing ? (
+        <p>Documents non disponibles à ce stade. Vérifiez les pièces auprès de la source.</p>
+      ) : null}
+      {conflicts.length ? (
+        <div className="mt-2 text-amber-900">
+          <p>Informations contradictoires à confirmer avant toute décision :</p>
+          <ul className="list-disc pl-5">
+            {conflicts.map((conflict, index) => {
+              const url = safeExternalHttpUrl(conflict.alternative_source);
+              return (
+                <li key={`${conflict.field}-${index}`}>
+                  {labels[conflict.field!]} : {conflict.selected ?? "non précisée"} /{" "}
+                  {conflict.alternative ?? "non précisée"}
+                  {url ? (
+                    <>
+                      {" "}
+                      —{" "}
+                      <a className="underline" href={url} target="_blank" rel="noreferrer">
+                        Source de la différence
+                      </a>
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </aside>
+  );
+}

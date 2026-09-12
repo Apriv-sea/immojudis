@@ -27,10 +27,11 @@ import httpcore
 import httpx
 
 from src.config import DOCLING_TEXTS_DIR, DOCUMENTS_DIR, PDF_DOCUMENT_TEXTS_DIR, load_settings
-from src.freshness import timestamp_is_fresh
+from src.freshness import invalidate_analysis, timestamp_is_fresh
 from src.models import AuctionSale
 from src.normalize import (
     clean_text,
+    normalize_sale,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -148,6 +149,7 @@ class _PinnedHTTPTransport(httpx.HTTPTransport):
 def enrich_sale_from_pdfs(sale: AuctionSale) -> PdfEnrichmentStats:
     stats = PdfEnrichmentStats()
     downloaded_documents = download_documents(sale, stats=stats)
+    _invalidate_replaced_document_facts(sale, downloaded_documents)
     pdf_texts: list[dict[str, object]] = []
 
     for document in _select_documents_for_extraction(downloaded_documents, sale=sale):
@@ -192,6 +194,38 @@ def enrich_sale_from_pdfs(sale: AuctionSale) -> PdfEnrichmentStats:
     _store_document_analysis_status(sale, downloaded_documents, pdf_texts)
 
     return stats
+
+
+def _invalidate_replaced_document_facts(sale: AuctionSale, documents: list[dict]) -> None:
+    previous = sale.raw_payload.get("document_analysis") or {}
+    hashes = {profile.get("url"): profile.get("sha256") for profile in previous.get("profiles", [])}
+    changed = any(hashes.get(doc.get("url")) and doc.get("sha256")
+                  and hashes[doc.get("url")] != doc["sha256"] for doc in documents)
+    if not changed:
+        return
+    invalidate_analysis(sale.raw_payload, "document_bytes_changed")
+    sale.raw_payload["superseded_document_analysis"] = previous
+    snapshot = sale.raw_payload.get("source_factual_snapshot") or {
+        "source_name": sale.source_name, "source_url": sale.source_url,
+    }
+    factual = normalize_sale(snapshot)
+    built_pdf = sale.surface_source == "pdf" or (sale.raw_payload.get("surface_extraction") or {}).get("source") == "pdf"
+    land_pdf = (sale.raw_payload.get("land_surface_extraction") or {}).get("source") == "pdf"
+    fields = []
+    if built_pdf:
+        fields += ["surface_m2", "habitable_surface_m2", "carrez_surface_m2", "app_surface_m2",
+                   "app_surface_kind", "surface_scope", "surface_source", "surface_confidence", "surface_evidence"]
+    if land_pdf:
+        fields += ["land_surface_m2"]
+    if sale.raw_payload.get("starting_price_extraction"):
+        fields += ["starting_price_eur"]
+    for key in fields:
+        setattr(sale, key, getattr(factual, key))
+        sale.raw_payload.pop(key, None)
+    for key in ("surface_extraction", "surface_analysis", "land_surface_extraction", "starting_price_extraction"):
+        sale.raw_payload.pop(key, None)
+    if snapshot.get("raw_text"):
+        sale.raw_text = str(snapshot["raw_text"])
 
 
 def download_documents(
@@ -289,8 +323,7 @@ def download_documents(
                     if file_path.exists():
                         previous = file_path.read_bytes()
                         if previous != content:
-                            sale.raw_payload["source_content_changed"] = True
-                            sale.raw_payload.pop("llm_prompt_version", None)
+                            invalidate_analysis(sale.raw_payload, "document_bytes_changed")
                             archive = sale_dir / "versions"
                             archive.mkdir(exist_ok=True)
                             (archive / (hashlib.sha256(previous).hexdigest() + file_path.suffix)).write_bytes(previous)
@@ -328,6 +361,7 @@ def download_documents(
         enriched_document["file_format"] = file_format
         enriched_document["document_type"] = document_type
         enriched_document["file_path"] = str(file_path)
+        enriched_document["sha256"] = hashlib.sha256(file_path.read_bytes()).hexdigest()
         downloaded.append(enriched_document)
     return downloaded
 

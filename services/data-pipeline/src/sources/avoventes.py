@@ -2,19 +2,16 @@ from __future__ import annotations
 
 import logging
 import re
-import time
-from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
-from urllib.robotparser import RobotFileParser
 
-import httpx
 from bs4 import BeautifulSoup, Tag
 
 from src.config import TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text, extract_department
 from src.raw_models import validate_raw_sales
-from src.sources.common import MAX_SAFE_REDIRECTS, REDIRECT_STATUS_CODES, ScrapeResult, is_allowed_origin_url
+from src.source_checkpoint import CheckpointSales
+from src.sources.common import PoliteHttpClient, ScrapeResult, is_allowed_origin_url
 from src.sources.image_candidates import html_image_candidates
 
 BASE_URL = "https://avoventes.fr"
@@ -23,55 +20,11 @@ ALLOWED_ORIGINS = (BASE_URL, "https://www.avoventes.fr")
 LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
-class AvoventesClient:
-    user_agent: str
-    delay_seconds: float
-    timeout_seconds: float
-
-    def __post_init__(self) -> None:
-        self._last_request_at = 0.0
-        self._client = httpx.Client(
-            headers={"User-Agent": self.user_agent, "Accept": "text/html,application/xhtml+xml"},
-            timeout=self.timeout_seconds,
-            follow_redirects=False,
-        )
-        self._robots = RobotFileParser()
-        self._robots.set_url(urljoin(BASE_URL, "/robots.txt"))
-        self._robots_available = True
-        try:
-            self._robots.read()
-        except Exception as exc:  # pragma: no cover - depends on network state
-            self._robots_available = False
-            LOGGER.warning("Could not read Avoventes robots.txt: %s", exc)
-
-    def get(self, url: str) -> str:
-        if not is_allowed_origin_url(url, ALLOWED_ORIGINS):
-            raise RuntimeError(f"refusing URL outside Avoventes origins: {url}")
-        if self._robots_available and not self._robots.can_fetch(self.user_agent, url):
-            raise RuntimeError(f"robots.txt does not allow fetching {url}")
-        elapsed = time.monotonic() - self._last_request_at
-        if elapsed < self.delay_seconds:
-            time.sleep(self.delay_seconds - elapsed)
-        LOGGER.info("Fetching %s", url)
-        try:
-            current_url = url
-            for redirect_count in range(MAX_SAFE_REDIRECTS + 1):
-                if not is_allowed_origin_url(current_url, ALLOWED_ORIGINS):
-                    raise RuntimeError(f"refusing Avoventes redirect outside trusted origins: {current_url}")
-                response = self._client.get(current_url)
-                if response.status_code not in REDIRECT_STATUS_CODES:
-                    break
-                if redirect_count >= MAX_SAFE_REDIRECTS:
-                    raise RuntimeError(f"too many redirects while fetching {url}")
-                location = response.headers.get("location")
-                if not location:
-                    break
-                current_url = urljoin(current_url, location)
-        finally:
-            self._last_request_at = time.monotonic()
-        response.raise_for_status()
-        return response.text
+class AvoventesClient(PoliteHttpClient):
+    def __init__(self, user_agent: str, delay_seconds: float, timeout_seconds: float):
+        super().__init__(base_url=BASE_URL, user_agent=user_agent,
+                         delay_seconds=delay_seconds, timeout_seconds=timeout_seconds,
+                         allowed_redirect_origins=ALLOWED_ORIGINS)
 
 
 def scrape_avoventes_aquitaine() -> list[dict[str, Any]]:
@@ -87,7 +40,7 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
     )
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     seen_urls: set[str] = set()
     parsed_count = 0
     unresolved_locations: list[str] = []
@@ -107,8 +60,10 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
         for sale in parsed_sales:
             postal_code = sale.get("postal_code")
             department = extract_department(str(postal_code) if postal_code else None)
-            detail_checked = False
-            if not department:
+            from src.source_checkpoint import restore_detail
+            detail_checked = restore_detail(sale)
+            department = sale.get("department") or extract_department(sale.get("postal_code")) or department
+            if not department and not detail_checked:
                 _enrich_sale_from_detail(client, sale, errors)
                 detail_checked = True
                 department = sale.get("department") or extract_department(sale.get("postal_code"))
@@ -278,6 +233,8 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
     except Exception as exc:
         LOGGER.warning("Avoventes detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
 
     sale["source_detail_status"] = "complete"

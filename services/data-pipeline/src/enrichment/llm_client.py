@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from src.config import load_settings
+from src.pipeline_usage import record_prediction, reserve_prediction
 
 LOGGER = logging.getLogger(__name__)
 RETRYABLE_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
@@ -134,6 +135,7 @@ class ReplicateClient:
         last_error: Exception | None = None
         for attempt in range(1, attempts + 1):
             self._respect_min_interval()
+            reservation = reserve_prediction(str(self.model))
             try:
                 response = httpx.post(
                     endpoint,
@@ -144,6 +146,7 @@ class ReplicateClient:
                 self._mark_request_finished()
                 if response.status_code not in RETRYABLE_STATUS_CODES:
                     response.raise_for_status()
+                    record_prediction(response.json(), reservation=reservation)
                     return response
                 last_response = response
                 sleep_seconds = _retry_sleep_seconds(
@@ -248,10 +251,11 @@ class ReplicateClient:
         }
 
     def _wait_for_output(self, prediction: dict[str, Any]) -> Any:
+        record_prediction(prediction)
         status = prediction.get("status")
         if status == "succeeded":
             return prediction.get("output")
-        if status in {"failed", "canceled"}:
+        if status in {"failed", "canceled", "aborted"}:
             raise RuntimeError(f"Replicate prediction {status}: {prediction.get('error')}")
 
         get_url = prediction.get("urls", {}).get("get")
@@ -259,13 +263,15 @@ class ReplicateClient:
             raise RuntimeError("Replicate prediction did not include a polling URL")
         timeout_at = time.monotonic() + float(self.timeout_seconds or 180)
         with httpx.Client(timeout=20) as client:
-            while status not in {"succeeded", "failed", "canceled"}:
+            while status not in {"succeeded", "failed", "canceled", "aborted"}:
                 if time.monotonic() > timeout_at:
                     raise TimeoutError("Replicate prediction timed out")
                 time.sleep(2)
                 response = client.get(get_url, headers={"Authorization": f"Bearer {self.api_token}"})
                 response.raise_for_status()
                 prediction = response.json()
+                if prediction.get("status") in {"succeeded", "failed", "canceled", "aborted"}:
+                    record_prediction(prediction)
                 status = prediction.get("status")
             if status != "succeeded":
                 raise RuntimeError(f"Replicate prediction {status}: {prediction.get('error')}")

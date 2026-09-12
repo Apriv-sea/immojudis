@@ -58,3 +58,19 @@ def test_expired_enrichment_cannot_recreate_a_deleted_sale(monkeypatch):
     sale = AuctionSale(source_name='test', source_url='https://example.org/sale', starting_price_eur=1000, sale_date=datetime(2000,1,1,tzinfo=UTC))
     monkeypatch.setattr(supabase_client, 'load_settings', lambda: pytest.fail('expired write reached database'))
     assert supabase_client.upsert_sales_to_supabase([sale]) == 0
+
+
+@pytest.mark.parametrize('value,expected', [('Vente reportée','postponed'), ('Vente annulée','cancelled'), ('Retirée','withdrawn'), ('adjudicated','adjudicated')])
+def test_explicit_procedure_event_is_not_replaced_by_elapsed_date(value, expected):
+    from datetime import UTC, datetime
+
+    from src.normalize import normalize_status
+    assert normalize_status(value, datetime(2020,1,1,tzinfo=UTC)) == expected
+
+
+def test_missing_secondary_data_does_not_quarantine_but_procedure_conflict_does():
+    from src.admission import quarantine_reason
+    sale = AuctionSale(source_name='licitor', source_url='https://example.org/sale', starting_price_eur=10000)
+    assert quarantine_reason(sale) is None
+    sale.sale_verification_status = 'conflict'
+    assert quarantine_reason(sale) == 'conflicting_sale_procedure'

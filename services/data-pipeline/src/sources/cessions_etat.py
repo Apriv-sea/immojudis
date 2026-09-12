@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup, Tag
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 
@@ -63,7 +64,7 @@ def scrape_cessions_etat_aquitaine_result(
     max_pages = max_pages or int(settings["cessions_etat_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     pagination = PaginationCoverage()
     seen_sales: set[str] = set()
     for page_url in _list_urls(max_pages):
@@ -227,6 +228,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("Cessions Etat detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
     sale["source_detail_status"] = "complete"
     detail = parse_cessions_etat_detail_html(html, source_url)

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminPipelinePanel } from "@/components/admin/AdminPipelinePanel";
 import { createFileRoute, Link } from "@/lib/router-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Activity from "lucide-react/dist/esm/icons/activity.js";
@@ -364,23 +365,26 @@ export function AdminDashboardPage({
       ) : null}
 
       {initialView === "operations" ? (
-        <AdminOperations
-          data={data}
-          isLoading={isLoading}
-          source={source}
-          setSource={setSource}
-          selectedRun={selectedRun}
-          onSelectRun={setSelectedRunId}
-          runs={filteredRuns}
-          activeTab={operationsTab}
-          onTabChange={setOperationsTab}
-          backfillLimit={backfillLimit}
-          setBackfillLimit={setBackfillLimit}
-          startMutationPending={startMutation.isPending}
-          onStart={(requestedSource) => startMutation.mutate(requestedSource)}
-          backfillPending={backfillMutation.isPending}
-          onBackfill={() => backfillMutation.mutate()}
-        />
+        <>
+          <AdminPipelinePanel />
+          <AdminOperations
+            data={data}
+            isLoading={isLoading}
+            source={source}
+            setSource={setSource}
+            selectedRun={selectedRun}
+            onSelectRun={setSelectedRunId}
+            runs={filteredRuns}
+            activeTab={operationsTab}
+            onTabChange={setOperationsTab}
+            backfillLimit={backfillLimit}
+            setBackfillLimit={setBackfillLimit}
+            startMutationPending={startMutation.isPending}
+            onStart={(requestedSource) => startMutation.mutate(requestedSource)}
+            backfillPending={backfillMutation.isPending}
+            onBackfill={() => backfillMutation.mutate()}
+          />
+        </>
       ) : null}
 
       {initialView === "agent" ? <AdminInformationAgentTemplatePanel /> : null}

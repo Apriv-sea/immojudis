@@ -16,6 +16,7 @@ from typing import Any
 from src.admission import has_price_or_surface, is_expired
 from src.asset_normalization import normalize_asset_features
 from src.cadastre import enrich_cadastre_sales
+from src.collection_evidence import record_items, record_sale_decisions
 from src.config import load_settings
 from src.dedupe import merge_duplicate_sales
 from src.dpe import enrich_dpe_sales
@@ -29,7 +30,7 @@ from src.enrichment.extract_structured import (
 from src.enrichment.llm_client import LLMClientUnavailable, create_llm_client
 from src.enrichment.surface_reasoning import extract_and_apply_deterministic_surface_reasoning
 from src.export import export_sales
-from src.freshness import detail_is_fresh, documents_are_current, record_source_checks
+from src.freshness import detail_is_fresh, document_fingerprint, documents_are_current, record_source_checks
 from src.geocode import geocode_sale
 from src.lifecycle import SaleLifecycleStats, mark_past_sales
 from src.models import AuctionSale
@@ -223,7 +224,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     try:
         known_details: dict[str, dict[str, object]] = (
             fetch_known_sale_details()
-            if (settings["incremental_enrichment"] and options.upsert and (options.heavy_enrichment or options.use_llm))
+            if (settings["incremental_enrichment"] and options.upsert)
             else {}
         )
     except Exception as exc:
@@ -246,7 +247,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
         settings,
         known_signatures,
         known_details,
-        fetch_detail_heavy=options.heavy_enrichment,
+        fetch_detail_heavy=True,
     )
     scrape_overall_started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=max(1, len(scrapers))) as executor:
@@ -267,6 +268,8 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 "duration_seconds": seconds,
                 "configured_page_limit": _configured_page_limit(name, settings),
             }
+            if options.upsert:
+                record_items(run_id, result.sales)
             raw_sales.extend(result.sales)
             LOGGER.info("Source complete source=%s rows=%s seconds=%.1f errors=%s", name, len(result.sales), seconds, len(result.errors))
             if options.upsert:
@@ -282,7 +285,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
     skipped_detail = _hydrate_known_unchanged_sales(raw_sales, known_details)
     preserved_enrichment = _preserve_known_enrichment_payloads(raw_sales, known_details)
     timings["known_enrichment_payloads_preserved"] = preserved_enrichment
-    record_source_checks([sale for sale in raw_sales if not errors.get(str(sale.get("source_name")))], known_details)
+    record_source_checks(raw_sales, known_details)
 
     if options.limit is not None:
         raw_sales = raw_sales[: options.limit]
@@ -295,11 +298,13 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             normalized_observations.append(sale)
         except Exception as exc:
             LOGGER.exception("Initial normalization failed for %s: %s", raw_sale.get("source_url"), exc)
+            record_items(run_id, [raw_sale], decision="normalization_failed", reason=str(exc)[:1000])
             source_name = str(raw_sale.get("source_name") or "unknown")
             errors.setdefault(source_name, []).append(str(exc))
     timings["normalize_seconds"] = round(time.perf_counter() - started, 2)
 
     canonical_sales = merge_duplicate_sales(normalized_observations)
+    record_sale_decisions(run_id, canonical_sales, decision="normalized")
 
     # ── Incrémental : éviter seulement le lourd déjà fait ─────────────────────
     # Les annonces continuent de passer dans la finalisation + upsert pour que
@@ -369,12 +374,16 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 _finalize_sale_for_app(sale, geocode=False)
                 batch.append(sale)
             except Exception as exc:
+                record_sale_decisions(run_id, [sale], decision="quarantined", reason="finalization_failed: " + str(exc)[:950])
                 LOGGER.exception("Light finalisation failed for %s: %s", sale.source_url, exc)
                 errors.setdefault(str(sale.source_name or "unknown"), []).append(str(exc))
         preparation_seconds += time.perf_counter() - started
         lifecycle_stats.marked_past += mark_past_sales(batch).marked_past
         app_ready.extend(batch)
+        record_sale_decisions(run_id, [sale for sale in batch if is_expired(sale)], decision="expired", reason="retention_deadline_reached_not_evidence_of_sale")
+        record_sale_decisions(run_id, [sale for sale in batch if not is_expired(sale) and not has_price_or_surface(sale)], decision="excluded", reason="missing_price_and_surface")
         admitted = [sale for sale in batch if has_price_or_surface(sale) and not is_expired(sale)]
+        record_sale_decisions(run_id, admitted, decision="admitted")
         if options.upsert and admitted:
             started = time.perf_counter()
             try:
@@ -382,6 +391,7 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
                 early_publication_fingerprints.update(_sale_publication_fingerprints(admitted))
                 early_observations_upserted += upsert_observations_to_supabase(admitted)
             except Exception as exc:
+                record_sale_decisions(run_id, admitted, decision="publication_failed", reason=str(exc)[:1000])
                 LOGGER.exception("Early Supabase batch failed at offset %s: %s", offset, exc)
                 errors.setdefault("supabase", []).append(str(exc))
             publication_seconds += time.perf_counter() - started
@@ -978,7 +988,28 @@ def _preserve_known_enrichment_payloads(
     for sale in raw_sales:
         source_url = str(sale.get("source_url") or "")
         known = known_details.get(source_url)
-        if not known:
+        known = known or {}
+        known_payload = known.get("raw_payload") or {}
+        if not sale.get("_known_unchanged") and not sale.get("_detail_fetch_failed"):
+            sale["source_factual_snapshot"] = {
+                key: sale.get(key) for key in (
+                    "source_name", "source_url", "raw_text", "starting_price_eur",
+                    *KNOWN_DOCUMENT_BUILT_SURFACE_FIELDS, *KNOWN_DOCUMENT_LAND_SURFACE_FIELDS,
+                    *KNOWN_DOCUMENT_SURFACE_METADATA_FIELDS,
+                )
+            }
+        elif known_payload.get("source_factual_snapshot"):
+            sale["source_factual_snapshot"] = known_payload["source_factual_snapshot"]
+        documents_changed = (
+            not sale.get("_known_unchanged") and not sale.get("_detail_fetch_failed")
+            and "documents" in sale
+            and document_fingerprint(sale.get("documents") or [])
+            != document_fingerprint(known.get("documents") or [])
+        )
+        if documents_changed:
+            sale["superseded_document_analysis"] = known_payload.get("document_analysis")
+            sale["llm_display_status"] = "pending"
+            sale["source_content_changed"] = True
             continue
         preserved += _backfill_payload_fields_from_known(
             sale,
@@ -1115,6 +1146,7 @@ def _enabled_scrapers(
             lambda: scrape_licitor_aquitaine_result(
                 max_pages=int(settings["licitor_max_pages"]),
                 fetch_details=fetch_detail_heavy,
+                known=known,
             ),
         ),
         (

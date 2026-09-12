@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-import httpx
 from bs4 import BeautifulSoup
 
+from src.catalogue_proof import CatalogueEvidence
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import (
     SURFACE_VALUE_PATTERN,
@@ -19,7 +18,8 @@ from src.normalize import (
     no_lease_occupancy_status,
 )
 from src.raw_models import validate_raw_sales
-from src.sources.common import MAX_SAFE_REDIRECTS, REDIRECT_STATUS_CODES, ScrapeResult, is_allowed_origin_url
+from src.source_checkpoint import CheckpointSales
+from src.sources.common import PoliteHttpClient, ScrapeResult, is_allowed_origin_url
 from src.sources.image_candidates import html_image_candidates
 
 BASE_URL = "https://www.licitor.com"
@@ -36,54 +36,11 @@ AQUITAINE_URL = LICITOR_ZONE_URLS[4]
 LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
-class LicitorClient:
-    user_agent: str
-    delay_seconds: float
-    timeout_seconds: float
-
-    def __post_init__(self) -> None:
-        self._last_request_at = 0.0
-        self._client = httpx.Client(
-            headers={"User-Agent": self.user_agent, "Accept": "text/html,application/xhtml+xml"},
-            timeout=self.timeout_seconds,
-            follow_redirects=False,
-        )
-        self._robots = RobotsRules()
-        try:
-            robots_response = self._client.get(urljoin(BASE_URL, "/robots.txt"))
-            robots_response.raise_for_status()
-            self._robots = RobotsRules.parse(robots_response.text, self.user_agent)
-        except Exception as exc:  # pragma: no cover - depends on network state
-            LOGGER.warning("Could not read Licitor robots.txt: %s", exc)
-
-    def get(self, url: str) -> str:
-        if not is_allowed_origin_url(url, ALLOWED_ORIGINS):
-            raise RuntimeError(f"refusing URL outside Licitor origins: {url}")
-        if not self._robots.can_fetch(url):
-            raise RuntimeError(f"robots.txt does not allow fetching {url}")
-        elapsed = time.monotonic() - self._last_request_at
-        if elapsed < self.delay_seconds:
-            time.sleep(self.delay_seconds - elapsed)
-        LOGGER.info("Fetching %s", url)
-        try:
-            current_url = url
-            for redirect_count in range(MAX_SAFE_REDIRECTS + 1):
-                if not is_allowed_origin_url(current_url, ALLOWED_ORIGINS):
-                    raise RuntimeError(f"refusing Licitor redirect outside trusted origins: {current_url}")
-                response = self._client.get(current_url)
-                if response.status_code not in REDIRECT_STATUS_CODES:
-                    break
-                if redirect_count >= MAX_SAFE_REDIRECTS:
-                    raise RuntimeError(f"too many redirects while fetching {url}")
-                location = response.headers.get("location")
-                if not location:
-                    break
-                current_url = urljoin(current_url, location)
-        finally:
-            self._last_request_at = time.monotonic()
-        response.raise_for_status()
-        return response.text
+class LicitorClient(PoliteHttpClient):
+    def __init__(self, user_agent: str, delay_seconds: float, timeout_seconds: float):
+        super().__init__(base_url=BASE_URL, user_agent=user_agent,
+                         delay_seconds=delay_seconds, timeout_seconds=timeout_seconds,
+                         allowed_redirect_origins=ALLOWED_ORIGINS)
 
 
 @dataclass
@@ -142,7 +99,7 @@ def scrape_licitor_aquitaine(max_pages: int | None = None) -> list[dict[str, Any
     return scrape_licitor_aquitaine_result(max_pages=max_pages).sales
 
 
-def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details: bool = True) -> ScrapeResult:
+def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details: bool = True, known: dict[str, str] | None = None) -> ScrapeResult:
     """Collect Licitor listings as an optional benchmark source."""
     settings = load_settings()
     client = LicitorClient(
@@ -153,29 +110,42 @@ def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details:
     max_pages = max_pages or int(settings["licitor_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     if not fetch_details:
         raw_sales = _collect_list_sales(client, max_pages=max_pages, errors=errors)
         return ScrapeResult(
             validate_raw_sales("licitor", raw_sales, errors),
             errors,
-            getattr(client, "coverage_metrics", lambda: {})(),
+            {**getattr(client, "coverage_metrics", lambda: {})(),
+             **(client.catalogue_evidence.metrics(raw_sales, errors) if hasattr(client, "catalogue_evidence") else {})},
         )
 
     listing_by_url = {sale["source_url"]: sale for sale in _collect_list_sales(client, max_pages=max_pages, errors=errors)}
     detail_urls = list(listing_by_url)
     seen: set[str] = set()
+    from src.sources.common import should_fetch_detail
+
     for detail_url in detail_urls:
         if detail_url in seen:
             continue
         seen.add(detail_url)
+        summary = listing_by_url[detail_url]
+        if not should_fetch_detail(summary, known):
+            raw_sales.append(summary)
+            continue
         try:
             detail_html = client.get(detail_url)
         except Exception as exc:
             LOGGER.error("Licitor detail fetch failed for %s: %s", detail_url, exc)
             errors.append(f"{detail_url}: {exc}")
+            summary["_detail_fetch_failed"] = True
+            summary["source_detail_status"] = "failed"
+            raw_sales.append(summary)
             continue
         sale = parse_licitor_detail_html(detail_html, detail_url)
+        if summary.get("_checkpoint_signature"):
+            sale["_checkpoint_signature"] = summary["_checkpoint_signature"]
+            sale["_discovered_at"] = summary.get("_discovered_at")
         sale["source_lots"] = listing_by_url[detail_url].get("source_lots", [])
         sale.setdefault("source_blocks", {})["lots_publics"] = "\n\n".join(lot["raw_text"] for lot in sale["source_lots"])
         postal_code = sale.get("postal_code")
@@ -186,7 +156,8 @@ def scrape_licitor_aquitaine_result(max_pages: int | None = None, fetch_details:
     return ScrapeResult(
         validate_raw_sales("licitor", raw_sales, errors),
         errors,
-        getattr(client, "coverage_metrics", lambda: {})(),
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+             **(client.catalogue_evidence.metrics(raw_sales, errors) if hasattr(client, "catalogue_evidence") else {})},
     )
 
 
@@ -338,6 +309,7 @@ def _collect_detail_urls(client: LicitorClient, max_pages: int, errors: list[str
 
 def _collect_list_sales(client: LicitorClient, max_pages: int, errors: list[str]) -> list[dict[str, Any]]:
     raw_sales: list[dict[str, Any]] = []
+    client.catalogue_evidence = CatalogueEvidence("licitor")
     by_url: dict[str, dict[str, Any]] = {}
     for start_url in _start_urls_for_target_departments():
         pending = [start_url]
@@ -353,7 +325,9 @@ def _collect_list_sales(client: LicitorClient, max_pages: int, errors: list[str]
                 LOGGER.error("Licitor list fetch failed for %s: %s", page_url, exc)
                 errors.append(f"{page_url}: {exc}")
                 continue
-            for sale in parse_licitor_list_sales(html, page_url):
+            parsed = parse_licitor_list_sales(html, page_url)
+            client.catalogue_evidence.observe(html, page_url, parsed)
+            for sale in parsed:
                 source_url = str(sale.get("source_url") or "")
                 if source_url in by_url:
                     _merge_listing_lots(by_url[source_url], sale)

@@ -12,6 +12,7 @@ import httpx
 from src.config import FRANCE_DEPARTMENTS, TARGET_DEPARTMENTS, load_settings
 from src.normalize import LATIN_LETTERS_PATTERN, SURFACE_VALUE_PATTERN, clean_text, parse_surface
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, unique_dicts
 
 BASE_URL = "https://www.immobilier.notaires.fr"
@@ -54,7 +55,7 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
     max_pages = max_pages or int(settings["notaires_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     coverage = []
     for transaction_type in TRANSACTION_TYPES:
         for department in _department_filters():
@@ -93,7 +94,10 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                 if not pagination.accept(sales, terminal=terminal, expected_total=total):
                     break
                 for sale in sales:
-                    if not _enrich_sale_from_detail(client, sale, errors):
+                    from src.source_checkpoint import restore_detail
+                    if restore_detail(sale):
+                        pass
+                    elif not _enrich_sale_from_detail(client, sale, errors):
                         sale["_detail_fetch_failed"] = True
                         sale["source_detail_status"] = "failed"
                     else:

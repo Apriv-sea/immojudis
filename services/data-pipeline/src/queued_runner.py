@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time
 from collections import defaultdict
-from datetime import UTC, datetime
 
+from src.admission import is_expired
 from src.asset_normalization import normalize_asset_features
 from src.cadastre import enrich_cadastre_sales
 from src.config import load_settings
@@ -22,6 +23,7 @@ from src.main import (
     run_pipeline,
 )
 from src.pdf_enrichment import enrich_sale_from_pdfs
+from src.pipeline_usage import PipelineBudgetExhausted, defer_budget_jobs
 from src.sale_procedure import classify_sale_procedure
 from src.storage.supabase_client import (
     claim_auction_enrichment_jobs_from_supabase,
@@ -239,7 +241,7 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
                     error_message="sale not found",
                 )
             continue
-        if sale.sale_date is not None and sale.sale_date < datetime.now(UTC):
+        if is_expired(sale) or sale.status in {'cancelled', 'withdrawn', 'adjudicated'}:
             for job in sale_jobs:
                 _finish_job(job, succeeded=True)
             continue
@@ -279,6 +281,10 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
             classify_sale_procedure(sale)
             normalize_asset_features(sale)
             upsert_sales_to_supabase([sale], refresh_last_seen=False)
+        except PipelineBudgetExhausted as exc:
+            defer_budget_jobs(jobs, exc)
+            LOGGER.info("Enrichment deferred without consuming retry attempts: %s", exc)
+            return 0
         except Exception as exc:
             LOGGER.exception("Enrichment queue failed for %s: %s", source_url, exc)
             for job in sale_jobs:
@@ -298,9 +304,14 @@ if __name__ == "__main__":
     if "--enrichment-only" in sys.argv:
         # Claim small batches so their 30-minute leases cannot expire while
         # waiting behind other expensive documents. GitHub serializes writers.
-        deadline = time.monotonic() + 40 * 60
-        while time.monotonic() < deadline:
-            if not run_enrichment_queue_batch(limit=2):
+        deadline = time.monotonic() + min(2400, max(60, int(os.getenv('PIPELINE_ENRICHMENT_BUDGET_SECONDS', '2400'))))
+        max_jobs = min(100, max(1, int(os.getenv('PIPELINE_ENRICHMENT_MAX_JOBS', '40'))))
+        processed = 0
+        while time.monotonic() < deadline and processed < max_jobs:
+            count = run_enrichment_queue_batch(limit=1)
+            if not count:
                 break
+            processed += count
+        print(f'Enrichment worker completed {processed} jobs within its bounded budget')
         sys.exit(0)
     sys.exit(main())

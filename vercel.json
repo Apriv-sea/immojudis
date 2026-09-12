@@ -25,10 +25,6 @@
     {
       "path": "/api/cron/data-retention",
       "schedule": "15 4 * * 0"
-    },
-    {
-      "path": "/api/cron/operational-health",
-      "schedule": "0 7 * * *"
     }
   ]
 }
