@@ -254,6 +254,7 @@ def test_enrichment_queue_runs_pdf_before_fact_extraction_and_completes_jobs(mon
         or current.raw_payload.update({"llm_display_description": "Description vérifiée. " * 5, "llm_display_quality_version": DISPLAY_QUALITY_VERSION, "llm_display_status": "accepted", "llm_prompt_version": queued_runner.load_settings()["llm_prompt_version"], "llm_fact_coverage": {"complete": True}})
         or SimpleNamespace(unavailable=False, valid_json=1, error_messages=[]),
     )
+    monkeypatch.setattr(queued_runner, "geocode_sale", lambda current: calls.append("geocode"))
     monkeypatch.setattr(queued_runner, "normalize_asset_features", lambda current: calls.append("normalize"))
     monkeypatch.setattr(
         queued_runner,
@@ -267,7 +268,7 @@ def test_enrichment_queue_runs_pdf_before_fact_extraction_and_completes_jobs(mon
     )
 
     assert queued_runner.run_enrichment_queue_batch(limit=10) == 2
-    assert calls == ["pdf", "facts_then_display", "normalize", "upsert"]
+    assert calls == ["pdf", "facts_then_display", "geocode", "normalize", "upsert"]
     assert finished == [("job-pdf", True, None), ("job-facts", True, None)]
 
 
