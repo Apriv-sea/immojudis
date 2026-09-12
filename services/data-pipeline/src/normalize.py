@@ -1231,19 +1231,24 @@ def _extract_carrez_surface_from_text(*values: object) -> Decimal | None:
     text = _joined_text(*values)
     patterns = (
         rf"\b{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+(?:loi\s+)?carrez\b",
-        rf"\b(?:surface\s+)?carrez\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
+        rf"\b(?:surface\s+)?(?:loi\s+)?carrez\s*(?:totale\s*)?:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
     )
     return _extract_contextual_surface(text, patterns, exclude_secondary=False)
 
 
 def _extract_land_surface_from_text(*values: object) -> Decimal | None:
     text = _joined_text(*values)
-    for match in re.finditer(
-        r"\b(?:contenance\s+(?:totale\s+)?(?:de\s+)?)?([0-9]+)\s*a\s*([0-9]+)\s*ca\b",
+    matches = list(re.finditer(
+        r"\b(?:([0-9]+)\s*ha\s*)?([0-9]+)\s*a\s*([0-9]+)\s*ca\b",
         text,
         re.I,
-    ):
-        return Decimal(match.group(1)) * Decimal("100") + Decimal(match.group(2))
+    ))
+    if len(matches) > 1:
+        # Several cadastral parcels require scoped measurements, not the first value.
+        return None
+    if matches:
+        match = matches[0]
+        return Decimal(match.group(1) or 0) * Decimal('10000') + Decimal(match.group(2)) * Decimal('100') + Decimal(match.group(3))
     patterns = (
         rf"\b(?:terrain|parcelle|jardin)\s+(?:de\s+|d['’]une\s+surface\s+de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
         rf"\bcadastr[ée]e?.{{0,120}}?\bpour\s+un\s+total\s+de\s+{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",

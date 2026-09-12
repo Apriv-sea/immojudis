@@ -430,6 +430,15 @@ def _business_rule_to_ref(rule: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_surface_kind(text: str, kind: str, sale: AuctionSale | None = None) -> Decimal | None:
+    if kind == 'land_surface_m2':
+        cadastral = list(re.finditer(r'\b(?:([0-9]+)\s*ha\s*)?([0-9]+)\s*a\s*([0-9]+)\s*ca\b', text, re.I))
+        values = {Decimal(m.group(1) or 0)*10000 + Decimal(m.group(2))*100 + Decimal(m.group(3)) for m in cadastral}
+        if len(values) > 1:
+            if sale is not None:
+                _add_quality_flag(sale, 'parcel_surface_scope_unverified')
+            return None
+        if values:
+            return values.pop()
     for pattern in SURFACE_PATTERNS[kind]:
         match = re.search(pattern, text, re.I | re.S)
         if not match:

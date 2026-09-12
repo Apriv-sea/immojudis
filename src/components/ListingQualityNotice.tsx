@@ -59,6 +59,10 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       {Array.isArray(sale.quality_flags) && sale.quality_flags.includes("address_unverified") ? (
         <p>Adresse précise non vérifiée. Confirmez la localisation auprès de la source.</p>
       ) : null}
+      {Array.isArray(sale.quality_flags) &&
+      sale.quality_flags.includes("parcel_surface_scope_unverified") ? (
+        <p>Plusieurs parcelles sont décrites. La surface totale du terrain reste à confirmer.</p>
+      ) : null}
       {missing ? (
         <p>Documents non disponibles à ce stade. Vérifiez les pièces auprès de la source.</p>
       ) : null}

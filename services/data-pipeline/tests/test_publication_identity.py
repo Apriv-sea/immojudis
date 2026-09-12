@@ -139,3 +139,20 @@ def test_monetary_address_is_reserved_without_rejecting_the_listing():
     assert result.city == 'Nice'
     assert 'address_unverified' in result.quality_flags
     assert result.raw_payload['invalid_address_evidence']['value'] == '10 000 €'
+
+
+def test_hectares_are_not_lost_when_reading_cadastral_area():
+    from src.asset_normalization import normalize_asset_features
+    result = normalize_sale({'source_name':'vench','source_url':'https://example.test/land',
+        'property_type':'land','description':'Propriété cadastrée BE 429 pour une surface de 01 ha 00 a 30 ca.'})
+    normalize_asset_features(result)
+    assert result.land_surface_m2 == 10030
+
+
+def test_several_parcel_areas_do_not_become_one_uncertain_total():
+    from src.asset_normalization import normalize_asset_features
+    result = normalize_sale({'source_name':'licitor','source_url':'https://example.test/land',
+        'property_type':'land','description':'Section AO 91 pour 5a 71ca ; AO 95 pour 10a 5ca ; jardin AO 88 pour 5a 62ca.'})
+    normalize_asset_features(result)
+    assert result.land_surface_m2 is None
+    assert 'parcel_surface_scope_unverified' in result.quality_flags
