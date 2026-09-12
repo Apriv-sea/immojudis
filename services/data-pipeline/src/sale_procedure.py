@@ -74,7 +74,7 @@ def classify_sale_procedure(
     case_sources = _case_sources(sale)
     rules, regulatory_sources = _participation_rules(
         sale,
-        venue_type=rules_venue_type,
+        venue_type="unknown" if legal_framework == "state_sale" else rules_venue_type,
         corpus=corpus,
         checked_at=checked_at,
     )
@@ -141,6 +141,13 @@ def classify_sale_procedure(
     return sale
 
 
+def _case_payment_deadline(corpus: str) -> int | None:
+    values = {int(value) for value in re.findall(
+        r"paiement\s+du\s+prix[^.!?\n]{0,150}?\b(\d{1,3})(?:e|er|ème|eme)?\s+jour"
+        r"\s+suivant\s+l['’]adjudication", corpus, re.I)}
+    return next(iter(values)) if len(values) == 1 and 0 < next(iter(values)) <= 365 else None
+
+
 def _resolve_venue(
     sale: AuctionSale,
     *,
@@ -149,7 +156,9 @@ def _resolve_venue(
     state_matches: list[str],
 ) -> tuple[str, str, list[str]]:
     issues: list[str] = []
-    explicit_families = sum(bool(value) for value in (judicial_matches, notarial_matches, state_matches))
+    # State ownership/framework can coexist with an explicitly named notary.
+    # Only competing venue families establish a venue contradiction.
+    explicit_families = sum(bool(value) for value in (judicial_matches, notarial_matches))
     if explicit_families > 1:
         issues.append("Des indices contradictoires de lieu ou d'organisateur doivent être relus.")
         return "unknown", "conflict", issues
@@ -251,7 +260,8 @@ def _participation_rules(
                 },
                 "financing_condition": False,
                 "cooling_off_period": False,
-                "payment_deadline_days": 45,
+                "payment_deadline_days": _case_payment_deadline(corpus),
+                "payment_deadline_source_url": sale.source_url if _case_payment_deadline(corpus) is not None else None,
                 "overbid": {
                     "allowed": None,
                     "minimum_increase_pct": None,
