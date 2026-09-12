@@ -6,7 +6,7 @@ on:
         description: "Inventory or frozen quality sample (read-only)"
         type: choice
         default: inventory
-        options: [inventory, quality_sample, reconciliation]
+        options: [inventory, quality_sample, reconciliation, absent_details]
       source_group:
         description: "Sources to audit (read-only)"
         type: choice
@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        source: ${{ fromJSON(inputs.audit_kind == 'reconciliation' && '["agrasc","avoventes","cessions_etat","info_encheres"]' || inputs.source_group == 'notarial' && '["notaires","agrasc"]' || inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
+        source: ${{ fromJSON(inputs.audit_kind == 'absent_details' && '["licitor"]' || inputs.audit_kind == 'reconciliation' && '["agrasc","avoventes","cessions_etat","info_encheres"]' || inputs.source_group == 'notarial' && '["notaires","agrasc"]' || inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -49,6 +49,12 @@ jobs:
           SOURCE_FETCH_RELAY_URL: ${{ vars.SOURCE_FETCH_RELAY_URL }}
           SOURCE_FETCH_RELAY_TOKEN: ${{ secrets.SOURCE_FETCH_RELAY_TOKEN }}
         run: python -m src.quality_sample_audit --source "$AUDIT_SOURCE" --output "data/audits/quality-$AUDIT_SOURCE.json"
+      - name: Verify active listings absent from the completed inventory
+        if: inputs.audit_kind == 'absent_details'
+        working-directory: services/data-pipeline
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: python -m src.quality_sample_audit --source licitor --sample config/absent-licitor-20260912.json --output data/audits/absent-licitor.json
       - name: Inspect remaining unexplained inventory URLs
         if: inputs.audit_kind == 'reconciliation'
         working-directory: services/data-pipeline
