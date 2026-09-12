@@ -787,8 +787,6 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
         )
     if surface_source is None and surface_evidence is not None:
         surface_source = "source_text"
-    if property_type == "house" and habitable_surface_m2 is None and surface_m2 is not None:
-        habitable_surface_m2 = surface_m2
     app_surface_m2 = parse_surface(raw_sale.get("app_surface_m2"))
     app_surface_kind = clean_text(raw_sale.get("app_surface_kind"))
     surface_scope = clean_text(raw_sale.get("surface_scope"))
@@ -980,12 +978,13 @@ def _derive_initial_app_surface(
     if surface_scope in {"partial", "room_or_annex", "unknown"}:
         return None, None, surface_scope
     if property_type == "apartment":
-        value = carrez_surface_m2 or habitable_surface_m2
-        kind = "carrez" if carrez_surface_m2 is not None else "habitable" if value is not None else None
+        value = carrez_surface_m2 or habitable_surface_m2 or surface_m2
+        kind = "carrez" if carrez_surface_m2 is not None else "habitable" if habitable_surface_m2 is not None else "built" if value is not None else None
         return value, kind, "total" if value is not None else surface_scope
     if property_type == "house":
-        value = habitable_surface_m2
-        return value, "habitable" if value is not None else None, "total" if value is not None else surface_scope
+        value = habitable_surface_m2 or surface_m2
+        kind = "habitable" if habitable_surface_m2 is not None else "built" if value is not None else None
+        return value, kind, "total" if value is not None else surface_scope
     if property_type == "building":
         value = surface_m2 or habitable_surface_m2 or carrez_surface_m2
         return value, "built" if value is not None else None, "total" if value is not None else surface_scope
@@ -1254,6 +1253,7 @@ def _extract_built_surface_from_text(*values: object) -> Decimal | None:
     patterns = (
         rf"\b(?:surface|superficie)\s+(?:des\s+)?lots?\b[^:\n]{{0,80}}:\s*{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
         rf"\bsurface\s+totale\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
+        rf"\b{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+superficie\b",
         (
             r"\b(?:un|une|l['’]|le|la)?\s*"
             r"(?:appartement|maison|immeuble|bâtiment|batiment|local|commerce|villa|studio|bien\s+immobilier|ensemble\s+immobilier)\b"

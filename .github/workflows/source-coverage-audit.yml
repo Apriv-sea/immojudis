@@ -11,7 +11,7 @@ on:
         description: "Sources to audit (read-only)"
         type: choice
         default: all
-        options: [all, cloud, followup]
+        options: [all, cloud, followup, notarial]
 permissions:
   contents: read
 jobs:
@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        source: ${{ fromJSON(inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
+        source: ${{ fromJSON(inputs.source_group == 'notarial' && '["notaires","agrasc"]' || inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

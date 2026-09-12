@@ -102,7 +102,8 @@ def audit_source(source: str, output: Path) -> None:
                 raise ValueError('Unsupported source endpoint')
             if base not in clients:
                 clients[base] = PoliteHttpClient(base_url=base, user_agent=str(settings['user_agent']),
-                    delay_seconds=1, timeout_seconds=30)
+                    delay_seconds=1, timeout_seconds=30,
+                    accept="application/json,text/plain,*/*" if source == "notaires" or (source == "agrasc" and "pub-services" in endpoint) else "text/html,*/*")
                 if source == 'licitor':
                     rules = module.RobotsRules.parse(clients[base].get(base + '/robots.txt'), str(settings['user_agent']))
                     clients[base].audit_robots = rules

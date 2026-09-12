@@ -48,3 +48,19 @@ L’administration a été vérifiée localement avec une session fictive et des
 - Observer sept jours réels sans relance manuelle, avec au moins 95 % des fiches du périmètre pilote vérifiées à temps, aucun doublon de reprise et aucune contradiction critique connue présentée comme certaine.
 
 Le chantier ne peut pas être clôturé sur la seule livraison du code. L’intervalle d’observation commence après activation prouvée du pilote.
+
+## État réel au 12 septembre 2026, après la première qualification
+
+La PR 124 est fusionnée (`ad3df6028c0e3b57b2e7fcb3f8f99ce8dd824b80`), les six migrations sont appliquées (workflow 34699762104 réussi), et le déploiement `dpl_7WeqUeGM36aACGz7LFVeRryxn25J` est prêt sur immojudis.com. Les cinq contrôles publics passent. Le cron secondaire du projet immojudis-licitor est désactivé (`disabledAt=1789223361085`).
+
+Le pilote a été activé à 14:50:27 UTC. Le tick de 15:00 a déclenché sans intervention le run Licitor `5af869ed-c1f4-469a-be0e-5ca00dc9f80e`, workflow 34700896879. L’alerte `pipeline.enrichment.stalled` a effectivement été reçue par le workflow 34700897507 : résumé publié et signal incident émis. Le workflow récepteur échoue intentionnellement pour signaler un incident.
+
+**Le pilote est actuellement suspendu et la période de stabilité n’a pas commencé.** Avant toute publication, la qualification a révélé que les collectes ciblées ne réutilisent pas encore systématiquement les URL canoniques déjà fusionnées en base. Le contrôle global a été désactivé, `observation_started_at` remis à null, puis la collecte interrompue avec 157 découvertes/checkpoints et aucune publication dans son journal. Il faut corriger et tester la fusion transactionnelle avec les identités existantes avant réactivation. Les détails sauvegardés doivent être repris automatiquement, avec leur vraie date de vérification.
+
+La durée des checkpoints par annonce doit aussi être corrigée/mesurée : la collecte ne doit pas attendre tous les détails avant de publier les premiers lots admissibles. Ne pas perdre les protections de provenance, d’admission et de version en introduisant cette publication progressive.
+
+Le contrôle de 100 annonces est lancé sur la branche `feat/pipeline-pilot-qualification`, PR 125, workflow 34700628712. Ses artefacts sont dans `/private/tmp/immojudis-quality-20260912`. Le premier audit a une erreur d’en-tête Accept pour les API notariales (406) ; la correction utilise le même Accept JSON que les collecteurs et doit être relancée pour le groupe `notarial`. Les refus 403 d’Enchères Publiques restent respectés. Un résultat de parser reste à examiner ; les documents conservés dans l’artefact ne sont pas présentés comme relus.
+
+Cas confirmé : Rouen, annonce `1dc4178d-f27e-41a9-a7dd-a182b29a0308`. Source : https://avoventes.fr/enchere/appartement-cave-a-rouen . Elle distingue 60,37 m² Carrez, 62,34 m² au sol et une cave de 57,06 m² ; la base portait 62,34 Carrez et 117,43 habitable. Deux réserves sourcées ont été ajoutées en production et la synthèse invalidée. Les corrections locales suppriment les conversions implicites superficie→habitable/Carrez, conservent la surface générique avec réserve et passent 1 200 tests Python (29 ignorés sans base). Il reste à vérifier l’attestation de superficie et à appliquer la correction factuelle justifiée.
+
+Le suivi horaire du présent fil est actif : `fiabilisation-des-annonces-immojudis`. Il doit continuer après qualification, puis être arrêté seulement lorsque tous les critères utilisateur sont prouvés. La copie de travail est toujours `/private/tmp/immojudis-reliability-20260912`, désormais branche `feat/pipeline-pilot-qualification`.

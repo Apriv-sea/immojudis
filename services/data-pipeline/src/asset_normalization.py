@@ -84,16 +84,11 @@ FACTOR_AXIS = {
 SURFACE_PATTERNS = {
     "habitable_surface_m2": (
         rf"surface\s*habitable\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",
-        rf"superficie\s+(?:de\s+|d['’]environ\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",
-        rf"{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+superficie\b",
-        rf"\bappartement\s+de\s+{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
         rf"{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+habitables?",
     ),
     "carrez_surface_m2": (
         rf"{SURFACE_VALUE_PATTERN}\s*m(?:2|²|\*)\s+(?:loi\s+)?carrez",
-        rf"(?:surface\s+)?carrez.{{0,40}}?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",
-        rf"loi\s+carrez.{{0,40}}?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",
-        rf"superficie\s*approximative\s*habitable\s*totale\s*:?\s*{SURFACE_VALUE_PATTERN}\s*m(?:2|²|\?)",
+        rf"(?:surface\s+)?(?:loi\s+)?carrez\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",
     ),
     "land_surface_m2": (
         rf"\bcadastr[ée]e?.{{0,140}}?\b(?:total|superficie|contenance)\b.{{0,30}}?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)",

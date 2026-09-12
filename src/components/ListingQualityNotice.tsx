@@ -52,6 +52,9 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       {pending ? (
         <p>Analyse en cours. Les informations de la source sont déjà disponibles.</p>
       ) : null}
+      {sale.quality_flags?.includes("surface_type_unverified") ? (
+        <p>Surface indiquée par la source ; sa nature habitable ou Carrez reste à confirmer.</p>
+      ) : null}
       {missing ? (
         <p>Documents non disponibles à ce stade. Vérifiez les pièces auprès de la source.</p>
       ) : null}

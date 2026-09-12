@@ -62,6 +62,12 @@ def _set_app_surface(sale: AuctionSale) -> None:
         sale.app_surface_kind = "habitable" if sale.habitable_surface_m2 is not None else None
         sale.surface_scope = "total" if sale.app_surface_m2 is not None else sale.surface_scope
 
+    if sale.property_type in {"house", "apartment"} and sale.app_surface_m2 is None and sale.surface_m2 is not None:
+        sale.app_surface_m2 = sale.surface_m2
+        sale.app_surface_kind = "built"
+        sale.surface_scope = sale.surface_scope or "total"
+        _add_quality_flag(sale, "surface_type_unverified")
+
 
 def _validate_app_surface_scope(sale: AuctionSale) -> None:
     if sale.app_surface_m2 is None:

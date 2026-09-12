@@ -122,7 +122,8 @@ def test_asset_normalization_resolves_structured_surface_outlier_from_corroborat
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("187")
-    assert sale.habitable_surface_m2 == Decimal("187")
+    assert sale.habitable_surface_m2 is None
+    assert sale.app_surface_kind == "built"
     assert sale.land_surface_m2 == Decimal("1110")
     assert sale.app_surface_m2 == Decimal("187")
     assert sale.surface_source == "corroborated_source_text"
@@ -159,8 +160,9 @@ def test_asset_normalization_resolves_apartment_surface_outlier_from_corroborate
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("187")
-    assert sale.habitable_surface_m2 == Decimal("187")
-    assert sale.carrez_surface_m2 == Decimal("187")
+    assert sale.habitable_surface_m2 is None
+    assert sale.app_surface_kind == "built"
+    assert sale.carrez_surface_m2 is None
     assert sale.land_surface_m2 is None
     assert sale.app_surface_m2 == Decimal("187")
     assert sale.raw_payload["surface_reconciliation"]["rejected_surface_m2"] == "1877"
@@ -341,9 +343,9 @@ def test_notaires_short_house_code_promotes_surface_to_app_surface() -> None:
     normalize_asset_features(sale)
 
     assert sale.property_type == "house"
-    assert sale.habitable_surface_m2 == Decimal("106")
+    assert sale.habitable_surface_m2 is None
     assert sale.app_surface_m2 == Decimal("106")
-    assert sale.app_surface_kind == "habitable"
+    assert sale.app_surface_kind == "built"
     assert "ambiguous_surface" not in sale.quality_flags
 
 
@@ -795,7 +797,8 @@ def test_asset_normalization_prefers_source_description_surface() -> None:
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("110")
-    assert sale.habitable_surface_m2 == Decimal("110")
+    assert sale.habitable_surface_m2 is None
+    assert sale.app_surface_kind == "built"
     assert sale.app_surface_m2 == Decimal("110")
     assert sale.rooms_count == 4
 
@@ -813,7 +816,8 @@ def test_asset_normalization_reads_surface_value_before_surface_label() -> None:
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("93.16")
-    assert sale.habitable_surface_m2 == Decimal("93.16")
+    assert sale.habitable_surface_m2 is None
+    assert sale.app_surface_kind == "built"
 
 
 def test_asset_normalization_reads_licitor_apartment_surface() -> None:
@@ -829,7 +833,9 @@ def test_asset_normalization_reads_licitor_apartment_surface() -> None:
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("79.06")
-    assert sale.habitable_surface_m2 == Decimal("79.06")
+    assert sale.habitable_surface_m2 is None
+    assert sale.carrez_surface_m2 is None
+    assert sale.app_surface_kind == "built"
     assert sale.rooms_count == 3
     assert sale.parking_count == 2
 
