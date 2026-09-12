@@ -9,6 +9,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
+from src.sources.cessions_etat import cessions_tls_context
 from src.sources.common import PoliteHttpClient, is_allowed_origin_url
 
 TARGETS = Path(__file__).resolve().parents[1] / 'config/reconciliation-remaining-20260912.json'
@@ -21,7 +22,8 @@ def audit(source: str, output: Path) -> None:
     if source not in ORIGINS or not rows:
         raise ValueError('Source outside the frozen reconciliation scope')
     base = ORIGINS[source]
-    client = PoliteHttpClient(base_url=base,user_agent='Immojudis source qualification',delay_seconds=1,timeout_seconds=20)
+    client = PoliteHttpClient(base_url=base,user_agent='Immojudis source qualification',delay_seconds=1,timeout_seconds=20,
+        tls_context=cessions_tls_context() if source == 'cessions_etat' else None)
     output.parent.mkdir(parents=True,exist_ok=True)
 
     def save():
