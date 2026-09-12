@@ -329,6 +329,11 @@ def upsert_sales_to_supabase(
             connection.execute("set local lock_timeout = '15s'")
             connection.execute("set local statement_timeout = '120s'")
             connection.execute("select pg_advisory_xact_lock(hashtextextended('immojudis:outcome_catalogue_bridge:v1',0))")
+            if refresh_last_seen:
+                from src.publication_identity import resolve_publication_identities
+                sales = resolve_publication_identities(connection, sales)
+                if not sales:
+                    return 0
             if not refresh_last_seen:
                 sales = _guard_enrichment_revision(connection, sales)
                 if not sales:

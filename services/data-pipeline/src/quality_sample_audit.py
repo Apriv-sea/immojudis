@@ -56,13 +56,23 @@ def audit_source(source: str, output: Path) -> None:
             stored = {str(row['id']): row for row in cursor.fetchall()}
     module = importlib.import_module('src.sources.' + source)
     clients = {}
-    records = []
-    for target in targets:
-        record = {**target, 'checked_at': datetime.now(UTC).isoformat(), 'status': 'unverified'}
-        records.append(record)
+    records = [{**target, 'status': 'unverified', 'reason': 'not_attempted'} for target in targets]
+    def save_report():
+        report = {'source': source, 'checked_at': datetime.now(UTC).isoformat(), 'scope':
+            'Frozen sample; read-only source fetch and comparison. PDF evidence is stored provenance, not independently revalidated here.',
+            'rows': records}
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary = output.with_suffix('.tmp')
+        temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+        temporary.replace(output)
+    save_report()
+    for target, record in zip(targets, records, strict=True):
+        record.update(checked_at=datetime.now(UTC).isoformat(), reason='verification_in_progress_or_interrupted')
+        save_report()
         row = stored.get(target['id'])
         if row is None:
             record['reason'] = 'not_in_current_catalogue; retention evidence must be checked separately'
+            save_report()
             continue
         record['stored_status'] = row.get('status')
         payload = row.get('raw_payload') or {}
@@ -76,7 +86,10 @@ def audit_source(source: str, output: Path) -> None:
             parser = getattr(module, 'parse_' + source + '_detail_html', None)
             base = module.BASE_URL
             if source == 'notaires':
-                endpoint = module._detail_api_url(row)
+                marker = urlsplit(endpoint).path.rstrip('/').split('/')[-1]
+                if not marker.isdigit():
+                    raise ValueError('Unsupported notarial URL identity')
+                endpoint = module._detail_api_url({'external_id': marker})
                 def parser(body, url, listing_url=target['source_url']):
                     return module.parse_notaires_detail_json(body, fallback={'source_url': listing_url})
             elif source == 'agrasc':
@@ -118,13 +131,10 @@ def audit_source(source: str, output: Path) -> None:
                 source_text=str(raw.get('raw_text') or raw.get('description') or '')[:30000],
                 source_lots=raw.get('source_lots'), source_documents=raw.get('documents'),
                 checks=compare_fields(row, extracted))
+            record.pop('reason', None)
         except Exception as exc:
             record['reason'] = str(exc)[:1200]
-    report = {'source': source, 'checked_at': datetime.now(UTC).isoformat(), 'scope':
-        'Frozen sample; read-only source fetch and comparison. PDF evidence is stored provenance, not independently revalidated here.',
-        'rows': records}
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str))
+        save_report()
     print(json.dumps({'source': source, 'sample_count': len(records),
                       'source_fetched': sum(row['status'] == 'review_required' for row in records)}))
 

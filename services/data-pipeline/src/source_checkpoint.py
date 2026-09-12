@@ -1,6 +1,8 @@
 """Short-lived, source-scoped detail checkpoints for interrupted collection runs."""
 from __future__ import annotations
 
+import atexit
+import copy
 import hashlib
 import json
 import os
@@ -46,14 +48,50 @@ def restore_detail(sale: dict) -> bool:
     return True
 
 
+_publisher = None
+_pending = []
+_connections = []
+
+
+def configure_publisher(callback=None):
+    global _publisher
+    _publisher = callback
+    _pending.clear()
+
+
+def flush_publications():
+    if _publisher and _pending:
+        batch = list(_pending)
+        _pending.clear()
+        _publisher(batch)
+
+
+def close_checkpoint_connections():
+    while _connections:
+        context = _connections.pop()
+        context.__exit__(None, None, None)
+
+
+atexit.register(close_checkpoint_connections)
+
+
 class CheckpointSales(list):
+    def __init__(self):
+        super().__init__()
+        self._db = None
+
     def append(self, sale):
         context = _context()
         if context and sale.get('_checkpoint_signature') and not (sale.get('_detail_fetch_failed') or sale.get('_known_unchanged') or sale.get('operator_detail_status') == 'failed'):
             from src.storage.supabase_client import _postgres_connect
             observed = sale.setdefault('_checkpoint_checked_at', datetime.now(UTC).isoformat())
             payload = json.loads(json.dumps(sale, default=str))
-            with _postgres_connect(context[0]) as db:
+            if self._db is None:
+                connection_context = _postgres_connect(context[0])
+                self._db = connection_context.__enter__()
+                _connections.append(connection_context)
+            with self._db.transaction():
+                db = self._db
                 db.execute("""insert into public.auction_collection_checkpoints(run_id,source_url,signature,payload,observed_at)
                   values(%s,%s,%s,%s,%s) on conflict(run_id,source_url) do update set
                     signature=excluded.signature,payload=excluded.payload,observed_at=excluded.observed_at""",
@@ -61,3 +99,7 @@ class CheckpointSales(list):
                 from src.collection_evidence import record_items
                 record_items(context[1], [sale], connection=db)
         super().append(sale)
+        if _publisher:
+            _pending.append(copy.deepcopy(sale))
+            if len(_pending) >= 25:
+                flush_publications()

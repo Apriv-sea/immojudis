@@ -91,6 +91,7 @@ def test_distinct_lots_at_same_address_are_not_merged():
 
 
 def test_publication_failure_rolls_back_without_rest_fallback(monkeypatch):
+    monkeypatch.setattr("src.publication_identity.resolve_publication_identities", lambda connection, sales: sales)
     events = []
     class Connection:
         def __enter__(self):

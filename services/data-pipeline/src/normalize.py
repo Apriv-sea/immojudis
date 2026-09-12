@@ -662,6 +662,12 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
     address = clean_text(
         _field_or_source_block(raw_sale, "address", "adresse", "detail_adresse", "address", "localisation")
     )
+    if address and re.fullmatch(r'[\d\s.,]+\s*(?:€|euros?|EUR)', address, re.I):
+        raw_sale = dict(raw_sale)
+        raw_sale['invalid_address_evidence'] = {'value': address, 'reason': 'monetary_value_is_not_address'}
+        raw_sale['quality_flags'] = [*(raw_sale.get('quality_flags') or []), 'address_unverified']
+        raw_sale['latitude'] = raw_sale['longitude'] = None
+        address = None
     postal_code = clean_text(
         _field_or_source_block(raw_sale, "postal_code", "code_postal", "codePostal", "postal_code")
     ) or extract_postal_code(address)
