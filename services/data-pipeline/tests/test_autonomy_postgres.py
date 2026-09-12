@@ -22,7 +22,7 @@ def setup(db):
         use_llm boolean,summary jsonb default '{}',errors jsonb default '{}',created_at timestamptz default now(),
         updated_at timestamptz default now(),started_at timestamptz,finished_at timestamptz)""")
     db.execute("""create table auction_sales(source_url text primary key,status text default 'upcoming',
-        updated_at timestamptz default now(),source_name text,sale_date timestamptz,sale_procedure jsonb default '{}',raw_payload jsonb default '{}')""")
+        updated_at timestamptz default now(),source_name text,sale_date timestamptz,sale_procedure jsonb default '{}',raw_payload jsonb default '{}',observations jsonb default '[]')""")
     original = migration('20260819105011_add_structured_surface_reasoning_queue.sql')
     db.execute(original[original.index('create table if not exists public.auction_enrichment_jobs'):original.index('create index if not exists auction_surface_measurements')])
     db.execute(migration('20260912110654_pipeline_autonomy_evidence.sql'))
@@ -201,5 +201,36 @@ def test_source_outage_never_establishes_absence_or_deletes_listing():
             payload = db.execute("select raw_payload from auction_sales where source_url='kept'").fetchone()[0]
             assert payload['source_presence']['licitor']['state'] == 'absent'
             assert payload['source_presence']['licitor']['availability'] == 'unavailable'
+        finally:
+            db.rollback()
+
+
+def test_freshness_counts_merged_aliases_but_not_another_sources_checks():
+    from psycopg.types.json import Jsonb
+    url = os.getenv('PIPELINE_TEST_DB_URL')
+    if not url:
+        pytest.skip('Requires disposable PostgreSQL')
+    with _postgres_connect(url) as db:
+        try:
+            setup(db)
+            db.execute(migration('20260912155824_pipeline_source_specific_freshness.sql'))
+            db.execute("""insert into auction_sales(source_url,source_name,sale_date,observations,raw_payload)
+                values ('canonical','avoventes','2026-09-15T12:00:00Z',%s,%s)""",
+                (Jsonb([{'source_name':'licitor','source_url':'licitor-alias'}]),
+                 Jsonb({'source_checks':{'canonical':{'checked_at':'2026-09-12T11:55:00Z'},
+                       'licitor-alias':{'checked_at':'2026-09-11T12:00:00Z'}}})))
+            assert db.execute("select * from auction_source_freshness('licitor','2026-09-12T12:00:00Z')").fetchone() == (1,0)
+            assert db.execute("select * from auction_source_freshness('avoventes','2026-09-12T12:00:00Z')").fetchone() == (1,1)
+            db.execute("""insert into auction_sales(source_url,source_name,sale_date,raw_payload)
+                values ('licitor-direct','licitor','2026-10-01T12:00:00Z',%s)""",
+                (Jsonb({'source_checks':{'licitor-direct':{'checked_at':'2026-09-12T08:00:00Z'},
+                      'wrong-source':{'checked_at':'not-a-date'}}}),))
+            assert db.execute("select * from auction_source_freshness('licitor','2026-09-12T12:00:00Z')").fetchone() == (2,1)
+            run_id = str(db.execute("insert into auction_runs(source,status) values ('licitor','failed') returning id").fetchone()[0])
+            from src.autonomous_runner import record_source_presence
+            record_source_presence(db,run_id,'licitor','unavailable',False)
+            payload = db.execute("select raw_payload from auction_sales where source_url='canonical'").fetchone()[0]
+            assert payload['source_presence']['licitor']['availability'] == 'unavailable'
+            assert 'state' not in payload['source_presence']['licitor']
         finally:
             db.rollback()

@@ -230,6 +230,7 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
         return
     try:
         html = client.get(source_url)
+        details = parse_avoventes_detail_html(html, source_url)
     except Exception as exc:
         LOGGER.warning("Avoventes detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
@@ -238,7 +239,6 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
         return
 
     sale["source_detail_status"] = "complete"
-    details = parse_avoventes_detail_html(html, source_url)
     if details.get("source_blocks"):
         existing_blocks = sale.get("source_blocks") if isinstance(sale.get("source_blocks"), dict) else {}
         sale["source_blocks"] = {**existing_blocks, **details["source_blocks"]}
@@ -261,6 +261,8 @@ def _enrich_sale_from_detail(client: AvoventesClient, sale: dict[str, Any], erro
 
 def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
+    if len(soup.select('select option')) > 100 and not soup.select_one('#lightSliderDetails') and not _property_description(soup):
+        raise ValueError('Requested detail returned the catalogue/search page; property identity unverified')
     # Exclude comparables and neighbourhood amenities from the lot's facts.
     for heading in list(soup.find_all(["h2", "h3", "h4"])):
         text = heading.get_text(" ", strip=True).lower()

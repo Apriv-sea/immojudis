@@ -1,0 +1,502 @@
+[
+  {
+    "id": "378ced57-5823-402b-9c5e-ed925a6f2ea0",
+    "source_name": "agrasc",
+    "source_url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/appartement/appartement-loue-117-m-choisy-le-roi-94-412224.aspx"
+  },
+  {
+    "id": "3294defa-73d1-4742-9c8c-3788885daa38",
+    "source_name": "agrasc",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/evry-courcouronnes-91/2075541"
+  },
+  {
+    "id": "23c2a8fd-d9d0-4d62-9123-0075f651d98b",
+    "source_name": "agrasc",
+    "source_url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/maison/maison-60-m-le-perreux-sur-marne-94-362606.aspx"
+  },
+  {
+    "id": "6e7d132e-e9fa-4893-acbe-4c7d526b3e4e",
+    "source_name": "agrasc",
+    "source_url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/immeuble/immeuble-130-m-agen-47-428512.aspx"
+  },
+  {
+    "id": "b2811000-c163-45c9-b61e-57f913b24530",
+    "source_name": "agrasc",
+    "source_url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/maison/maison-50-m-chelles-77-428761.aspx"
+  },
+  {
+    "id": "bb9403b2-56f2-4cc7-9a86-60977b5580a8",
+    "source_name": "agrasc",
+    "source_url": "https://www.agorastore-immo.fr/vente-occasion/immobilier/maison/maison-120-m-revel-31-430647.aspx"
+  },
+  {
+    "id": "b62eed85-34b8-4a40-82c0-b336dceaacd1",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-appartement-a-megeve"
+  },
+  {
+    "id": "19ab895d-aa07-4cf0-9cbb-b2b267778653",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/local-commercial-a-bois-colombes"
+  },
+  {
+    "id": "1dc4178d-f27e-41a9-a7dd-a182b29a0308",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-cave-a-rouen"
+  },
+  {
+    "id": "38f7e9ec-34a3-4ec2-9046-6b759f580ccf",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-pavillon-et-deux-caves-a-noisy-le-sec"
+  },
+  {
+    "id": "5d988d56-a7f5-4df8-a42b-c00a969e5cab",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-de-3-pieces-environ-65-m2-avec-cave-et-parking-a-le-cannet"
+  },
+  {
+    "id": "69bfbe7d-948f-4b94-a606-717917c97895",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/3-appartements-a-trappes-vente-en-3-lots"
+  },
+  {
+    "id": "7b6990fe-429b-421a-b649-10d8a65fde47",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-cave-a-gaillard"
+  },
+  {
+    "id": "87d6182e-48be-4c00-8a9d-0330dcec5bce",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/appartement-sechoir-local-a-usage-commercial-local-cave-a-vidauban-vente-en-2-lots"
+  },
+  {
+    "id": "ff8b1000-09c1-4bd1-a790-d2839af9d45f",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/un-appartement-et-une-cave-a-gex-1"
+  },
+  {
+    "id": "71ab360c-4dc2-4fca-b25f-bde157c91b1e",
+    "source_name": "avoventes",
+    "source_url": "https://avoventes.fr/enchere/ensemble-immobilier-4"
+  },
+  {
+    "id": "e4ecba30-98ce-442f-a875-9273c258548a",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/locaux-de-bureaux-vendre-la-seyne-sur-mer"
+  },
+  {
+    "id": "09eb942b-44b5-40c0-b8c0-15ce6709758e",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/maison-forestiere-montauban-de-bretagne-35"
+  },
+  {
+    "id": "31435edc-92a4-4a8a-805d-adbfcd2847b8",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/dossiers/vente-mixte-lot-de-parcelles-situees-dans-la-commune-de-lugan"
+  },
+  {
+    "id": "3b17802f-ad43-4343-83b9-d69154f14e19",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/cession-de-locaux-de-bureaux"
+  },
+  {
+    "id": "5255acfd-9ae3-471d-b463-7346e172d14c",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/maison-dhabitation-128-m2-isigny-le-buat-50-parcelle-632-2145"
+  },
+  {
+    "id": "52c0e73d-89d3-4872-963e-1418bcdfdf94",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/pavillon-individuel-ndeg1-rue-de-la-noyera-villefontaine"
+  },
+  {
+    "id": "544cc97e-97ed-4195-ba65-7dedfad324f0",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/maison-forestiere-0"
+  },
+  {
+    "id": "6225a9bf-b147-4c6f-b265-52c799c49c3a",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/ensemble-immobilier"
+  },
+  {
+    "id": "6c664a05-fd26-4200-a632-37981deb4450",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/pavillon-individuel-ndeg7-rue-de-la-noyera-villefontaine"
+  },
+  {
+    "id": "76bfee70-e1aa-488b-8aa9-33e2ee168e70",
+    "source_name": "cessions_etat",
+    "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/maison-forestiere-bu"
+  },
+  {
+    "id": "0d4d95ff-2491-46a4-a01d-840db041717b",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9309-en-deux-lots-un-appartement-avec-sechoir-et-un-local-a-usage-commercial-"
+  },
+  {
+    "id": "0e3f35b6-13be-4ef4-be40-aef3034c3965",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9390-un-immeuble-compose-dun-garage-dun-local-et-un-appartement-a-marseille-1"
+  },
+  {
+    "id": "108ec369-d2e7-49c4-bde5-28a8d7c67c80",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9486-une-maison-elevee-dun-rez-de-chaussee-a-gignac-la-nerthe-13"
+  },
+  {
+    "id": "11fb4f8c-35c9-4fbc-9b69-a2f369c15922",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9354-un-appartement-de-type-3-au-1er-etage-avec-balcon-place-de-parking-garag"
+  },
+  {
+    "id": "21477b58-40a9-4968-9374-31fbd6e84c5d",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9329-appartement-2p-a5-de-5551-m-au-1er-etage-et-cave-a-nice-06"
+  },
+  {
+    "id": "3a5e8fb7-4513-4f6f-bf96-f8801142b892",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9207-un-village-de-vacances-et-une-parcelle-de-terrain-a-port-saint-louis-du-"
+  },
+  {
+    "id": "429c9317-cac2-4664-bb28-7c5a8faecb9f",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9369-un-appartement-a-marseille-13"
+  },
+  {
+    "id": "43a84c3a-62be-4b87-935a-12b50d94ccdc",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9475-un-appartement-de-type-t2-au-2eme-etage-a-cuers-83"
+  },
+  {
+    "id": "4c304841-29a5-44cd-afaf-069af98a57ed",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9499-appartement-f4-de-8220-m-cave-et-parking-semi-couvert-a-nice-06"
+  },
+  {
+    "id": "4f122437-4d17-4e1f-bd95-d247b8651350",
+    "source_name": "encheres_immobilieres",
+    "source_url": "https://encheresimmobilieres.fr/ventes/9332-appartement-2p-de-2750-m-avec-loggia-donnant-sur-jardin-privatif-a-ville"
+  },
+  {
+    "id": "971512d7-f987-497c-aa1f-e76ebe20081d",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/rouen-76/appartement-situe-quater-rue-aux-anglais-rouen_129860"
+  },
+  {
+    "id": "b77ef671-7650-49e4-b0e7-172d8b49a125",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/montpellier-34/ensemble-immobilier-situe-rue-alco-montpellier_130834"
+  },
+  {
+    "id": "04526d4c-b3ce-467f-bb57-4a39fe1ecd66",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/nice-06/appartement-situe-rue-barberis-nice_129494"
+  },
+  {
+    "id": "0b5623ee-351f-4736-99cb-89a95f7e42d5",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/fr/encheres/immobilier/maisons/la-haye-d-ectot-50/une-maison-situee-route-des-hauts-brejoncs-haye-ectot_130771"
+  },
+  {
+    "id": "361628c9-36d7-40e2-a83f-0534d5d7d36b",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/paris-75/appartement-situe-rue-crimee-paris_129709"
+  },
+  {
+    "id": "36d01128-444a-477b-827c-6e02d5fb9559",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/maisons/meyzieu-69/pavillon-avec-garage-situe-impasse-des-plantees-meyzieu_130856"
+  },
+  {
+    "id": "3cf60dd4-94fc-4d8f-973f-b1cf93ed7d52",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/le-cannet-06/appartement-situe-carnot-cannes_130843"
+  },
+  {
+    "id": "52673e39-d853-4c80-8d01-72b796327d12",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/appartements/bayonne-64/appartement-situe-rue-este-bayonne_130875"
+  },
+  {
+    "id": "6853a473-4601-4f7a-85e1-fe2061211804",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/maisons/tourrettes-83/une-maison-type-situee-les-grandes-terrasses-tourrettes_130840"
+  },
+  {
+    "id": "6b9d9923-422d-4a8e-be8b-28f7bf79677f",
+    "source_name": "encheres_publiques",
+    "source_url": "https://www.encheres-publiques.com/encheres/immobilier/maisons/la-flotte-17/une-maison-ville-situee-rue-noel-remigereau-flotte_130549"
+  },
+  {
+    "id": "a911a0da-4936-4d02-bbcc-53dd9750a885",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108240-d-vente-encheres-immobilieres-maison-ancienne-sur-3-niveaux-avec-dacpendances-et-cave-betchat-09-ref-6008.html"
+  },
+  {
+    "id": "7a434ae1-956d-4bce-aaf2-9f3eb96b8971",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108277-d-vente-encheres-immobilieres-appartement-avec-cave-et-deux-places-de-parking-thonon-les-bains-74-ref-6038.html"
+  },
+  {
+    "id": "447ea205-aec6-402a-b104-418ceb88fedf",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108321-d-vente-encheres-immobilieres-immeuble-comprenant-3-appartements-des-locaux-an-usage-de-bureaux-et-4-places-de-stationnement-lyon-69-ref-6079.html"
+  },
+  {
+    "id": "4c3010d8-8658-40e9-aa71-4583993271bf",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108301-d-vente-encheres-immobilieres-ensemble-immobilier-composac-de-locaux-industrielscommerciaux-artisanaux-et-d-un-local-d-habitation-villefranque-64-ref-6059.html"
+  },
+  {
+    "id": "70a31b6b-d995-41e6-be7f-4e9cb3a7ace1",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108319-d-vente-encheres-immobilieres-ensemble-immobilier-muret-31-ref-6077.html"
+  },
+  {
+    "id": "81e0486f-663b-4c17-a077-d2545a8aa9c6",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108288-d-vente-encheres-immobilieres-appartement-avec-cave-toulon-83-ref-6049.html"
+  },
+  {
+    "id": "35f44afc-36ff-4c0b-93c0-4288334989a2",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108241-d-vente-encheres-immobilieres-appartement-t3-avec-garage-en-sous-sol-annemasse-74-ref-6009.html"
+  },
+  {
+    "id": "027a9a3e-d926-4f93-b5ea-cffabd589acb",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108311-d-vente-encheres-immobilieres-appartement-t3-avec-parking-saint-fons-69-ref-6069.html"
+  },
+  {
+    "id": "82e8c4ab-0b63-4f79-aefb-1ec010334012",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108328-d-vente-encheres-immobilieres-appartement-et-parking-malaucene-84-ref-6086.html"
+  },
+  {
+    "id": "8ab46c5c-7b5f-4f8f-a4df-6d1195e753a1",
+    "source_name": "info_encheres",
+    "source_url": "https://www.info-encheres.com/108309-d-vente-encheres-immobilieres-une-piauce-unique-saint-fons-69-ref-6067.html"
+  },
+  {
+    "id": "fff6c926-7190-4268-9876-63a3eced8509",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/94/32/vente-aux-encheres/un-ensemble-immobilier-a-usage-industriel/romilly-sur-seine/aube/109432.html"
+  },
+  {
+    "id": "3e8eb246-448a-452d-b52f-734f0658e36a",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/98/98/vente-aux-encheres/un-appartement/annemasse/haute-savoie/109898.html"
+  },
+  {
+    "id": "44874be9-3477-4ae7-b7b9-540ce88069ee",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/95/07/vente-aux-encheres/un-appartement/montpellier/herault/109507.html"
+  },
+  {
+    "id": "49ab079a-16b1-425f-8459-9d4a5f1f6cc5",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/98/93/vente-aux-encheres/un-appartement/ablon-sur-seine/val-de-marne/109893.html"
+  },
+  {
+    "id": "4a142b64-0c55-4982-9e5f-240dbb186ba3",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/98/05/vente-aux-encheres/un-appartement/evry-courcouronnes/essonne/109805.html"
+  },
+  {
+    "id": "4b23653f-b31e-4dca-8cf5-02171c808b85",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/93/77/vente-aux-encheres/une-maison-individuelle/les-pennes-mirabeau/bouches-du-rhone/109377.html"
+  },
+  {
+    "id": "4db5cf59-3115-462c-bd03-50f2d012beb5",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/95/42/vente-aux-encheres/un-appartement/marseille-13eme/bouches-du-rhone/109542.html"
+  },
+  {
+    "id": "5274b4c6-3bfb-4358-9e05-d7b1525390d1",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/98/17/vente-aux-encheres/une-maison-a-usage-d-habitation/gignac-la-nerthe/bouches-du-rhone/109817.html"
+  },
+  {
+    "id": "620572db-09f0-40df-977a-73aa5c6db80d",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/95/12/vente-aux-encheres/un-appartement/sarcelles/val-d-oise/109512.html"
+  },
+  {
+    "id": "77b86e37-f869-410a-81fe-35c38da58b57",
+    "source_name": "licitor",
+    "source_url": "https://www.licitor.com/annonce/10/98/35/vente-aux-encheres/un-appartement/paris-18eme/paris/109835.html"
+  },
+  {
+    "id": "0c78e2ee-8913-4703-916b-5b7a622e5631",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/annecy-74/2076118"
+  },
+  {
+    "id": "28727805-f32f-443b-9eb8-8cbfb8b15b54",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/paris-16-75016/2038940"
+  },
+  {
+    "id": "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+    "source_name": "notaires",
+    "source_url": "https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/agde-34/2069112"
+  },
+  {
+    "id": "2c760bba-6457-4b19-84eb-eb312dbda640",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/aix-les-bains-73/2069118"
+  },
+  {
+    "id": "50de9572-2fc4-47a8-814d-c288a31410b2",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/paris-06-75006/1912844"
+  },
+  {
+    "id": "676cb2f2-6d93-4553-8164-908ac7bc18c1",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/paris-09-75009/2059508"
+  },
+  {
+    "id": "6a486c10-90af-4547-8d43-19c3689f1092",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/terrain/seyssuel-38/2070715"
+  },
+  {
+    "id": "8f3015d4-3381-4fe7-9b1e-4132e238fff0",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/st-pere-marc-en-poulet-35/1992717"
+  },
+  {
+    "id": "f22746d6-fd29-4399-a990-2a3831b88644",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/corbeil-essonnes-91/2003688"
+  },
+  {
+    "id": "f4fbf1f2-a18e-408c-a9e7-23d0246c8a8c",
+    "source_name": "notaires",
+    "source_url": "https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/maison/tournefeuille-31/2064920"
+  },
+  {
+    "id": "fa0a1ac7-315e-461a-936f-1a711a10bcb8",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/immeuble/roanne-42/2042898"
+  },
+  {
+    "id": "f642b9d0-89d6-44ba-8ab7-a050ee73ff6b",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/macon-71/1946226"
+  },
+  {
+    "id": "27a8f44c-f2f8-421a-bf00-00ccab6c2355",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/aubagne-13/1927183"
+  },
+  {
+    "id": "546082c3-8edc-42e4-92c1-7992952286dc",
+    "source_name": "notaires",
+    "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/st-etienne-42/2022963"
+  },
+  {
+    "id": "004a3cc3-e6e3-4314-81c5-44e2096b9604",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/un-appartement-avec-un-garage-et-une-cave-a-villefranche-sur-saone-59195.html"
+  },
+  {
+    "id": "00dc38f7-6f6f-4875-a0db-aa6955bb97ed",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/une-cave-a-cannes-59033.html"
+  },
+  {
+    "id": "01b881ac-6cfa-4ab7-bf69-4c624f0b3a38",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/un-garage-a-lyon-59196.html"
+  },
+  {
+    "id": "022ce58d-6e90-4ef5-a127-f8b4e99fd39b",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/une-maison-d-habitation-a-clamecy-58801.html"
+  },
+  {
+    "id": "02cb83b8-46a4-4cbf-a9c6-f65bb80ee254",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/plusieurs-studios-a-crecy-la-chapelle-58980.html"
+  },
+  {
+    "id": "03079091-0825-4111-9027-91522ca3cdc9",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/un-ensemble-immobilier-a-marseille-58749.html"
+  },
+  {
+    "id": "04c9d9a0-ed6e-4cf1-9c77-5c90a0eb5fc5",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/un-appartement-a-juvisy-sur-orge-58923.html"
+  },
+  {
+    "id": "04e41ec3-a4ed-4662-b9f7-55bf65b9dcdf",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/deux-maisons-d-habitation-a-nangy-59173.html"
+  },
+  {
+    "id": "055f57c9-25fa-4419-8a5f-744439ed32a4",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/une-maison-de-village-a-charleval-59165.html"
+  },
+  {
+    "id": "05f01d12-74e7-41ac-a69b-e7e4a1f66e4c",
+    "source_name": "petites_affiches",
+    "source_url": "https://www.petitesaffiches.fr/encheres-immobilieres/vente/immobiliere/judiciaire/une-chambre-a-malijai-59109.html"
+  },
+  {
+    "id": "38803eee-50cd-4725-a3fb-55ddf4c52a60",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165858-un-appartement-t4-gap.html"
+  },
+  {
+    "id": "28b071ea-91d9-4867-ae9d-c9b578a51cba",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165755-un-batiment-mitoyen-montoire-sur-le-loir.html"
+  },
+  {
+    "id": "8ed1365d-cf3f-4ed4-a707-80b3c99d6239",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165971-un-batiment-commercial-loudeac.html"
+  },
+  {
+    "id": "be16b4a5-b044-4df5-b657-9101caa54b03",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-166002-une-maison-bioule.html"
+  },
+  {
+    "id": "c8d176e2-905e-4839-a976-4fafe1d49bfd",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165574-un-ensemble-immobilier-fontenay-tresigny.html"
+  },
+  {
+    "id": "f63a7120-90d7-4c01-859b-d1e6213d06ed",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165509-une-propriete-saint-tropez.html"
+  },
+  {
+    "id": "8f41d8f1-3687-4d93-81b2-cfca7901ee5f",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-166227-un-appartement-paris.html"
+  },
+  {
+    "id": "eed2602a-8e6a-4f23-94b8-abf50802c244",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165888-2nd-lot-de-la-vente-un-terrain-avec-un-batiment-villepinte.html"
+  },
+  {
+    "id": "12128255-7d2f-4aef-8571-4e843fec76d1",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-165672-un-appartement-de-type-t1-toulouse.html"
+  },
+  {
+    "id": "13554f11-82f3-4955-9d45-def0f57fffa4",
+    "source_name": "vench",
+    "source_url": "https://www.vench.fr/vente-166194-un-immeuble-chatellerault.html"
+  }
+]

@@ -250,6 +250,11 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
         known_details,
         fetch_detail_heavy=True,
     )
+    from src.source_checkpoint import configure_publisher, flush_publications
+    configure_publisher(
+        (lambda rows: publish_factual_batch(run_id, rows, known_details, errors))
+        if os.getenv("PIPELINE_AUTONOMOUS_RUN_ID") and options.upsert else None
+    )
     scrape_overall_started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=max(1, len(scrapers))) as executor:
         futures = {executor.submit(_timed_scrape, name, fn): name for name, fn in scrapers.items()}
@@ -275,6 +280,8 @@ def run_pipeline(options: PipelineOptions | None = None) -> int:
             LOGGER.info("Source complete source=%s rows=%s seconds=%.1f errors=%s", name, len(result.sales), seconds, len(result.errors))
             if options.upsert:
                 _report_collection_progress(run_id, "scraping", raw_by_source, scrape_coverage, timings, errors)
+    flush_publications()
+    configure_publisher()
     collection_failed = any(errors.get(name) for name in scrapers)
     coverage_incomplete = any(item.get("coverage_complete") is False for item in scrape_coverage.values())
     timings["scrape_total_seconds"] = round(time.perf_counter() - scrape_overall_started, 2)
@@ -1245,6 +1252,39 @@ def _report_collection_progress(run_id, phase, counts, coverage, timings, errors
         }, errors)
     except Exception:
         LOGGER.warning("Unable to publish collection progress", exc_info=True)
+
+
+def publish_factual_batch(run_id: str, raws: list, known: dict, errors: dict) -> None:
+    """Publish bounded, admissible facts while source collection is still running."""
+    record_items(run_id, raws)
+    _hydrate_known_unchanged_sales(raws, known)
+    _preserve_known_enrichment_payloads(raws, known)
+    record_source_checks(raws, known)
+    normalized = []
+    for raw in raws:
+        try:
+            sale = normalize_sale(raw)
+            sale.last_run_id = run_id
+            _finalize_sale_for_app(sale, geocode=False)
+            normalized.append(sale)
+        except Exception as exc:
+            record_items(run_id, [raw], decision="normalization_failed", reason=str(exc)[:1000])
+    sales = merge_duplicate_sales(normalized)
+    mark_past_sales(sales)
+    record_sale_decisions(run_id, [sale for sale in sales if is_expired(sale)],
+                          decision="expired", reason="retention_deadline_reached_not_evidence_of_sale")
+    record_sale_decisions(run_id, [sale for sale in sales if not is_expired(sale) and not has_price_or_surface(sale)],
+                          decision="excluded", reason="missing_price_and_surface")
+    admitted = [sale for sale in sales if not is_expired(sale) and has_price_or_surface(sale)]
+    if not admitted:
+        return
+    try:
+        count = upsert_sales_to_supabase(admitted)
+        LOGGER.info("Progressive factual publication: %s catalogue identities", count)
+    except Exception as exc:
+        record_sale_decisions(run_id, admitted, decision="publication_failed", reason=str(exc)[:1000])
+        errors.setdefault("supabase", []).append(str(exc)[:1000])
+        LOGGER.exception("Progressive publication failed; checkpoint remains available")
 
 
 def _finalize_sale_for_app(sale: AuctionSale, *, geocode: bool = True) -> None:

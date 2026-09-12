@@ -415,6 +415,7 @@ def test_delete_expired_sales_stops_on_busy(monkeypatch):
 
 
 def test_upsert_sales_prefers_direct_postgres_when_db_url_is_configured(monkeypatch) -> None:
+    monkeypatch.setattr("src.publication_identity.resolve_publication_identities", lambda connection, sales: sales)
     sale = normalize_sale(
         {
             "source_name": "avoventes", "starting_price_eur": 10000,
@@ -1309,6 +1310,7 @@ def test_fetch_sale_for_data_refresh_returns_auction_sale(monkeypatch) -> None:
 
 
 def test_publication_commits_completed_batches_before_later_batch_failure(monkeypatch):
+    monkeypatch.setattr("src.publication_identity.resolve_publication_identities", lambda connection, sales: sales)
     from contextlib import contextmanager
     monkeypatch.setattr(supabase_client, 'load_settings', lambda: {
         'supabase_url': 'https://supabase.test', 'supabase_service_role_key': 'test',

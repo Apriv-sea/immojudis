@@ -21,14 +21,14 @@ def test_compute_content_hash_is_stable_for_same_content() -> None:
     assert compute_content_hash(first) == compute_content_hash(second)
 
 
-def test_dedupe_sales_uses_source_url_then_content_hash() -> None:
+def test_dedupe_sales_keeps_distinct_publisher_urls_even_with_equal_hash() -> None:
     sales = [
         _sale("https://avoventes.fr/enchere/1"),
         _sale("https://avoventes.fr/enchere/1"),
         _sale("https://avoventes.fr/enchere/2"),
         _sale("https://avoventes.fr/enchere/3", "2 rue Test 33000 Bordeaux"),
     ]
-    assert len(dedupe_sales(sales)) == 2
+    assert len(dedupe_sales(sales)) == 3
 
 
 def test_dedupe_sales_collapses_cross_source_duplicates() -> None:

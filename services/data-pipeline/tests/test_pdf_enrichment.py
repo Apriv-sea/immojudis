@@ -604,7 +604,7 @@ def test_info_encheres_diagnostics_prefers_reference_surface_over_technical_comp
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("116.72")
-    assert sale.habitable_surface_m2 == Decimal("116.72")
+    assert sale.habitable_surface_m2 is None
     assert sale.land_surface_m2 is None
     assert sale.app_surface_m2 == Decimal("116.72")
     assert sale.raw_payload["surface_extraction"]["page_number"] == 114

@@ -233,14 +233,9 @@ def _observation_summary(sale: AuctionSale) -> dict[str, Any]:
 
 
 def _has_strong_dedupe_signal(sale: AuctionSale) -> bool:
-    signals = [
-        bool(clean_text(sale.address)),
-        bool(clean_text(sale.city)),
-        bool(sale.sale_date),
-        bool(sale.starting_price_eur),
-        bool(clean_text(sale.postal_code)),
-    ]
-    return sum(signals) >= 3
+    # City + date + price can describe several independent auction lots.
+    # A content hash is not an identity proof without a precise street address.
+    return bool(_address_dedupe_keys(sale))
 
 
 def _normalize_street_text(value: str) -> str:
@@ -272,7 +267,7 @@ def _address_dedupe_keys(sale: AuctionSale) -> list[str]:
     street_key = _normalize_street_text(street)
     # Exiger une adresse précise (numéro de voie) : sans numéro on risquerait de
     # fusionner des biens distincts d'une même commune (ex. « 33000 Bordeaux »).
-    if not _STREET_NUMBER_RE.search(street_key) or len(street_key) < 6:
+    if not _STREET_NUMBER_RE.search(street_key) or not re.search(r'[a-z]', street_key) or len(street_key) < 6:
         return []
 
     localities: list[str] = []
@@ -309,6 +304,9 @@ def _prices_close(first: Any, second: Any, tolerance: float = 0.02) -> bool:
 
 
 def _same_property(first: AuctionSale, second: AuctionSale) -> bool:
+    if first.source_name == second.source_name and first.source_url != second.source_url:
+        # Separate listings from one publisher can be separate lots in the same building.
+        return False
     for key in ("lot_number", "lot_id"):
         first_lot, second_lot = first.raw_payload.get(key), second.raw_payload.get(key)
         if first_lot and second_lot and str(first_lot) != str(second_lot):
@@ -404,7 +402,6 @@ def _unique_values(values: Iterable[str]) -> list[str]:
 
 def _mergeable_fields() -> tuple[str, ...]:
     return (
-        "external_id",
         "tribunal",
         "tribunal_code",
         "department",

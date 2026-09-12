@@ -192,7 +192,7 @@ def test_storage_recompute_preserves_editorial_text_for_surface_reconciliation()
     normalize_asset_features(sale)
 
     assert sale.surface_m2 == Decimal("187")
-    assert sale.habitable_surface_m2 == Decimal("187")
+    assert sale.habitable_surface_m2 is None
     assert sale.land_surface_m2 == Decimal("1110")
     assert sale.app_surface_m2 == Decimal("187")
     assert sale.raw_payload["surface_reconciliation"]["rejected_surface_m2"] == "1877"

@@ -645,6 +645,9 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
         raise ValueError("raw sale is missing source_url")
 
     source_text = _normalization_text(raw_sale)
+    if re.search(r'vente.{0,40}\ben\s+[2-9][0-9]*\s+lots|premier\s+lot\s+de\s+vente.*second\s+lot\s+de\s+vente', source_text, re.I | re.S):
+        raw_sale = dict(raw_sale)
+        raw_sale['quality_flags'] = [*(raw_sale.get('quality_flags') or []), 'multi_lot_sale']
     title = clean_text(raw_sale.get("title"))
     detail_title = clean_text(_source_block_lookup(raw_sale, "titre_detail", "detail_titre", "asset_title"))
     if _is_generic_listing_title(title) and detail_title:
@@ -662,6 +665,12 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
     address = clean_text(
         _field_or_source_block(raw_sale, "address", "adresse", "detail_adresse", "address", "localisation")
     )
+    if address and re.fullmatch(r'[\d\s.,]+\s*(?:€|euros?|EUR)', address, re.I):
+        raw_sale = dict(raw_sale)
+        raw_sale['invalid_address_evidence'] = {'value': address, 'reason': 'monetary_value_is_not_address'}
+        raw_sale['quality_flags'] = [*(raw_sale.get('quality_flags') or []), 'address_unverified']
+        raw_sale['latitude'] = raw_sale['longitude'] = None
+        address = None
     postal_code = clean_text(
         _field_or_source_block(raw_sale, "postal_code", "code_postal", "codePostal", "postal_code")
     ) or extract_postal_code(address)
@@ -787,8 +796,6 @@ def normalize_sale(raw_sale: dict[str, object]) -> AuctionSale:
         )
     if surface_source is None and surface_evidence is not None:
         surface_source = "source_text"
-    if property_type == "house" and habitable_surface_m2 is None and surface_m2 is not None:
-        habitable_surface_m2 = surface_m2
     app_surface_m2 = parse_surface(raw_sale.get("app_surface_m2"))
     app_surface_kind = clean_text(raw_sale.get("app_surface_kind"))
     surface_scope = clean_text(raw_sale.get("surface_scope"))
@@ -980,12 +987,13 @@ def _derive_initial_app_surface(
     if surface_scope in {"partial", "room_or_annex", "unknown"}:
         return None, None, surface_scope
     if property_type == "apartment":
-        value = carrez_surface_m2 or habitable_surface_m2
-        kind = "carrez" if carrez_surface_m2 is not None else "habitable" if value is not None else None
+        value = carrez_surface_m2 or habitable_surface_m2 or surface_m2
+        kind = "carrez" if carrez_surface_m2 is not None else "habitable" if habitable_surface_m2 is not None else "built" if value is not None else None
         return value, kind, "total" if value is not None else surface_scope
     if property_type == "house":
-        value = habitable_surface_m2
-        return value, "habitable" if value is not None else None, "total" if value is not None else surface_scope
+        value = habitable_surface_m2 or surface_m2
+        kind = "habitable" if habitable_surface_m2 is not None else "built" if value is not None else None
+        return value, kind, "total" if value is not None else surface_scope
     if property_type == "building":
         value = surface_m2 or habitable_surface_m2 or carrez_surface_m2
         return value, "built" if value is not None else None, "total" if value is not None else surface_scope
@@ -1226,19 +1234,24 @@ def _extract_carrez_surface_from_text(*values: object) -> Decimal | None:
     text = _joined_text(*values)
     patterns = (
         rf"\b{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+(?:loi\s+)?carrez\b",
-        rf"\b(?:surface\s+)?carrez\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
+        rf"\b(?:surface\s+)?(?:loi\s+)?carrez\s*(?:totale\s*)?:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
     )
     return _extract_contextual_surface(text, patterns, exclude_secondary=False)
 
 
 def _extract_land_surface_from_text(*values: object) -> Decimal | None:
     text = _joined_text(*values)
-    for match in re.finditer(
-        r"\b(?:contenance\s+(?:totale\s+)?(?:de\s+)?)?([0-9]+)\s*a\s*([0-9]+)\s*ca\b",
+    matches = list(re.finditer(
+        r"\b(?:([0-9]+)\s*ha\s*)?([0-9]+)\s*a\s*([0-9]+)\s*ca\b",
         text,
         re.I,
-    ):
-        return Decimal(match.group(1)) * Decimal("100") + Decimal(match.group(2))
+    ))
+    if len(matches) > 1:
+        # Several cadastral parcels require scoped measurements, not the first value.
+        return None
+    if matches:
+        match = matches[0]
+        return Decimal(match.group(1) or 0) * Decimal('10000') + Decimal(match.group(2)) * Decimal('100') + Decimal(match.group(3))
     patterns = (
         rf"\b(?:terrain|parcelle|jardin)\s+(?:de\s+|d['’]une\s+surface\s+de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
         rf"\bcadastr[ée]e?.{{0,120}}?\bpour\s+un\s+total\s+de\s+{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
@@ -1254,6 +1267,7 @@ def _extract_built_surface_from_text(*values: object) -> Decimal | None:
     patterns = (
         rf"\b(?:surface|superficie)\s+(?:des\s+)?lots?\b[^:\n]{{0,80}}:\s*{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
         rf"\bsurface\s+totale\s*:?\s*(?:de\s+)?{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\b",
+        rf"\b{SURFACE_VALUE_PATTERN}\s*m(?:2|²)\s+superficie\b",
         (
             r"\b(?:un|une|l['’]|le|la)?\s*"
             r"(?:appartement|maison|immeuble|bâtiment|batiment|local|commerce|villa|studio|bien\s+immobilier|ensemble\s+immobilier)\b"

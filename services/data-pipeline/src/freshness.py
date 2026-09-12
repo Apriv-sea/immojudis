@@ -52,7 +52,7 @@ def record_source_checks(raw_sales: list, known: dict) -> None:
         content = {key: sale.get(key) for key in ("raw_text", "documents", "visit_dates", "occupancy_status", "sale_date", "starting_price_eur")}
         fingerprint = hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
         old = previous.get(url) or {}
-        payload["source_checks"][url] = {"checked_at": sale.get("_checkpoint_checked_at") or datetime.now(UTC).isoformat(), "fingerprint": fingerprint, "extractor_version": SOURCE_EXTRACTION_VERSION}
+        payload["source_checks"][url] = {"checked_at": sale.get("_checkpoint_checked_at") or datetime.now(UTC).isoformat(), "source_name": sale.get("source_name"), "fingerprint": fingerprint, "extractor_version": SOURCE_EXTRACTION_VERSION}
         if old.get("fingerprint") != fingerprint:
             invalidate_analysis(payload, "source_content_changed")
 

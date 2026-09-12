@@ -72,9 +72,12 @@ def record_source_presence(db, run_id: str, source: str, availability: str, comp
             'state',case when exists(select 1 from public.auction_collection_items i
               where i.run_id=%s and (i.source_url=s.source_url or i.canonical_source_url=s.source_url))
               then 'present' else 'absent' end,'checked_at',now()) else '{}'::jsonb end))
-        where s.source_name=%s or exists(select 1 from public.auction_collection_items i
+        where s.source_name=%s or s.raw_payload->'source_presence' ? %s
+          or exists(select 1 from jsonb_array_elements(case when jsonb_typeof(s.observations)='array'
+            then s.observations else '[]'::jsonb end) o where o.value->>'source_name'=%s)
+          or exists(select 1 from public.auction_collection_items i
           where i.run_id=%s and i.canonical_source_url=s.source_url)""",
-        (source,source,availability,run_id,complete,run_id,source,run_id))
+        (source,source,availability,run_id,complete,run_id,source,source,source,run_id))
 
 
 def execute(run_id: str) -> int:

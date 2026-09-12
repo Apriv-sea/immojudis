@@ -238,10 +238,10 @@ def test_normalize_sale_calibrates_avoventes_house_surface_before_land_context()
 
     assert sale.property_type == "house"
     assert sale.surface_m2 == Decimal("244.47")
-    assert sale.habitable_surface_m2 == Decimal("244.47")
+    assert sale.habitable_surface_m2 is None
     assert sale.land_surface_m2 == Decimal("773")
     assert sale.app_surface_m2 == Decimal("244.47")
-    assert sale.app_surface_kind == "habitable"
+    assert sale.app_surface_kind == "built"
     assert sale.occupancy_status == "occupied"
 
 
