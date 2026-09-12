@@ -11,7 +11,7 @@ on:
         description: "Sources to audit (read-only)"
         type: choice
         default: all
-        options: [all, cloud, followup, notarial]
+        options: [all, cloud, followup, notarial, vench]
 permissions:
   contents: read
 jobs:
@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        source: ${{ fromJSON(inputs.audit_kind == 'absent_details' && '["licitor"]' || inputs.audit_kind == 'reconciliation' && '["agrasc","avoventes","cessions_etat","info_encheres"]' || inputs.source_group == 'notarial' && '["notaires","agrasc"]' || inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
+        source: ${{ fromJSON(inputs.audit_kind == 'absent_details' && (inputs.source_group == 'vench' && '["vench"]' || '["licitor"]') || inputs.audit_kind == 'reconciliation' && '["agrasc","avoventes","cessions_etat","info_encheres"]' || inputs.source_group == 'notarial' && '["notaires","agrasc"]' || inputs.source_group == 'followup' && '["avoventes","vench","encheres_immobilieres"]' || inputs.source_group == 'cloud' && '["petites_affiches","cessions_etat"]' || '["avoventes","licitor","vench","info_encheres","encheres_publiques","petites_affiches","cessions_etat","agrasc","encheres_immobilieres","notaires"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -54,7 +54,8 @@ jobs:
         working-directory: services/data-pipeline
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: python -m src.quality_sample_audit --source licitor --sample config/absent-licitor-20260912.json --output data/audits/absent-licitor.json
+          AUDIT_SOURCE: ${{ matrix.source }}
+        run: python -m src.quality_sample_audit --source "$AUDIT_SOURCE" --sample "config/absent-$AUDIT_SOURCE-20260912.json" --output "data/audits/absent-$AUDIT_SOURCE.json"
       - name: Inspect remaining unexplained inventory URLs
         if: inputs.audit_kind == 'reconciliation'
         working-directory: services/data-pipeline
