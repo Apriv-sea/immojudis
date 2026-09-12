@@ -235,3 +235,20 @@ def test_freshness_counts_merged_aliases_but_not_another_sources_checks():
             assert 'state' not in payload['source_presence']['licitor']
         finally:
             db.rollback()
+
+
+def test_unknown_listing_keeps_enrichment_but_expired_and_quarantined_do_not():
+    url = os.getenv('PIPELINE_TEST_DB_URL')
+    if not url:
+        pytest.skip('Requires disposable PostgreSQL')
+    with _postgres_connect(url) as db:
+        try:
+            setup(db)
+            db.execute("insert into auction_sales(source_url,status,sale_date) values ('unknown','unknown',null),('expired','unknown',now()-interval '3 days'),('quarantined','quarantined',null)")
+            db.execute("insert into auction_enrichment_jobs(source_url,job_type,input_hash) values ('unknown','pdf','v1'),('expired','pdf','v1'),('quarantined','pdf','v1')")
+            assert db.execute('select source_url from claim_auction_enrichment_jobs(10)').fetchall() == []
+            db.execute(migration('20260912194309_enrich_unknown_active_listings.sql'))
+            assert db.execute('select source_url from claim_auction_enrichment_jobs(10)').fetchall() == [('unknown',)]
+            assert db.execute("select count(*) from auction_enrichment_jobs where status='cancelled'").fetchone()[0] == 2
+        finally:
+            db.rollback()

@@ -181,3 +181,13 @@ def test_changed_bytes_without_local_cache_invalidate_facts_before_ocr():
     assert sale.raw_payload["superseded_analysis"]["reason"] == "document_bytes_changed"
     assert sale.surface_m2 is None
     assert sale.starting_price_eur == Decimal(100000)
+
+
+def test_unknown_date_still_queues_document_enrichment(monkeypatch):
+    rows = []
+    monkeypatch.setattr(storage, "_postgrest_upsert", lambda url, key, table, payload, conflict: rows.extend(payload))
+    sale = normalize_sale({"source_name": "licitor", "source_url": "https://example.test/no-date",
+                           "documents": [{"url": "https://example.test/pv.pdf"}]})
+    sale.status = "unknown"
+    storage._enqueue_due_enrichment([sale], "url", "key")
+    assert {row["job_type"] for row in rows} == {"pdf", "display_description"}

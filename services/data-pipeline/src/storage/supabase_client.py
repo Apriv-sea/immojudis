@@ -262,7 +262,7 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
     prompt_version = str(settings.get("llm_prompt_version") or "")
     jobs = []
     for sale in sales:
-        if sale.status not in {"active", "upcoming", "postponed"} or quarantine_reason(sale):
+        if sale.status not in {"active", "unknown", "upcoming", "postponed"} or quarantine_reason(sale):
             continue
         checks = sale.raw_payload.get("source_checks") or {}
         analysis = sale.raw_payload.get("document_analysis") or {}

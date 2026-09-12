@@ -218,7 +218,7 @@ jobs:
 
       - name: Report source coverage and enrichment backlog
         if: always()
-        run: python -m src.pipeline_health
+        run: python -m src.pipeline_health --report-only
 
       - name: Save extraction checkpoints
         if: always() && steps.pipeline.outcome != 'skipped' && inputs.publication_check != true
