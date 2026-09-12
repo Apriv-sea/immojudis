@@ -22,7 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - GitHub Actions installs psycop
     sql = None
     Jsonb = None
 
-from src.admission import has_price_or_surface, is_expired
+from src.admission import has_price_or_surface, is_expired, quarantine_reason
 from src.asset_normalization import (
     build_auction_features_row,
     build_auction_risk_rows_from_occurrences,
@@ -262,7 +262,7 @@ def _enqueue_due_enrichment(sales: list[AuctionSale], url: str, key: str) -> Non
     prompt_version = str(settings.get("llm_prompt_version") or "")
     jobs = []
     for sale in sales:
-        if sale.status not in {"active", "upcoming"}:
+        if sale.status not in {"active", "upcoming", "postponed"} or quarantine_reason(sale):
             continue
         checks = sale.raw_payload.get("source_checks") or {}
         analysis = sale.raw_payload.get("document_analysis") or {}
@@ -328,6 +328,11 @@ def upsert_sales_to_supabase(
             connection.execute("select set_config('app.pipeline_queue_owner', 'python', true)")
             connection.execute("set local lock_timeout = '15s'")
             connection.execute("set local statement_timeout = '120s'")
+            connection.execute("select pg_advisory_xact_lock(hashtextextended('immojudis:outcome_catalogue_bridge:v1',0))")
+            if not refresh_last_seen:
+                sales = _guard_enrichment_revision(connection, sales)
+                if not sales:
+                    return 0
             token = _PUBLICATION_CONNECTION.set(connection)
             try:
                 result = upsert_sales_to_supabase(sales, refresh_last_seen=refresh_last_seen)
@@ -337,6 +342,12 @@ def upsert_sales_to_supabase(
     now = datetime.now(UTC).isoformat()
     payload = []
     for sale in sales:
+        reason = quarantine_reason(sale)
+        if reason:
+            sale.raw_payload["publication_quarantine"] = reason
+            sale.status = "quarantined"
+        else:
+            sale.raw_payload.pop("publication_quarantine", None)
         data = sale.to_storage_dict(exclude_none=False)
         row = {column: data.get(column) for column in UPSERT_COLUMNS}
         row["last_seen_at"] = now if refresh_last_seen else data.get("last_seen_at") or now
@@ -368,7 +379,31 @@ def upsert_sales_to_supabase(
     )
     _upsert_asset_tables_with_rest(str(url), str(key), sales, now)
     _enqueue_due_enrichment(sales, str(url), str(key))
-    return len(payload)
+    if refresh_last_seen and _PUBLICATION_CONNECTION.get() is not None:
+        from src.collection_evidence import record_sale_decisions
+        for run_id in {sale.last_run_id for sale in sales if sale.last_run_id}:
+            run_sales = [sale for sale in sales if sale.last_run_id == run_id]
+            record_sale_decisions(str(run_id), [sale for sale in run_sales if not quarantine_reason(sale)],
+                                  decision="published", connection=_PUBLICATION_CONNECTION.get())
+            for sale in (sale for sale in run_sales if quarantine_reason(sale)):
+                record_sale_decisions(str(run_id), [sale], decision="quarantined",
+                                      reason=quarantine_reason(sale), connection=_PUBLICATION_CONNECTION.get())
+    return sum(not quarantine_reason(sale) for sale in sales)
+
+
+def _guard_enrichment_revision(connection, sales: list[AuctionSale]) -> list[AuctionSale]:
+    """Lock and compare before *any* parent/child write; never recreate a deleted sale."""
+    retained = []
+    for sale in sorted(sales, key=lambda item: item.source_url):
+        current = connection.execute(
+            "select updated_at from public.auction_sales where source_url=%s for update",
+            (sale.source_url,),
+        ).fetchone()
+        if current is None or sale.updated_at is None or current[0] != sale.updated_at:
+            LOGGER.warning("Discarding obsolete enrichment for %s", sale.source_url)
+            continue
+        retained.append(sale)
+    return retained
 
 
 def delete_secondary_sales_in_supabase(sales: list[AuctionSale]) -> int:
@@ -1063,6 +1098,12 @@ def reconcile_duplicate_sales_in_supabase(
     now = datetime.now(UTC).isoformat()
     payload = []
     for sale in impacted_sales:
+        reason = quarantine_reason(sale)
+        if reason:
+            sale.raw_payload["publication_quarantine"] = reason
+            sale.status = "quarantined"
+        else:
+            sale.raw_payload.pop("publication_quarantine", None)
         data = sale.to_storage_dict(exclude_none=False)
         row = {column: data.get(column) for column in UPSERT_COLUMNS}
         row["updated_at"] = now
@@ -1215,41 +1256,12 @@ KNOWN_SALE_DETAIL_SELECT = ",".join(
         "raw_payload",
     )
 )
-DATA_REFRESH_SALE_SELECT = ",".join(
-    (
-        "source_name",
-        "source_url",
-        "primary_source",
-        "source_urls",
-        "external_id",
-        "tribunal",
-        "tribunal_code",
-        "department",
-        "city",
-        "address",
-        "postal_code",
-        "property_type",
-        "title",
-        "description",
-        "surface_m2",
-        "habitable_surface_m2",
-        "land_surface_m2",
-        "carrez_surface_m2",
-        "app_surface_m2",
-        "app_surface_kind",
-        "surface_scope",
-        "surface_source",
-        "surface_confidence",
-        "surface_evidence",
-        "rooms_count",
-        "latitude",
-        "longitude",
-        "occupancy_status",
-        "documents",
-        "raw_text",
-        "raw_payload",
-    )
-)
+# Enrichment writes the full record back: a partial SELECT would erase price,
+# procedure, dates and other facts that the worker did not actually re-extract.
+DATA_REFRESH_SALE_SELECT = ",".join(dict.fromkeys((
+    "id", "created_at", "updated_at", "first_seen_at", "last_seen_at", *UPSERT_COLUMNS,
+)))
+
 KNOWN_SALE_DETAIL_PAGE_SIZE = 100
 
 
@@ -1405,25 +1417,13 @@ def mark_past_sales_in_supabase() -> int:
     key = settings["supabase_service_role_key"]
     if not url or not key:
         return 0
-    now = datetime.now(UTC).isoformat()
-    endpoint = f"{str(url).rstrip('/')}/rest/v1/auction_sales"
-    response = httpx.patch(
-        endpoint,
-        params={
-            "sale_date": f"lt.{now}",
-            "status": "in.(upcoming,unknown)",
-        },
+    response = httpx.post(
+        f"{str(url).rstrip('/')}/rest/v1/rpc/mark_elapsed_auction_sales",
         headers=_rest_headers(str(key), prefer="return=representation"),
-        json={
-            "status": "past",
-            "updated_at": now,
-        },
-        timeout=30,
+        json={}, timeout=30,
     )
-    if response.is_error:
-        LOGGER.warning("Supabase auction_sales cleanup failed (%s): %s", response.status_code, response.text[:200])
-        return 0
-    return len(response.json()) if response.content else 0
+    response.raise_for_status()
+    return int(response.json() or 0)
 
 
 def delete_expired_sales_in_supabase(now: datetime | None = None) -> int:
@@ -1587,6 +1587,12 @@ def _property_rows_for_sales(
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for sale in sales:
+        reason = quarantine_reason(sale)
+        if reason:
+            sale.raw_payload["publication_quarantine"] = reason
+            sale.status = "quarantined"
+        else:
+            sale.raw_payload.pop("publication_quarantine", None)
         data = sale.to_storage_dict(exclude_none=False)
         row = {column: data.get(column) for column in PROPERTY_COLUMNS}
         row["primary_source"] = row.get("primary_source") or row.get("source_name")
@@ -1605,6 +1611,12 @@ def _judicial_sale_rows_for_sales(
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for sale in sales:
+        reason = quarantine_reason(sale)
+        if reason:
+            sale.raw_payload["publication_quarantine"] = reason
+            sale.status = "quarantined"
+        else:
+            sale.raw_payload.pop("publication_quarantine", None)
         data = sale.to_storage_dict(exclude_none=False)
         row = {column: data.get(column) for column in JUDICIAL_SALE_COLUMNS}
         row["property_source_url"] = data.get("source_url")

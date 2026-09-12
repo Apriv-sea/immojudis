@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+from src.admission import retention_deadline
 from src.models import AuctionSale
 
 
@@ -18,13 +19,12 @@ def mark_past_sales(sales: list[AuctionSale], now: datetime | None = None) -> Sa
 
     stats = SaleLifecycleStats()
     for sale in sales:
-        if sale.sale_date is None or sale.status == "adjudicated":
+        if sale.sale_date is None or sale.status not in {"active", "upcoming", "unknown"}:
             continue
-        sale_date = sale.sale_date
-        if sale_date.tzinfo is None:
-            sale_date = sale_date.replace(tzinfo=UTC)
-        else:
-            sale_date = sale_date.astimezone(UTC)
+        deadline = retention_deadline(sale)
+        if deadline is None:
+            continue
+        sale_date = deadline - timedelta(hours=24)
         if sale_date < now and sale.status != "past":
             sale.status = "past"
             stats.marked_past += 1

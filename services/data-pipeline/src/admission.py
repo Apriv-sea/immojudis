@@ -27,6 +27,10 @@ def retention_deadline(sale: AuctionSale):
 
     if re.search(r'\b(postponed|reported|report[eé]e?)\b', str(sale.status or '') + ' ' + str(sale.raw_payload.get('status') or ''), re.I):
         return None
+    conflicts = sale.raw_payload.get('source_conflicts')
+    if isinstance(conflicts, list) and any(isinstance(conflict, dict) and conflict.get('field') == 'sale_date'
+                                          for conflict in conflicts):
+        return None
     procedure = sale.sale_procedure or {}
     for schedule in (procedure.get('sale_window'), procedure.get('sale_session'), sale.raw_payload.get('source_sale_schedule')):
         if schedule is None:
@@ -52,3 +56,13 @@ def is_expired(sale: AuctionSale, now=None) -> bool:
     from datetime import UTC, datetime
     deadline = retention_deadline(sale)
     return deadline is not None and deadline <= (now or datetime.now(UTC))
+
+
+def quarantine_reason(sale: AuctionSale) -> str | None:
+    """Only positive evidence of inconsistency blocks publication, never a missing secondary fact."""
+    if sale.sale_verification_status == "conflict" or "sale_procedure_conflict" in sale.quality_flags:
+        return "conflicting_sale_procedure"
+    for flag in ("property_identity_conflict", "lot_identity_conflict", "source_identity_mismatch"):
+        if flag in sale.quality_flags:
+            return flag
+    return None

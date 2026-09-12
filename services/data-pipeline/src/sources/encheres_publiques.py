@@ -20,6 +20,7 @@ from src.normalize import (
     parse_surface,
 )
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 
 BASE_URL = "https://www.encheres-publiques.com"
@@ -82,7 +83,7 @@ def scrape_encheres_publiques_aquitaine_result(
     max_pages = max_pages or int(settings["encheres_publiques_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     page_urls = (
         [f"{BASE_URL}/ventes/immobilier/v/{place}" for place in places[:max_pages]]
         if places
@@ -263,6 +264,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("Encheres-Publiques detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
 
     details = parse_encheres_publiques_detail_html(html, source_url)

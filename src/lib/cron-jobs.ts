@@ -27,7 +27,7 @@ type CronRpcClient = {
     args: { p_now: string },
   ): Promise<{ data: Record<string, unknown> | null; error: { message?: string } | null }>;
   rpc(
-    name: "evaluate_market_valuation_health",
+    name: "evaluate_market_valuation_health" | "observe_autonomous_pipeline",
     args: { p_now: string },
   ): Promise<{ data: Record<string, unknown> | null; error: { message?: string } | null }>;
 };
@@ -122,19 +122,26 @@ export async function evaluateOperationalHealth(
   now = new Date(),
 ): Promise<Record<string, unknown>> {
   const client = supabaseAdmin as unknown as CronRpcClient;
-  const { data, error } = await client.rpc("evaluate_operational_health", {
-    p_now: now.toISOString(),
-  });
-  if (error) throw new Error(error.message || "Operational health evaluation failed.");
-  const { data: valuation, error: valuationError } = await client.rpc(
-    "evaluate_market_valuation_health",
-    { p_now: now.toISOString() },
-  );
-  if (valuationError) {
-    throw new Error(valuationError.message || "Valuation health evaluation failed.");
-  }
+  const args = { p_now: now.toISOString() };
+  const results = await Promise.allSettled([
+    client.rpc("evaluate_operational_health", args),
+    client.rpc("evaluate_market_valuation_health", args),
+    client.rpc("observe_autonomous_pipeline", args),
+  ]);
+  // Deliver incidents even when an independent evaluator fails.
   const delivery = await deliverOperationalAlertNotifications();
-  return { health: data ?? {}, valuation: valuation ?? {}, externalAlerts: delivery };
+  const failures = results.flatMap((result) =>
+    result.status === "rejected"
+      ? [operationalErrorMessage(result.reason)]
+      : result.value.error
+        ? [result.value.error.message ?? "Health evaluation failed"]
+        : [],
+  );
+  if (failures.length) throw new Error(failures.join("; "));
+  const data = results.map((result) =>
+    result.status === "fulfilled" ? (result.value.data ?? {}) : {},
+  );
+  return { health: data[0], valuation: data[1], pipeline: data[2], externalAlerts: delivery };
 }
 
 export function positiveNumberFromEnv(name: string): number | undefined {

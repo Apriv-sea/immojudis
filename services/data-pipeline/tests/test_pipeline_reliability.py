@@ -18,10 +18,14 @@ def test_source_check_expires_and_content_change_invalidates_enrichment():
     record_source_checks([raw], {})
     known = {raw["source_url"]: {"raw_payload": dict(raw)}}
     assert detail_is_fresh(known[raw["source_url"]], raw["source_url"])
-    changed = {**raw, "raw_text": "Occupé", "llm_prompt_version": "old", "document_facts_version": "old"}
+    changed = {**raw, "raw_text": "Occupé", "llm_prompt_version": "old", "document_facts_version": "old",
+               "llm_display_description": "Ancienne analyse : bien libre"}
     record_source_checks([changed], known)
     assert "llm_prompt_version" not in changed
     assert "document_facts_version" not in changed
+    assert 'llm_display_description' not in changed
+    assert changed['llm_display_status'] == 'pending'
+    assert changed['superseded_analysis']['description'] == 'Ancienne analyse : bien libre'
     known[raw["source_url"]]["raw_payload"]["source_checks"][raw["source_url"]]["checked_at"] = (datetime.now(UTC) - timedelta(days=2)).isoformat()
     assert not detail_is_fresh(known[raw["source_url"]], raw["source_url"])
 
@@ -143,3 +147,36 @@ def test_replaced_document_creates_new_fact_job_even_at_same_url(monkeypatch):
     sale.raw_payload["document_analysis"]["profiles"][0]["sha256"] = "new"
     storage._enqueue_due_enrichment([sale], "url", "key")
     assert next(row["input_hash"] for row in rows if row["job_type"] == "fact_extraction") != old
+
+
+def test_new_document_url_does_not_inherit_old_pdf_price_or_surface():
+    from src.main import _preserve_known_enrichment_payloads
+    raw = {"source_name": "licitor", "source_url": "https://example.test/newdoc",
+           "documents": [{"url": "https://example.test/new.pdf"}], "starting_price_eur": 100000}
+    known = {raw["source_url"]: {"surface_m2": 90, "surface_source": "pdf", "starting_price_eur": 200000,
+             "documents": [{"url": "https://example.test/old.pdf"}],
+             "raw_payload": {"llm_display_description": "Ancien document", "surface_extraction": {"source": "pdf"}}}}
+    _preserve_known_enrichment_payloads([raw], known)
+    assert raw["starting_price_eur"] == 100000
+    assert not raw.get("surface_m2")
+    assert not raw.get("llm_display_description")
+    assert raw["source_factual_snapshot"]["starting_price_eur"] == 100000
+
+
+def test_changed_bytes_without_local_cache_invalidate_facts_before_ocr():
+    from decimal import Decimal
+
+    from src.pdf_enrichment import _invalidate_replaced_document_facts
+    sale = normalize_sale({"source_name": "licitor", "source_url": "https://example.test/sale",
+                           "surface_m2": 90, "surface_source": "pdf", "starting_price_eur": 200000})
+    sale.raw_payload.update({"document_analysis": {"profiles": [{"url": "https://example.test/pv.pdf", "sha256": "old"}]},
+                             "llm_display_description": "Ancienne analyse certaine", "starting_price_extraction": {"source": "pdf"},
+                             "source_factual_snapshot": {"source_name": "licitor", "source_url": sale.source_url,
+                                                         "starting_price_eur": 100000}})
+    _invalidate_replaced_document_facts(sale, [{"url": "https://example.test/pv.pdf", "sha256": "old"}])
+    assert sale.raw_payload.get("llm_display_description")
+    _invalidate_replaced_document_facts(sale, [{"url": "https://example.test/pv.pdf", "sha256": "new"}])
+    assert not sale.raw_payload.get("llm_display_description")
+    assert sale.raw_payload["superseded_analysis"]["reason"] == "document_bytes_changed"
+    assert sale.surface_m2 is None
+    assert sale.starting_price_eur == Decimal(100000)

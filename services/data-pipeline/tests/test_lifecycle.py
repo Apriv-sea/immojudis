@@ -33,3 +33,20 @@ def test_mark_past_sales_preserves_future_and_adjudicated_sales() -> None:
     assert future.status == "upcoming"
     assert adjudicated.status == "adjudicated"
     assert stats.marked_past == 0
+
+
+def test_report_and_cancellation_are_not_overwritten_by_the_clock():
+    now = datetime(2026, 9, 12, tzinfo=UTC)
+    for status in ('postponed', 'cancelled', 'withdrawn', 'adjudicated'):
+        sale = _sale(status, now - timedelta(days=4))
+        assert mark_past_sales([sale], now=now).marked_past == 0
+        assert sale.status == status
+
+
+def test_open_sale_window_is_not_marked_past_at_its_start():
+    now = datetime(2026, 9, 12, tzinfo=UTC)
+    sale = _sale('upcoming', now - timedelta(days=1))
+    sale.sale_procedure = {'sale_window': {'opens_at': (now - timedelta(days=1)).isoformat(),
+                                         'closes_at': (now + timedelta(days=1)).isoformat()}}
+    assert mark_past_sales([sale], now=now).marked_past == 0
+    assert sale.status == 'upcoming'

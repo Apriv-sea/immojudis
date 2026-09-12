@@ -13,6 +13,7 @@ from src.config import TARGET_DEPARTMENTS, load_settings
 from src.enrichment.surface_reasoning import extract_surface_facts_from_text
 from src.normalize import clean_text, has_rented_occupancy_signal, no_lease_occupancy_status, strip_accents
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 
@@ -90,7 +91,7 @@ def scrape_encheres_immobilieres_aquitaine_result(
     max_pages = max_pages or int(settings["encheres_immobilieres_max_pages"])
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
     pagination = PaginationCoverage()
     for page_url in _list_urls(max_pages):
         try:
@@ -223,6 +224,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("EncheresImmobilieres detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
     detail = parse_encheres_immobilieres_detail_html(html, source_url)
     for key in DETAIL_OVERRIDE_FIELDS:

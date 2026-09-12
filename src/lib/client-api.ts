@@ -1303,3 +1303,18 @@ export async function revokeApiKey(args: { keyId: string }): Promise<void> {
 
   await readJson<{ key: unknown }>(response);
 }
+
+export async function fetchPipelineStatus(): Promise<import("./pipeline-status").PipelineStatus> {
+  return readJson(
+    await fetch("/api/admin/pipeline", { headers: await authHeaders(), cache: "no-store" }),
+  );
+}
+export async function setPipelineSourceEnabled(source: string, enabled: boolean): Promise<void> {
+  await readJson(
+    await fetch("/api/admin/pipeline", {
+      method: "PATCH",
+      headers: await authHeaders(),
+      body: JSON.stringify({ source, enabled }),
+    }),
+  );
+}

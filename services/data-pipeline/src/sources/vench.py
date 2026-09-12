@@ -7,6 +7,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 
+from src.catalogue_proof import CatalogueEvidence
 from src.config import FRANCE_DEPARTMENTS, TARGET_DEPARTMENTS, load_settings
 from src.normalize import (
     LATIN_LETTERS_PATTERN,
@@ -18,6 +19,7 @@ from src.normalize import (
     parse_surface,
 )
 from src.raw_models import validate_raw_sales
+from src.source_checkpoint import CheckpointSales
 from src.sources.common import PoliteHttpClient, ScrapeResult, should_fetch_detail, unique_dicts
 from src.sources.image_candidates import html_image_candidates
 from src.sources.linked_pages import LinkedPages
@@ -66,7 +68,8 @@ def scrape_vench_aquitaine_result(
     )
 
     errors: list[str] = []
-    raw_sales: list[dict[str, Any]] = []
+    raw_sales: list[dict[str, Any]] = CheckpointSales()
+    inventory = CatalogueEvidence("vench")
     partitions: list[dict[str, Any]] = []
     seen_sales: set[str] = set()
     for department in _department_filters():
@@ -83,7 +86,9 @@ def scrape_vench_aquitaine_result(
                 errors.append(f"{page_url}: {exc}")
                 break
             pages.observe(html, page_url)
-            for sale in parse_vench_list_html(html, page_url=page_url, fallback_department=department):
+            parsed = parse_vench_list_html(html, page_url=page_url, fallback_department=department)
+            inventory.observe(html, page_url, parsed)
+            for sale in parsed:
                 url = str(sale.get("source_url"))
                 if url in seen_sales:
                     continue
@@ -100,7 +105,8 @@ def scrape_vench_aquitaine_result(
         {**getattr(client, "coverage_metrics", lambda: {})(), "partitions": partitions,
          "linked_pages_complete": all(p["linked_pages_complete"] for p in partitions),
          "inventory_before_catalog_filter": len(raw_sales),
-         "catalog_filter_excluded": len(raw_sales) - len(catalog_sales)},
+         "catalog_filter_excluded": len(raw_sales) - len(catalog_sales),
+         **inventory.metrics(catalog_sales, errors)},
     )
 
 
@@ -317,6 +323,8 @@ def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], err
     except Exception as exc:
         LOGGER.warning("Vench detail fetch failed for %s: %s", source_url, exc)
         errors.append(f"detail {source_url}: {exc}")
+        sale["_detail_fetch_failed"] = True
+        sale["source_detail_status"] = "failed"
         return
     access_text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     restricted = re.search(

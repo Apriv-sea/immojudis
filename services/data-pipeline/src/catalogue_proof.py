@@ -170,3 +170,24 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
             'discovered_but_not_emitted_count': len(not_emitted),
             'discovered_but_not_emitted_urls': sorted(not_emitted),
             'partitions': partitions}
+class CatalogueEvidence:
+    """Use the same independent public-card proof during normal collection."""
+
+    def __init__(self, source: str):
+        self.source = source
+        self.pages = []
+        self.parsed = {}
+        self.records = {}
+
+    def observe(self, body: str, url: str, rows: list[dict]) -> None:
+        proof = public_page_proof(self.source, body, url)
+        self.pages.append(proof)
+        partition = proof['partition']
+        self.parsed.setdefault(partition, set()).update(canonical(str(r['source_url'])) for r in rows if r.get('source_url'))
+        self.records.setdefault(partition, set()).update(record_id(str(r['source_url']), lot['raw_text'])
+            for r in rows for lot in r.get('source_lots', []) if r.get('source_url') and lot.get('raw_text'))
+
+    def metrics(self, rows: list[dict], errors: list[str]) -> dict:
+        certificate = certify_catalogue(self.source, self.pages, self.parsed,
+            {canonical(str(r['source_url'])) for r in rows if r.get('source_url')}, errors, False, {}, self.records)
+        return {'certificate': certificate, 'coverage_complete': certificate['all_discovered_announcements_emitted']}

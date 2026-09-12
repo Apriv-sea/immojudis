@@ -175,9 +175,10 @@ def _merge_into(target: AuctionSale, source: AuctionSale, confidence: str) -> Au
             setattr(target, field, incoming)
         elif field not in {"raw_payload", "raw_text"} and not _is_empty(incoming) and current != incoming and not isinstance(current, (list, dict)):
             conflicts = target.raw_payload.setdefault("source_conflicts", [])
-            if _field_authority(source, field) > _field_authority(target, field):
+            incoming_selected = _field_authority(source, field) > _field_authority(target, field)
+            if incoming_selected:
                 setattr(target, field, incoming)
-            conflict = {"field": field, "selected": str(getattr(target, field)), "observed_primary": str(current), "alternative": str(incoming), "selected_source": target.source_url, "alternative_source": source.source_url}
+            conflict = {"field": field, "selected": str(getattr(target, field)), "observed_primary": str(current), "alternative": str(current if incoming_selected else incoming), "selected_source": source.source_url if incoming_selected else target.source_url, "alternative_source": target.source_url if incoming_selected else source.source_url, "observed_primary_source": target.source_url}
             if conflict not in conflicts:
                 conflicts.append(conflict)
         elif field in {"documents", "quality_flags", "score_factors"} and isinstance(current, list) and isinstance(incoming, list):
@@ -189,6 +190,8 @@ def _merge_into(target: AuctionSale, source: AuctionSale, confidence: str) -> Au
             current.setdefault("source_checks", {}).update(incoming.get("source_checks") or {})
             if incoming.get("source_content_changed"):
                 current["source_content_changed"] = True
+                current["llm_display_status"] = "pending"
+                current.pop("llm_display_description", None)
                 current.pop("llm_prompt_version", None)
                 current.pop("document_facts_version", None)
             current.setdefault("merged_sources", [])

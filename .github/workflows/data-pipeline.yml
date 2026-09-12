@@ -3,6 +3,11 @@ name: Immojudis Data Pipeline
 on:
   workflow_dispatch:
     inputs:
+      automatic:
+        description: "Execute the SQL-scheduled bounded unit identified by run_id"
+        required: false
+        default: false
+        type: boolean
       run_id:
         description: "auction_runs id created by the admin. Leave empty for an explicit manual scan."
         required: false
@@ -167,6 +172,7 @@ jobs:
       - name: Run manually requested pipeline
         id: pipeline
         env:
+          REQUESTED_AUTOMATIC: ${{ inputs.automatic }}
           REQUESTED_PUBLICATION_CHECK: ${{ github.event.inputs.publication_check }}
           REQUESTED_ENRICHMENT_ONLY: ${{ github.event.inputs.enrichment_only }}
           REQUESTED_RUN_ID: ${{ github.event.inputs.run_id }}
@@ -176,6 +182,11 @@ jobs:
         run: |
           set -euo pipefail
           : "${SUPABASE_DB_URL:?Transactional publication requires SUPABASE_DB_URL}"
+
+          if [ "$REQUESTED_AUTOMATIC" = "true" ]; then
+            python -m src.autonomous_runner --run-id "$REQUESTED_RUN_ID"
+            exit 0
+          fi
 
           if [ "$REQUESTED_PUBLICATION_CHECK" = "true" ]; then
             python -m src.verify_publication
