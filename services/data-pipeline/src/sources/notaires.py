@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 import httpx
 
 from src.config import FRANCE_DEPARTMENTS, TARGET_DEPARTMENTS, load_settings
-from src.normalize import LATIN_LETTERS_PATTERN, SURFACE_VALUE_PATTERN, clean_text, parse_surface
+from src.normalize import LATIN_LETTERS_PATTERN, SURFACE_VALUE_PATTERN, clean_text, parse_french_datetime, parse_surface
 from src.raw_models import validate_raw_sales
 from src.source_checkpoint import CheckpointSales
 from src.sources.common import PaginationCoverage, PoliteHttpClient, ScrapeResult, unique_dicts
@@ -162,7 +162,8 @@ def parse_notaires_json(payload: str) -> list[dict[str, Any]]:
                 "rooms_count": item.get("nbPieces"),
                 "bedrooms_count": item.get("nbChambres"),
                 "starting_price_eur": item.get("prixAffiche") or item.get("premiereOffrePossible"),
-                "sale_date": item.get("seanceDate") or item.get("dateDebutEncheres") or item.get("dateFinEncheres"),
+                "sale_date": _sale_date(item, item.get("typeTransaction")),
+                "source_sale_schedule": _sale_schedule(item, item.get("typeTransaction")),
                 "lawyer_contact": clean_text(item.get("telephone")),
                 "status": "past" if item.get("bienVendu") == "OUI" else "upcoming",
                 "documents": [],
@@ -309,9 +310,8 @@ def parse_notaires_detail_json(payload: str, fallback: dict[str, Any] | None = N
         "starting_price_eur": transaction.get("miseAPrix")
         or transaction.get("premierPrix")
         or transaction.get("prixMin"),
-        "sale_date": transaction.get("seanceDate")
-        or transaction.get("dateDebutEncheres")
-        or transaction.get("dateFinEncheres"),
+        "sale_date": _sale_date(transaction, transaction_type),
+        "source_sale_schedule": _sale_schedule(transaction, transaction_type),
         "visit_dates": _visit_dates(visit),
         "lawyer_name": _notary_from_text(description_text)
         or clean_text(contact.get("nom") or visit.get("visiteNomContact")),
@@ -369,6 +369,23 @@ def _is_page_out_of_range_error(exc: httpx.HTTPStatusError, page: int) -> bool:
     text = unicodedata.normalize("NFKD", exc.response.text or "")
     normalized = text.encode("ascii", "ignore").decode("ascii").lower()
     return "numero de page demande" in normalized and "superieur au nombre de" in normalized
+
+
+def _sale_date(transaction: dict, transaction_type: str | None):
+    if transaction_type == 'VNI':
+        return transaction.get('dateFinEncheres') or transaction.get('dateDebutEncheres') or transaction.get('seanceDate')
+    return transaction.get('seanceDate') or transaction.get('dateFinEncheres') or transaction.get('dateDebutEncheres')
+
+
+def _sale_schedule(transaction: dict, transaction_type: str | None) -> dict | None:
+    if transaction_type != 'VNI' and not transaction.get('dateDebutEncheres') and not transaction.get('dateFinEncheres'):
+        return None
+    start = parse_french_datetime(transaction.get('dateDebutEncheres'))
+    end = parse_french_datetime(transaction.get('dateFinEncheres'))
+    # Keep incomplete intervals explicit: retention must not use the opening date.
+    return {'opens_at': start.isoformat() if start else None,
+            'closes_at': end.isoformat() if end else None,
+            'source': 'notarial_transaction'}
 
 
 def _enrich_sale_from_detail(client: PoliteHttpClient, sale: dict[str, Any], errors: list[str]) -> bool:

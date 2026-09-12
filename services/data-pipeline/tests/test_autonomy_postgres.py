@@ -214,6 +214,7 @@ def test_freshness_counts_merged_aliases_but_not_another_sources_checks():
         try:
             setup(db)
             db.execute(migration('20260912155824_pipeline_source_specific_freshness.sql'))
+            db.execute(migration('20260912183031_pipeline_freshness_single_scan.sql'))
             db.execute("""insert into auction_sales(source_url,source_name,sale_date,observations,raw_payload)
                 values ('canonical','avoventes','2026-09-15T12:00:00Z',%s,%s)""",
                 (Jsonb([{'source_name':'licitor','source_url':'licitor-alias'}]),
