@@ -54,6 +54,8 @@ jobs:
         working-directory: services/data-pipeline
         env:
           AUDIT_SOURCE: ${{ matrix.source }}
+          SOURCE_FETCH_RELAY_URL: ${{ vars.SOURCE_FETCH_RELAY_URL }}
+          SOURCE_FETCH_RELAY_TOKEN: ${{ secrets.SOURCE_FETCH_RELAY_TOKEN }}
         run: python -m src.source_reconciliation_audit --source "$AUDIT_SOURCE" --output "data/audits/reconciliation-$AUDIT_SOURCE.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
