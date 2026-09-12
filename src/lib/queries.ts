@@ -22,6 +22,7 @@ export const SALE_LIST_COLUMNS = [
   "source_checks",
   "source_conflicts",
   "analysis_status",
+  "source_presence",
   "sale_procedure",
   "sale_venue_type",
   "sale_legal_framework",

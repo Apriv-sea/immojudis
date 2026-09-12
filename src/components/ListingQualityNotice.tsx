@@ -23,6 +23,11 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
   const pending =
     (sale.analysis_status !== "complete" && !sale.llm_display_description) ||
     sale.analysis_status === "pending";
+  const presence = Object.values(sale.source_presence ?? {});
+  const absent = presence.some((item) => item.state === "absent");
+  const unavailable = presence.some((item) =>
+    ["unavailable", "access_denied"].includes(item.availability ?? ""),
+  );
   const missing = parseDocs(sale.documents).length === 0;
   return (
     <aside
@@ -30,6 +35,20 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       aria-label="Vérification et réserves"
     >
       <p>Dernière vérification de la source : {checked ?? "non établie"}.</p>
+      {unavailable ? (
+        <p>
+          Source momentanément inaccessible. La disponibilité de cette annonce reste à confirmer.
+        </p>
+      ) : null}
+      {absent ? (
+        <p>
+          Annonce absente lors du dernier inventaire complet. Cela ne confirme ni une vente ni une
+          annulation.
+        </p>
+      ) : null}
+      {sale.status === "postponed" ? (
+        <p>Vente reportée. Confirmez la nouvelle date auprès de la source.</p>
+      ) : null}
       {pending ? (
         <p>Analyse en cours. Les informations de la source sont déjà disponibles.</p>
       ) : null}

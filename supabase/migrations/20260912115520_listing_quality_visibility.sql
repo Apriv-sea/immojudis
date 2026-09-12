@@ -78,7 +78,8 @@ select
   coalesce(s.raw_payload->'source_conflicts','[]'::jsonb) as source_conflicts,
   case when s.raw_payload->>'source_content_changed'='true' then 'pending'
     when nullif(s.raw_payload->>'llm_display_description','') is not null then 'complete'
-    else coalesce(s.raw_payload->>'llm_display_status','pending') end as analysis_status
+    else coalesce(s.raw_payload->>'llm_display_status','pending') end as analysis_status,
+  coalesce(s.raw_payload->'source_presence','{}'::jsonb) as source_presence
 from public.auction_sales s
 left join public.tribunals t on t.code = s.tribunal_code
 left join lateral (
@@ -345,7 +346,8 @@ select
   coalesce(s.raw_payload->'source_conflicts','[]'::jsonb) as source_conflicts,
   case when s.raw_payload->>'source_content_changed'='true' then 'pending'
     when nullif(s.raw_payload->>'llm_display_description','') is not null then 'complete'
-    else coalesce(s.raw_payload->>'llm_display_status','pending') end as analysis_status
+    else coalesce(s.raw_payload->>'llm_display_status','pending') end as analysis_status,
+  coalesce(s.raw_payload->'source_presence','{}'::jsonb) as source_presence
 from public.auction_sales s
 left join public.tribunals t on t.code = s.tribunal_code
 where s.status in ('upcoming', 'unknown', 'postponed')

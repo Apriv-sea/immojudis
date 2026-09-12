@@ -1,53 +1,50 @@
-# Chantier autonomie — suivi de réalisation
+# Collecte autonome : exploitation et qualification
 
-Objectif utilisateur : finir les huit chantiers, y compris sept jours d'observation. Ne pas déclarer terminé sur la seule livraison de code. Le diagnostic est dans le workspace principal, `docs/audits/diagnostic-production-2026-09-12*`.
+## Architecture
 
-Copie isolée : `/private/tmp/immojudis-reliability-20260912`, branche `feat/pipeline-autonomy`, départ main `7c563e2`. Le workspace principal a de nombreux changements tiers à préserver. Aucun déploiement de cette branche à ce stade.
+Le tick `immojudis-operational-health` de pg_cron, toutes les 15 minutes, est le seul ordonnanceur du catalogue. Il appelle l’endpoint authentifié de santé, qui réclame une unité SQL puis déclenche `data-pipeline.yml`. Le workflow reste déclenchable manuellement mais ne possède pas de cron GitHub. Le cron Vercel quotidien de santé est retiré.
 
-## Réalisé localement, en validation
+Les migrations laissent le contrôle global et les dix sources désactivés. Le pilote prévu porte sur Licitor et Vench. L’activation est une opération distincte du déploiement.
 
-- Reprises source : trois reprises après l'essai initial, Retry-After numérique/date, délai long exposé, coupe-circuit après deux refus persistants dans PoliteHttpClient.
-- Nouveau journal `auction_collection_items` : découvertes, normalisation, exclusions, expiration avec provenance, fusions par URL canonique, publication dans la transaction du catalogue. Rétention liée aux runs.
-- Table d'état des dix sources, désactivées par défaut en attendant activation pilote.
-- Worker : relecture de TOUS les champs réécrits (ancien SELECT oubliait prix/date/procédure), verrou/version avant écritures d'enrichissement ; refuse ligne modifiée ou supprimée.
-- Modification de source : ancienne synthèse déplacée dans superseded_analysis, statut pending ; le texte ancien n'est plus dans llm_display_description.
-- Collecte sans IA conserve l'accès aux versions connues et collecte les détails factuels (le flag PDF ne doit pas supprimer le détail Licitor).
-- Tests PostgreSQL jetable : sept passants ; tests main/storage/retry : 67 passants avant derniers ajouts. Suite complète en cours.
+- Inventaire : échéance de six heures par source ; détails connus vérifiés toutes les 24 heures, ou six heures à moins de sept jours de la vente lorsque l’adaptateur exploite la fraîcheur.
+- Enrichissement : unité toutes les 30 minutes, au maximum 40 tâches et 1 200 secondes de travail ; processus interrompu après 25 minutes. Collecte interrompue après 35 minutes.
+- Écrivain : réservation SQL unique et groupe de concurrence GitHub partagé avec les lancements manuels. Les réservations automatiques abandonnées expirent après une heure.
+- Publication : lots de 25, journal des décisions dans la transaction. Un enrichissement ne peut pas recréer une ligne supprimée ou remplacer une révision plus récente.
+- Reprise : trois reprises HTTP après l’essai initial, respect de Retry-After ; deux refus persistants suspendent les appels répétés. Un détail réussi est réutilisable après panne pendant six heures si sa carte source est identique. Les checkpoints sont purgés après 24 heures.
 
-## Prochains travaux
+## Interrupteurs et limites
 
-1. Terminer tests tranche fondations ; corriger import/export, concurrence et motifs manquants ; commit et PR isolée.
-2. Rendre Licitor/Avoventes cohérents avec le client HTTP commun et préserver résumés sur erreur détail. Licitor a un client séparé sans retries et ne saute pas encore les détails frais.
-3. Orchestrateur unique du catalogue, GitHub existant à réutiliser : cadence inventaire 6h, détails24h/6h proches, worker30min borné, surveillance15min. État SQL par source, pause/reprise, Retry-After persistant, erreurs isolées. Même groupe écrivain que workflow manuel. Ne pas activer simultanément un second ordonnanceur de collecte.
-4. Checkpoints/reprise des annonces restantes et protections contre versions anciennes pour collecte aussi. Tester interruption réelle, timeout, provider IA indisponible, verrou expiré, doublons. Attention la collecte all attend encore les détails de toutes sources avant publication ; pilote par source indépendant.
-5. Corriger priorités/leases/file : aligner expiration avec fonction SQL sale_retention_deadline, gérer jobs obsolètes/disparus, temps/débit/coûts documentés.
-6. Qualité : quarantaine identité/procédure, réserves surfaces/occupation inconnue, provenance document/page. Vérifier réellement les 100 cas (échantillon base seulement à ce jour).
-7. Admin : dernière collecte complète, décisions, erreurs, file bloquée, coût/latence, pause source. Fiche : vérification, pending/missing/conflicts ; type/query/view à compléter.
-8. Alertes incident/rétablissement déjà en base et GitHub : mesurer réception effective (delivered n'est pas réception humaine), dédupliquer deux cycles/drop/backlog24h/publication. Aucun message externe de test encore autorisé explicitement au destinataire ; ne pas inventer réception.
-9. Réconcilier à nouveau toutes les URL/lots et certifier les différences. Audit indépendant source_coverage_audit existant : 7 inventaires publics certifiés ; AGRASC cartes sans liens ; Enchères Publiques403 ; Enchères Immobilières intermittent timeout. Pas de contournement de refus.
-10. Déployer migrations/code après checks, activer deux sources stables (Licitor/Vench) puis extension prouvée, installer suivi récurrent dans ce thread pour observation. Sept jours réels sans relance, >=95% fraîcheur, incidents/rétablissement reçus avant clôture du goal.
+L’administration permet de suspendre ou réactiver une source. La réactivation conserve la date Retry-After existante. Une suspension empêche les prochains départs ; elle n’interrompt pas brutalement une transaction en cours.
 
-## Outils locaux
+Le contrôle global est `auction_pipeline_control.enabled`. Le mettre à false suspend les nouveaux départs automatiques. `auction_source_state.enabled` commande chaque source. Les opérations SQL sont réservées au service ; les tables ne sont pas accessibles aux utilisateurs publics.
 
-Python existant : `/Users/aprivileggio/Documents/Immojudis main/immojudis/services/data-pipeline/.venv/bin/python` (3.11). Utiliser cwd du clone.
-PostgreSQL jetable démarré : `postgresql://aprivileggio@127.0.0.1:55491/postgres`, datadir `/private/tmp/immojudis-reliability-pg`. Connexions nécessitent exécution escaladée. Aucun secret de production dans cette URL.
-CLI Supabase : `/Users/aprivileggio/.npm/_npx/7960735060baecd3/node_modules/.bin/supabase`. Migration générée avec CLI `20260912110654_pipeline_autonomy_evidence.sql`. CLI a besoin d'escalade pour télémétrie locale.
-Supabase production MCP : projet `sgpakxtyvenlpeihuucm`. GitHub `Aprivi-dev/immojudis`. Vercel projet `prj_bT7KAmr741pwq7t21KLmGS66v3g7`, équipe `team_VK2w4EKHDWWwDDF0uRS9ZKY1`.
+Le budget initial est de 40 requêtes IA par exécution et 5 USD par jour UTC. Chaque requête réserve au maximum cinq minutes de calcul avant son envoi. Un budget atteint diffère la tâche sans consommer une tentative de reprise. Le fournisseur reçoit une durée maximale de cinq minutes.
 
-## Mise à jour après implémentation locale (12 septembre, avant tout déploiement)
+L’estimation utilise `predict_time × 0.000975 USD/s` pour la version existante épinglée de Qwen sur L40S. Les requêtes sans métriques conservent leur réservation maximale, elles ne sont pas comptées à zéro. Ce suivi ne remplace pas la facture. Références vérifiées le 12 septembre 2026 : [modèle](https://replicate.com/zsxkib/qwen2-7b-instruct), [tarifs](https://replicate.com/pricing), [métriques](https://replicate.com/docs/reference/http).
 
-Les points 2, 3 et 5 des prochaines étapes ci-dessus ont maintenant une implémentation locale : clients HTTP communs, contrôle SQL de l’ordonnanceur, exécution bornée, file et verrous. Les tâches ne sont pas considérées terminées avant validation en production.
+## Preuves et états
 
-- Ordonnanceur : réutilisation du pg_cron opérationnel 15 min ; dispatch GitHub par unité source, groupe écrivain existant. Suppression du cron Vercel quotidien de santé. Migrations et contrôle global désactivés par défaut.
-- Reprise : checkpoints de détail 24 h de rétention, réutilisables pendant 6 h uniquement après run échoué et carte d’inventaire identique ; conservation de la vraie date de vérification. Découverte et checkpoint dans une transaction. Source HTTP en erreur ne rafraîchit plus artificiellement ses fiches.
-- Cycle de vie : normalisation explicite report/annulation/retrait, contrainte DB étendue, dates de fenêtres et contradictions protégées. Transition passé via RPC utilisant la même échéance que la rétention.
-- Qualité : procédure explicitement contradictoire -> statut quarantined, preuves conservées, hors vues catalogue. Ancienne synthèse invalidée aussi après fusion ; provenance selected/alternative corrigée. Champs fraîcheur/contradictions/analyse ajoutés aux vues app/discovery en conservant leurs restrictions.
-- Admin : nouveau panneau et API protégée, état par source, pause/reprise sans effacer Retry-After, décisions, latence p95, métriques de consommation. Notice de fraîcheur/réserves sur la fiche simplifiée.
-- Alertes : une ouverture par incident et un rétablissement ; pas de relance toutes les 6 h, ni remise à zéro des échecs de livraison. Évaluateurs indépendants. Observations SQL, alertes deux cycles manqués, chute >30 %, publication échouée, file >24 h.
-- Consommation : réservations avant chaque requête Replicate, plafond 40 par exécution et 5 USD/jour initial ; plafond atteint -> tâche différée sans brûler son budget de reprises. Modèle/version existants épinglés, coût estimé par predict_time × 0.000975 USD/s (L40S). Appels sans métriques gardés au maximum réservé 5 min, jamais comptés à zéro. Sources : https://replicate.com/zsxkib/qwen2-7b-instruct et https://replicate.com/pricing (vérifiés le 12/09/2026). https://replicate.com/docs/reference/http confirme predict_time en secondes. Ce ne sont pas des factures.
+`auction_collection_items` conserve les identités source, lots, URL canonique, décisions et motifs. Les nombres publiés doivent être rapprochés de ce journal ; une fusion ou plusieurs écritures de la même fiche ne constituent pas de nouvelles annonces.
 
-Validation récente : Python 1193 passants, 28 ignorés sans base ; Vitest 950 passants, 3 ignorés ; 6 tests SQL autonomes passants (ordonnanceur, file, alerte/rétablissement, checkpoints, budget), autres intégrations SQL à relancer ensemble. TypeScript et lint ciblé passants avant les derniers ajouts. Build Webpack complet passé ; Turbopack local échoue sur l’ouverture d’un port PostCSS même après demande d’escalade. Ne pas confondre ce blocage local avec une erreur de code.
+Une absence n’est établie qu’après un inventaire certifié complet. Une panne conserve l’état de présence précédent et signale séparément l’indisponibilité. Aucune suppression n’est déclenchée par cette absence. Report et contradictions de date suspendent l’expiration ; une date passée ne signifie jamais « vendue ».
 
-Contrôle visuel en cours avec Playwright CLI, session `autonomy`, serveur local http://127.0.0.1:3217 (processus tool session 69775). Le build servi précède les derniers ajouts de métriques/coûts : refaire la vérification finale après rebuild. Mocks uniquement côté navigateur pour l’admin, script `/private/tmp/autonomy-browser.js`. Les 404 initiaux sur `_vercel/*/script.js` sont ceux des outils de mesure absents d’un serveur local ; mocks explicites ajoutés, ne pas masquer d’autres erreurs. Aucun mock ni changement de données en production.
+Les changements de documents invalident la synthèse courante. Les empreintes SHA permettent aussi de détecter un remplacement à URL identique sur un nouveau worker. Les anciennes preuves documentaires sont conservées séparément et les faits source sont utilisés avant la nouvelle extraction.
 
-Restent impératifs : vérifier l’ensemble des nouvelles migrations via CI Supabase/pgTAP ; PR/merge/déploiement ; contrôler les deux sources pilote réellement depuis production ; traiter les 100 cas avec preuves et les différences d’inventaire ; statut absent vs panne et observabilité des sources non pilotes ; vérifier la réception effective incident/rétablissement dans le canal opérationnel existant ; retirer la planification distante du collecteur Licitor secondaire ; activer et observer sept jours réels, étendre progressivement. Pas d’automatisation de suivi du thread encore créée, pas de pilote activé.
+Les observations exposent fraîcheur, décisions, latence p95, durée et consommation. Une alerte est émise à l’ouverture d’un incident et à son rétablissement, sans répétition périodique. Les échecs de livraison restent à reprendre. Vérifier les exécutions du workflow opérationnel récepteur, pas seulement la colonne `delivered`.
+
+## Validation avant activation
+
+La première exécution CI de la PR 124 a validé les migrations depuis zéro, pgTAP, les parcours Playwright, Python 3.11 et 3.12 et CodeQL. Elle a signalé deux écarts de formatage web, corrigés. Les intégrations PostgreSQL couvrent notamment publication atomique, expiration des verrous, générations obsolètes, alertes, budget, checkpoints et panne sans disparition. Les contrôles doivent tous passer sur la révision finale.
+
+L’administration a été vérifiée localement avec une session fictive et des données simulées, y compris le bouton de suspension. Cela ne constitue pas une preuve de production. Les artefacts de diagnostic initial sont conservés dans `docs/audits/diagnostic-production-2026-09-12*` du workspace de diagnostic.
+
+## Qualification restante et critères de sortie
+
+- Déployer et vérifier la version réelle et les migrations ; supprimer la planification mensuelle distante du collecteur Licitor secondaire.
+- Activer les deux sources pilotes et vérifier déclenchements, réception d’un incident et de son rétablissement, isolation et reprise effective après interruption.
+- Valider factuellement les 100 annonces du diagnostic. L’échantillon initial est une sélection, pas une validation.
+- Expliquer individuellement les différences d’inventaire. Le diagnostic initial comporte 717 URL non expliquées ; aucun taux de couverture complet n’est revendiqué.
+- Qualifier puis étendre aux autres sources, en respectant leurs refus d’accès et leurs capacités. Vérifier la cadence détaillée de chaque adaptateur et la diminution du reliquat.
+- Observer sept jours réels sans relance manuelle, avec au moins 95 % des fiches du périmètre pilote vérifiées à temps, aucun doublon de reprise et aucune contradiction critique connue présentée comme certaine.
+
+Le chantier ne peut pas être clôturé sur la seule livraison du code. L’intervalle d’observation commence après activation prouvée du pilote.

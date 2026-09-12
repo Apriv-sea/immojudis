@@ -178,3 +178,28 @@ def test_paid_predictions_are_reserved_before_use_and_budget_deferral_preserves_
             assert db.execute('select status,attempt_count,locked_at from auction_enrichment_jobs where id=%s',(job[0],)).fetchone() == ('queued',0,None)
         finally:
             db.rollback()
+
+
+def test_source_outage_never_establishes_absence_or_deletes_listing():
+    from src.autonomous_runner import record_source_presence
+    url = os.getenv('PIPELINE_TEST_DB_URL')
+    if not url:
+        pytest.skip('Requires disposable PostgreSQL')
+    with _postgres_connect(url) as db:
+        try:
+            setup(db)
+            run_id = str(db.execute("insert into auction_runs(source,status) values ('licitor','succeeded') returning id").fetchone()[0])
+            db.execute("insert into auction_sales(source_url,source_name) values ('kept','licitor')")
+            record_source_presence(db,run_id,'licitor','unavailable',False)
+            payload = db.execute("select raw_payload from auction_sales where source_url='kept'").fetchone()[0]
+            assert 'state' not in payload['source_presence']['licitor']
+            record_source_presence(db,run_id,'licitor','available',True)
+            payload = db.execute("select raw_payload from auction_sales where source_url='kept'").fetchone()[0]
+            assert payload['source_presence']['licitor']['state'] == 'absent'
+            assert db.execute("select status from auction_sales where source_url='kept'").fetchone()[0] == 'upcoming'
+            record_source_presence(db,run_id,'licitor','unavailable',False)
+            payload = db.execute("select raw_payload from auction_sales where source_url='kept'").fetchone()[0]
+            assert payload['source_presence']['licitor']['state'] == 'absent'
+            assert payload['source_presence']['licitor']['availability'] == 'unavailable'
+        finally:
+            db.rollback()

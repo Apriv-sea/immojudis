@@ -14,7 +14,7 @@ export async function dispatchDuePipeline(): Promise<Record<string, unknown>> {
     process.env.GITHUB_SCROLL_TOKEN ??
     process.env.IMMOJUDIS_GITHUB_ACTIONS_TOKEN ??
     process.env.GITHUB_ACTIONS_DISPATCH_TOKEN;
-  if (!token) return { dispatched: false, reason: "dispatch_token_missing" };
+  if (!token) throw new Error("Pipeline dispatch token missing; scheduled collection unavailable");
   const client = supabaseAdmin as unknown as Rpc;
   const { data, error } = await client.rpc("claim_autonomous_pipeline_run");
   if (error) throw new Error(error.message ?? "Unable to claim scheduled pipeline work");

@@ -155,6 +155,7 @@ KNOWN_UNCHANGED_BACKFILL_FIELDS = (
 )
 
 KNOWN_ENRICHMENT_PAYLOAD_FIELDS = (
+    "source_presence",
     "source_blocks",
     "source_images",
     "raw_image_url",

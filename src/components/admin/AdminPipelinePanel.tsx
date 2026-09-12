@@ -31,7 +31,10 @@ export function AdminPipelinePanel() {
   if (query.error) return <p role="alert">{query.error.message}</p>;
   const data = query.data;
   return (
-    <section className="mb-4 rounded-xl border bg-white p-5 space-y-4" aria-labelledby="pipeline-title">
+    <section
+      className="mb-4 rounded-xl border bg-white p-5 space-y-4"
+      aria-labelledby="pipeline-title"
+    >
       <div>
         <h2 id="pipeline-title" className="text-lg font-semibold">
           Collecte automatique par source

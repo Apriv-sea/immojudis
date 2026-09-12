@@ -49,6 +49,7 @@ def finish_source(db_url: str, run_id: str) -> None:
         now = datetime.now(UTC)
         deadline = next_attempt(failures=failures, access_denied=denied,
             retry_not_before=coverage.get('retry_not_before'), now=now) if failures else now + timedelta(hours=6)
+        record_source_presence(db, run_id, source, availability, complete)
         db.execute("""update public.auction_source_state set
             availability=%s,coverage=%s,last_error=%s,consecutive_failures=%s,
             next_inventory_at=%s,suspended_until=%s,
@@ -58,6 +59,22 @@ def finish_source(db_url: str, run_id: str) -> None:
             (availability,Jsonb(coverage),json.dumps(problems or errors,ensure_ascii=False)[:2000] if failures else None,
              failures,deadline,deadline if denied or coverage.get('retry_not_before') else None,
              complete,publication_complete,source,run_id))
+
+
+def record_source_presence(db, run_id: str, source: str, availability: str, complete: bool) -> None:
+    # Only a certified full inventory can establish absence. No deletion follows it.
+    db.execute("""update public.auction_sales s set raw_payload=jsonb_set(
+        coalesce(s.raw_payload,'{}'),'{source_presence}',
+        coalesce(s.raw_payload->'source_presence','{}') || jsonb_build_object(%s::text,
+          coalesce(s.raw_payload->'source_presence'->%s::text,'{}') || jsonb_build_object(
+            'availability',%s::text,'attempted_at',now(),'run_id',%s::text)
+          || case when %s then jsonb_build_object(
+            'state',case when exists(select 1 from public.auction_collection_items i
+              where i.run_id=%s and (i.source_url=s.source_url or i.canonical_source_url=s.source_url))
+              then 'present' else 'absent' end,'checked_at',now()) else '{}'::jsonb end))
+        where s.source_name=%s or exists(select 1 from public.auction_collection_items i
+          where i.run_id=%s and i.canonical_source_url=s.source_url)""",
+        (source,source,availability,run_id,complete,run_id,source,run_id))
 
 
 def execute(run_id: str) -> int:
