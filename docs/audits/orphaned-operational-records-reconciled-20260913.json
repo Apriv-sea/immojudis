@@ -1,0 +1,70 @@
+{
+  "before": [
+    {
+      "id": "0c156ace-1cc7-4be8-86bb-2b24af7822fd",
+      "job_name": "precompute-valuations",
+      "status": "running",
+      "started_at": "2026-08-20 13:25:05.496153+00",
+      "finished_at": null,
+      "duration_ms": null,
+      "summary": {},
+      "error_message": null
+    },
+    {
+      "id": "f39115e9-4f3e-4813-9260-2ea9188a115e",
+      "job_name": "precompute-valuations",
+      "status": "running",
+      "started_at": "2026-08-20 12:25:03.09054+00",
+      "finished_at": null,
+      "duration_ms": null,
+      "summary": {},
+      "error_message": null
+    }
+  ],
+  "after": [
+    {
+      "id": "0c156ace-1cc7-4be8-86bb-2b24af7822fd",
+      "job_name": "precompute-valuations",
+      "status": "failed",
+      "started_at": "2026-08-20 13:25:05.496153+00",
+      "finished_at": "2026-09-13 10:45:08.205245+00",
+      "duration_ms": null,
+      "summary": {
+        "stale_record_reconciliation": {
+          "reason": "August 20 record exceeds the 300-second Vercel runtime limit by more than 23 days",
+          "reconciled_at": "2026-09-13T10:45:08.205245+00:00",
+          "previous_status": "running",
+          "work_reexecuted": false,
+          "runtime_evidence": "src/app/api/cron/precompute-valuations/route.ts: maxDuration=300",
+          "execution_outcome": "unconfirmed",
+          "actual_finished_at": null
+        }
+      },
+      "error_message": "Orphaned run record reconciled: execution outcome unconfirmed; this is not an active worker."
+    },
+    {
+      "id": "f39115e9-4f3e-4813-9260-2ea9188a115e",
+      "job_name": "precompute-valuations",
+      "status": "failed",
+      "started_at": "2026-08-20 12:25:03.09054+00",
+      "finished_at": "2026-09-13 10:45:08.205245+00",
+      "duration_ms": null,
+      "summary": {
+        "stale_record_reconciliation": {
+          "reason": "August 20 record exceeds the 300-second Vercel runtime limit by more than 23 days",
+          "reconciled_at": "2026-09-13T10:45:08.205245+00:00",
+          "previous_status": "running",
+          "work_reexecuted": false,
+          "runtime_evidence": "src/app/api/cron/precompute-valuations/route.ts: maxDuration=300",
+          "execution_outcome": "unconfirmed",
+          "actual_finished_at": null
+        }
+      },
+      "error_message": "Orphaned run record reconciled: execution outcome unconfirmed; this is not an active worker."
+    }
+  ],
+  "guard": "exact ids, start timestamps, job name, unchanged empty summary, null completion/duration/error and older than 23 days",
+  "execution_outcome": "unconfirmed; no recomputation, no claim of successful execution",
+  "reason": "Stale historical records falsely blocked reviewed catalogue corrections",
+  "first_attempt": "24-day age guard matched zero; transaction rolled back. Correct elapsed age exceeds 23 days."
+}

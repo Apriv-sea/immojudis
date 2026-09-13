@@ -1,0 +1,38 @@
+{
+  "pr": 136,
+  "merge_commit": "e997725aeaab53da8c934f15bba57d1bb2e03c90",
+  "merged_at": "2026-09-13T10:24:03Z",
+  "ci": "All checks passed on 6e6627deab41b71af27031fcc46a9f60c49c76d1",
+  "local_validation": {
+    "python_passed": 1355,
+    "python_skipped": 18,
+    "postgres": true,
+    "ruff": "passed",
+    "notaires_final_tests": 32
+  },
+  "migration_workflow": {
+    "id": 34751612435,
+    "conclusion": "success",
+    "ref": "fix/reviewed-aliases-and-source-certificates",
+    "versions": [
+      "20260913092901",
+      "20260913100110"
+    ],
+    "schema_registry_verified": true
+  },
+  "deployment": {
+    "id": "dpl_EGUpymciSaYjzyf4d2WJhF9BQMZ4",
+    "state": "READY",
+    "ready_substate": "PROMOTED",
+    "commit": "e997725aeaab53da8c934f15bba57d1bb2e03c90"
+  },
+  "smoke": {
+    "checked_at": "2026-09-13T10:25:53.562Z",
+    "passed": 5,
+    "failed": 0
+  },
+  "reviewed_alias_relations_applied": false,
+  "sources_outside_pilot_enabled": false,
+  "seven_day_observation": "cancelled_by_user",
+  "remaining_exit_criteria_active": true
+}

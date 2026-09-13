@@ -1,0 +1,352 @@
+{
+  "audit_id": "inaccessible-sample-reserves-applied-20260913",
+  "generated_at_utc": "2026-09-13T10:50:23.198105+00:00",
+  "mode": "read_only_post_application_audit",
+  "repository": "/private/tmp/immojudis-reliability-20260912",
+  "production": {
+    "supabase_project_id": "sgpakxtyvenlpeihuucm",
+    "audit_agent_production_mutations": 0,
+    "audit_agent_source_fetches": 0,
+    "audit_agent_dml": 0,
+    "application_attestation": {
+      "reported_by_parent_agent": true,
+      "applied_sql_sha256": "bdcc10b6c3d4afd6319708cdd345e1a5a15b23a033ecb53877c7a0f25bc8e8f0",
+      "reported_apply_window_utc": "2026-09-13T10:33Z (approximate parent report)",
+      "exact_apply_statement_timestamp_recorded_here": false,
+      "this_audit_reexecuted_sql": false
+    },
+    "live_read_queries": 2
+  },
+  "scope": {
+    "target_rows": 20,
+    "target_sources": [
+      "encheres_publiques",
+      "encheres_immobilieres"
+    ],
+    "expected_input_report": {
+      "path": "/tmp/immojudis-inaccessible-sample-reserve-plan-20260913.json",
+      "sha256": "a504d3b80315a91af1c9f0ecb8b6cfafc4e06d9cad83042a494490b35478e9e9"
+    },
+    "advisory_lock": "hashtextextended('immojudis:outcome_catalogue_bridge:v1', 0)",
+    "guard_contract": [
+      "id",
+      "source_url",
+      "updated_at",
+      "status",
+      "content_hash",
+      "quality_flags",
+      "source_state",
+      "child-mirror existence",
+      "running worker lease absence"
+    ]
+  },
+  "live_production_evidence": {
+    "applied_audit_query": {
+      "path": "/tmp/immojudis-inaccessible-sample-reserves-applied-audit-query.sql",
+      "sha256": "59d32962eab2b7f9371ff48625a390fccba81452704e98e355843c1882738b2a",
+      "queried_at_utc": "2026-09-13T10:38:38.198097+00:00"
+    },
+    "result": {
+      "guarded_rows_present": 20,
+      "identity_hash_matches": 20,
+      "exact_final_flags": 20,
+      "source_detail_unverified": 20,
+      "identity_flags_present": 20,
+      "source_checks_semantically_unchanged": 20,
+      "source_presence_semantically_unchanged": 20,
+      "source_conflicts_report_snapshot_matches": 17,
+      "current_analysis_keys_removed": 20,
+      "preexisting_analysis_display_archived": 10,
+      "qualification_review_and_history": 20,
+      "new_identity_quarantines_coherent": 2,
+      "existing_0e3f_quarantine_retained": 1,
+      "target_quarantine_count": 3,
+      "source_states_unchanged": 2,
+      "properties_raw_status_flags_mismatches": 0,
+      "judicial_raw_status_flags_mismatches": 0,
+      "running_jobs_in_guard_scope": 0,
+      "cancelled_jobs_in_scope": 2,
+      "completed_jobs_in_scope": 0
+    },
+    "analysis_interpretation": {
+      "current_display_keys_remaining": 0,
+      "archived_existing_display_rows": 10,
+      "why_archive_count_is_not_20": "Only ten production rows had an existing display analysis to archive; all twenty had current display keys removed and all twenty received the qualification review/history entry."
+    },
+    "quarantines": {
+      "new_identity_conflict_ids": [
+        "108ec369-d2e7-49c4-bde5-28a8d7c67c80",
+        "43a84c3a-62be-4b87-935a-12b50d94ccdc"
+      ],
+      "retained_existing_id": "0e3f35b6-13be-4ef4-be40-aef3034c3965",
+      "coherence_checked": [
+        "status='quarantined'",
+        "raw_payload.status='quarantined'",
+        "raw_payload.publication_quarantine='property_identity_conflict'",
+        "quality_flags contains property_identity_conflict"
+      ]
+    },
+    "source_states_read_back": {
+      "query_path": "/tmp/immojudis-inaccessible-sample-source-state-query.sql",
+      "query_sha256": "ec02cd61deeeac4c6847a6440114d874a834b8d258f27776f868e714d9201289",
+      "queried_at_utc": "2026-09-13T10:39:26.478691+00:00",
+      "states": [
+        {
+          "source_name": "encheres_immobilieres",
+          "enabled": false,
+          "availability": "unavailable",
+          "updated_at": "2026-09-12T18:07:14.431782+00:00",
+          "last_error": "quality_sample audit 34703766845: timeout, budget 20 minutes",
+          "suspension_reason": "Qualification: huit fiches en timeout, une interrompue, une non tentée ; inventaire non certifié."
+        },
+        {
+          "source_name": "encheres_publiques",
+          "enabled": false,
+          "availability": "access_denied",
+          "updated_at": "2026-09-12T18:07:14.431782+00:00",
+          "last_error": "quality_sample audit 34700628712: HTTP 403",
+          "suspension_reason": "Qualification: refus HTTP 403 persistant depuis la production, sans contournement."
+        }
+      ]
+    },
+    "source_conflicts_snapshot_limit": {
+      "comparison_query_sha256": "7c60bff8f6fb4eb8ba565add17aa10e6bf846b81387b95d758e9c24b3ef24f2a",
+      "queried_at_utc": "2026-09-13T10:39:20.396749+00:00",
+      "matching_rows": 17,
+      "drift_rows": [
+        {
+          "id": "0e3f35b6-13be-4ef4-be40-aef3034c3965",
+          "expected_count": 12,
+          "actual_count": 12,
+          "expected_md5": "45bd695a53d4d5a878162871df5b680a",
+          "actual_md5": "b1282d24af0cb1ab9f38ee8eedc958d6"
+        },
+        {
+          "id": "108ec369-d2e7-49c4-bde5-28a8d7c67c80",
+          "expected_count": 8,
+          "actual_count": 8,
+          "expected_md5": "f9ff037cd6bfb88edb831f114b868c15",
+          "actual_md5": "7a1c0c06467377e72a2ea2399cab414d"
+        },
+        {
+          "id": "43a84c3a-62be-4b87-935a-12b50d94ccdc",
+          "expected_count": 10,
+          "actual_count": 10,
+          "expected_md5": "69967cca0426aefb34846d405497ab1a",
+          "actual_md5": "7335a665edef65f6df1bbe48f4ec8225"
+        }
+      ],
+      "interpretation": "Post-apply comparison to the 10:00:53 qualification snapshot is exact for 17/20. For the three identity-conflict rows, recursive comparison confirms semantic differences described in deep_comparison; this is preserved pre-existing snapshot drift, not representation-only drift and not attributed to the reserve transaction.",
+      "deep_comparison": {
+        "qualification_snapshot": {
+          "path": "/tmp/immojudis-inaccessible-sample-reserve-plan-20260913.json",
+          "sha256": "a504d3b80315a91af1c9f0ecb8b6cfafc4e06d9cad83042a494490b35478e9e9",
+          "generated_at_utc": "2026-09-13T10:00:53.258214+00:00",
+          "value_path": "cases[*].actual_now.raw_conflicts"
+        },
+        "live_readback": {
+          "query_path": "/tmp/immojudis-inaccessible-sample-reserves-current-conflicts-query.sql",
+          "query_sha256": "19bdf6f85e1b8b935dcd9e15222366b353f19eb40d9a10922dfedaf797357f07",
+          "queried_at_utc": "2026-09-13T10:49:36.514976+00:00",
+          "value_path": "auction_sales.raw_payload->'source_conflicts'"
+        },
+        "method": "Recursive JSON comparison after sorting object keys at every depth; array order preserved.",
+        "representation_only": false,
+        "all_three_deep_equal": false,
+        "rows": {
+          "0e3f35b6-13be-4ef4-be40-aef3034c3965": {
+            "expected_count": 12,
+            "actual_count": 12,
+            "deep_equal": false,
+            "postgres_jsonb_text_md5_actual": "b1282d24af0cb1ab9f38ee8eedc958d6",
+            "changed_fields": {
+              "missing_actual_empty_evidence": 11,
+              "extra_actual_observed_primary": 11,
+              "description_entry_index": 2,
+              "description_selected_value_changes": 1,
+              "description_alternative_value_changes": 1
+            }
+          },
+          "108ec369-d2e7-49c4-bde5-28a8d7c67c80": {
+            "expected_count": 8,
+            "actual_count": 8,
+            "deep_equal": false,
+            "postgres_jsonb_text_md5_actual": "7a1c0c06467377e72a2ea2399cab414d",
+            "changed_fields": {
+              "missing_actual_empty_evidence": 7,
+              "extra_actual_observed_primary": 7,
+              "description_entry_index": 3,
+              "description_selected_value_changes": 1,
+              "description_alternative_value_changes": 1
+            }
+          },
+          "43a84c3a-62be-4b87-935a-12b50d94ccdc": {
+            "expected_count": 10,
+            "actual_count": 10,
+            "deep_equal": false,
+            "postgres_jsonb_text_md5_actual": "7335a665edef65f6df1bbe48f4ec8225",
+            "changed_fields": {
+              "missing_actual_empty_evidence": 9,
+              "extra_actual_observed_primary": 9,
+              "description_entry_index": 3,
+              "description_selected_value_changes": 1,
+              "description_alternative_value_changes": 1
+            }
+          }
+        },
+        "conclusion": "The three differences are semantic snapshot drift, not a JSON key-order/whitespace artifact. Current values have the same conflict-array cardinality but richer observed_primary fields, omitted empty evidence on non-address entries, and one selected/alternative description pair differing per row. This audit does not call it a production incident: the applied SQL preserved the current pre-image, and its transaction assertion source_conflicts_changed=false passed; the qualification report and apply/readback snapshots are from different states."
+      }
+    }
+  },
+  "transaction_and_test_evidence": {
+    "sql_sha256": "bdcc10b6c3d4afd6319708cdd345e1a5a15b23a033ecb53877c7a0f25bc8e8f0",
+    "local_fixture": {
+      "fixture_path": "/tmp/immojudis-inaccessible-sample-reserves-fixture.sql",
+      "fixture_sha256": "d6090f0719a45b5b36ab5c4bc74ac913ec02f0bcffc713a95a39174011a9d62f",
+      "acceptance_sql_path": "/tmp/immojudis-inaccessible-sample-reserves-acceptance.sql",
+      "acceptance_sql_sha256": "f0c13a188770dfa70d9a7f07fe21759a063a16be511518849b02167cf78ea46e",
+      "runner_path": "/tmp/validate_reserves_pg_isolated.sh",
+      "runner_sha256": "6c4441f285a62315979e2d4a55cdd29b75d1086d054b681064a251553e7d36f9",
+      "log_path": "/tmp/immojudis-inaccessible-sample-reserves-pg-validation.log",
+      "log_sha256": "8a34c9e3c90a38c14c8fee2561cf8aa56daa03de1ad668634ac8d028fc834b0a",
+      "manifest_path": "/tmp/immojudis-inaccessible-sample-reserves-pg-validation.json",
+      "manifest_sha256": "b0a17c664625ac90c8ac15a70507fbefc2b64918f953ac041d540c1f5a0ba763",
+      "isolated_postgres": "127.0.0.1:55492; shared 55491 was not altered"
+    },
+    "exact_proposal_success": {
+      "target_rows": 20,
+      "new_identity_quarantines": 2,
+      "existing_0e3f_quarantine_retained": 1,
+      "current_analysis_keys_remaining": 0,
+      "fixture_superseded_analysis_archived": 20,
+      "qualification_review_and_history": 20,
+      "source_cache_or_content_hash_mismatches": 0,
+      "properties_parity_mismatches": 0,
+      "judicial_parity_mismatches": 0,
+      "running_jobs_in_guard_scope": 0,
+      "source_state_mismatches": 0,
+      "cancelled_obsolete_non_running_jobs": 2,
+      "completed_alias_jobs_preserved": 1
+    },
+    "rollback_tests": {
+      "version_guard_failure_exit_code": 3,
+      "version_guard_rollback": {
+        "source_detail_flags": 0,
+        "analysis_still_present": 20,
+        "cancelled_jobs": 0
+      },
+      "postwrite_validation_failure_exit_code": 3,
+      "postwrite_rollback": {
+        "source_detail_flags": 0,
+        "analysis_still_present": 20,
+        "cancelled_jobs": 0,
+        "properties_fixture_marker": 0
+      }
+    },
+    "transaction_assertions_relevant_to_audit": [
+      "source_checks unchanged byte-for-byte",
+      "source_presence unchanged byte-for-byte",
+      "source_conflicts unchanged byte-for-byte",
+      "content_hash unchanged",
+      "quality flag union has no loss or duplicate",
+      "properties and judicial_sales mirror raw/status/flags",
+      "no running enrichment job in guarded scope",
+      "new quarantine lifecycle coherence",
+      "existing 0e3f quarantine retained"
+    ],
+    "production_application_reported_result": {
+      "reported_by_parent_agent": true,
+      "source_checks_changed": false,
+      "source_presence_changed": false,
+      "source_conflicts_changed": false,
+      "content_hash_changed": false,
+      "transaction_committed": true,
+      "note": "The SQL final assertion would abort before commit if any source cache changed; this audit records the parent application result and local reproduction separately."
+    }
+  },
+  "quality100_remaining_not_closed_by_this_audit": {
+    "seven_day_observation": {
+      "status": "cancelled_by_user",
+      "counts_as_open_blocker": false
+    },
+    "evidence_sources": {
+      "runbook_path": "docs/runbooks/pipeline-autonomy-progress.md",
+      "runbook_sha256": "77060d597bd4fb5dfd31ca87629ad972d149c7f412e467f4a6f7008299316068",
+      "deployment_audit_path": "docs/audits/aliases-certificates-deployment-20260913.json",
+      "deployment_audit_sha256": "99bea7f749d164e61f2b4e263cab17cf709748bb5d387559cb0ec5db379c4ffb",
+      "baseline_path": "docs/audits/source-baseline-20260913.json",
+      "baseline_sha256": "fcaf208a45482f1b6109687bb9e3826d2bb441c87bd8d57cecd0eef35fee7125"
+    },
+    "open_criteria": [
+      {
+        "id": "SB-P1-01",
+        "status": "open",
+        "title": "Autonomie et publication des dix sources non démontrées",
+        "evidence": "Seules Licitor et Vench sont activées dans le baseline; huit sources n’ont pas de last_inventory_complete_at/last_publication_complete_at durable et le run global de référence est failed.",
+        "next_evidence": "Un run complet par source avec pagination, collection_items et timestamps source_state, en respectant les suspensions.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "SB-P1-02",
+        "status": "open",
+        "title": "Capacité et fraîcheur pilote >=95% non démontrées",
+        "evidence": "Le baseline documente 648 source_detail queued, 3797 jobs queued, 84.3 contrôles/h requis (94.4/h avec marges) contre 80/h maximum; pipeline.enrichment.stalled reste ouvert.",
+        "next_evidence": "Débit automatique stable, résorption du reliquat et reprise des échecs sans doublon.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "SB-P1-04",
+        "status": "open",
+        "title": "Accès/couverture non certifiables pour trois sources",
+        "evidence": "Enchères Publiques reste access_denied/HTTP 403; Enchères Immobilières reste unavailable/timeout; Cessions État reste repeated_page avec coverage_complete=false.",
+        "next_evidence": "Accès autorisé et borné, ou maintien explicite en suspension avec preuve conservée; aucune absence ne doit être inférée.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "SB-P2-01",
+        "status": "open",
+        "title": "Certificat public distinct de la complétude base/lot",
+        "evidence": "Licitor/Vench ont un inventaire public adressable certifié mais database_completeness_certified=false; les alias 93 et 15 nécessitent encore validation d’identité/lot.",
+        "next_evidence": "Réconciliation explicite des identités et lots avant agrégation.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "SB-P2-02",
+        "status": "open",
+        "title": "Déduplication déterministe du payload observations non appliquée",
+        "evidence": "Le batch Licitor a montré le risque 21000 sur source_url dupliquée; le correctif de déduplication/fusion du payload reste une proposition.",
+        "next_evidence": "Déployer le garde de payload et un test de clé source_url répétée, puis lire le ledger.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "deployment-scope",
+        "status": "open",
+        "title": "Relations Agde et activations hors pilote non appliquées",
+        "evidence": "L’audit de déploiement PR136 indique reviewed_alias_relations_applied=false et sources_outside_pilot_enabled=false.",
+        "next_evidence": "Appliquer séparément après revue et preuves adaptées; ne pas les déduire des 20 réserves.",
+        "resolved_by_inaccessible_sample_reserves": false
+      },
+      {
+        "id": "alerts-enrichment-stalled",
+        "status": "partially_evidenced",
+        "title": "Alertes: incident/rétablissement reçus, reliquat enrichment stalled ouvert",
+        "evidence": "Le runbook confirme la réception de pipeline.import.unhealthy et de son recovery; pipeline.enrichment.stalled reste ouvert.",
+        "next_evidence": "Réception et traitement de l’alerte stalled avec réduction mesurée du reliquat.",
+        "resolved_by_inaccessible_sample_reserves": false
+      }
+    ]
+  },
+  "limitations": [
+    "Le snapshot de qualification 10:00:53 et la lecture live 10:49:36 ne sont pas byte/deep-identiques pour les trois lignes à conflits; la comparaison récursive confirme une dérive sémantique détaillée, pas une simple différence de représentation JSON.",
+    "La transaction appliquée n’a pas écrasé ces caches: sa garde before/after source_conflicts est byte-à-byte et le résultat d’application rapporté est source_conflicts_changed=false; l’instant exact où le snapshot a divergé avant l’application n’est pas reconstructible ici.",
+    "Les 20 lignes d’archive du fixture local ne signifient pas que 20 archives existaient en production: la lecture live en confirme 10, tandis que la suppression des clés d’affichage actuelles est 20/20.",
+    "Les critères qualité100 sont repris comme ouverts depuis les audits datés; cet audit n’effectue aucune nouvelle collecte, aucun accès aux sources 403/timeout et aucune mutation hors du fichier d’audit."
+  ],
+  "production_mutation_summary": {
+    "audit_file_write_only": true,
+    "supabase_writes_by_audit": 0,
+    "source_checks_modified_by_audit": 0,
+    "source_states_modified_by_audit": 0,
+    "source_fetches_by_audit": 0
+  }
+}

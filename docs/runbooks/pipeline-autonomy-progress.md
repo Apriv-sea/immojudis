@@ -1,5 +1,13 @@
 # Collecte autonome : exploitation et qualification
 
+## Situation au 13 septembre 2026
+
+La production utilise PR136 (`e997725`). Le pilote Licitor/Vench et le contrôle récurrent des fiches sont actifs. Le worker est borné à 90 tâches, avec cinq créneaux de contrôle source pour un créneau d’enrichissement, pendant 1 200 secondes. Le plafond IA journalier a été porté temporairement à 6 USD ; les réservations de coût inconnu restent conservées. Les passages ci-dessous décrivent aussi les états historiques et les limites initiales.
+
+La reprise automatique de dispatch est prouvée, ainsi que la réception d’un incident et de son rétablissement. La fraîcheur pilote de 95 % et la capacité durable restent à démontrer. Le passage de 10:30 a échoué sur une réponse HTTP 500 de réservation de tâche ; une réservation idempotente avec reprise est en préparation. L’audit OCR et ses mesures locales sont dans `docs/audits/ocr-efficiency-review-20260913.md` ; les correctifs de cache partiel et de continuation ne sont pas encore déployés.
+
+Les sept jours d’observation sont annulés. Les autres critères restent applicables.
+
 ## Architecture
 
 Le tick `immojudis-operational-health` de pg_cron, toutes les 15 minutes, est le seul ordonnanceur du catalogue. Il appelle l’endpoint authentifié de santé, qui réclame une unité SQL puis déclenche `data-pipeline.yml`. Le workflow reste déclenchable manuellement mais ne possède pas de cron GitHub. Le cron Vercel quotidien de santé est retiré.
@@ -222,3 +230,7 @@ Correctif dispatch/capacité : trois reprises après la tentative initiale sur l
 PR135 fusionnée normalement via GitHub à 09:45:22 UTC, commit277556b292b4e97899d504f6b1983f8951df487d, tous contrôles CI réussis. Migrations20260913091558 et20260913091614 appliquées et registre aligné sur les versions du dépôt après contrôle des empreintes. Production dpl_Axnhi8CkBZjjepFFfbq5xmnstWP9 READY/PROMOTED sur ce SHA ; smoke5/5 à09:47:38.339 UTC. À09:47:25, adoption administrative du seul ancien run queued45c00ec0 dans les métadonnées de reprise : tentative initiale historique1, prochaine tentative déjà due, lease jusqu’à10:47:25. Aucun workflow lancé manuellement ; cette transition de migration évite que le prochain tick expire l'ancien run avant de pouvoir le reprendre. La reprise automatique elle-même reste à constater. Audit : docs/audits/dispatch-capacity-deployment-20260913.json.
 
 À10:00:05.896 UTC, le tick automatique reprend bien le même run45c00ec0, tentative2. GitHub accepte HTTP204 à10:00:13.408 et crée le workflow34750715142 sur le SHA277556b. Aucun workflow lancé manuellement. Ceci prouve la reprise du dispatch après migration ; la fin du worker et la capacité restent à mesurer. Le workflow de validation production34750304142 est réussi.
+
+Le passage repris automatiquement se termine à 10:22:17 UTC : 54 tâches traitées, 52 terminées et 2 erreurs documentaires isolées. 45 contrôles source sont publiés; leur file diminue de 648 à 603. Une erreur de surface de 0 m² dans un PDF nécessite un correctif; le PDF Alata conserve 75/120 pages OCR et reprendra le restant. Le run est failed et les erreurs restent visibles, sans annuler les publications réussies. Le débit durable et 95 % de fraîcheur ne sont pas encore prouvés.
+
+PR 136 intégrée à 10:24:03 UTC, merge e997725aeaab53da8c934f15bba57d1bb2e03c90. Tous les contrôles CI réussis ; 1 355 tests Python avec PostgreSQL et 18 ignorés. Migrations 20260913092901/20260913100110 appliquées via workflow 34751612435 sur la branche testée, sans réécriture du registre; dérive production vérifiée avec succès. Production dpl_EGUpymciSaYjzyf4d2WJhF9BQMZ4 READY/PROMOTED sur le merge ; smoke 5/5 à 10:25:53 UTC. Alias revus, déduplication observations, certificats des six sources accessibles et rétention date-only sont déployés. Les relations Agde et activations hors pilote ne sont pas encore appliquées.

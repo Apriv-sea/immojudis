@@ -1,0 +1,939 @@
+{
+  "audit_id": "vni-196-corrections-applied-20260913",
+  "audited_at": "2026-09-13T10:26:43.454754+00:00",
+  "statement_at": "2026-09-13T10:26:43.440234+00:00",
+  "read_only": true,
+  "production_mutations": false,
+  "repo_mutations": false,
+  "project_ref": "sgpakxtyvenlpeihuucm",
+  "purpose": "Lecture seule après application du SQL VNI196; aucun statut vendu/adjudicated n'est déduit.",
+  "provenance": {
+    "plan_file": "/private/tmp/immojudis-vni-correction-plan-196-20260913.json",
+    "plan_sha256": "841dc96f853f374f01a1d96089573b81db7497d967769b3f30acabaaac3ed65d",
+    "sql_file": "/private/tmp/immojudis-vni-correction-plan-196-20260913.sql",
+    "sql_sha256": "6acc14d5fa3206730e53f2ba4d41e99f12dc9dcac867eeaddb1574727359438a",
+    "selection_file": "/private/tmp/immojudis-legacy-vni-production-selection-20260913.json",
+    "selection_sha256": "9adb6b6bae9c617c23e6ea5022b04968c3530cd71e756e40b025aeaf78f14dde",
+    "certified_audit_file": "/private/tmp/immojudis-legacy-vni-window-audit-196-20260913.json",
+    "certified_audit_sha256": "c5f3711618c3ae63cfbbb8401a65fee9b166cce7b0cfdef557ccf74ff7a34a15",
+    "bridge_preflight_file": "/private/tmp/immojudis-reliability-20260912/docs/audits/vni-196-retention-bridge-preflight-20260913.json",
+    "bridge_preflight_sha256": "0dc9f67e926613d950806badac94d0b17eae51a777b50d7fa1c39a409d43be95"
+  },
+  "application_observed": {
+    "expected_rows": 196,
+    "transaction_projection": {
+      "confirmed": 177,
+      "text_conflict": 2,
+      "unverified_reserved": 17
+    },
+    "current_catalogue_rows": 184,
+    "current_rows_after_natural_retention": 184,
+    "detached_or_naturally_purged_rows": 12,
+    "current_decision_counts": {
+      "confirmed_remaining": 165,
+      "text_conflict_remaining": 2,
+      "unverified_reserved_remaining": 17
+    },
+    "apply_updated_at_min": "2026-09-13T10:17:35.802027+00:00",
+    "apply_updated_at_max": "2026-09-13T10:17:35.802027+00:00",
+    "note": "Les 12 absentes du catalogue correspondent aux 12 lignes verified_window/past du préflight bridge; la preuve durable est leur bridge conservé ci-dessous.",
+    "remaining_rows_by_class": {
+      "verified_window": 165,
+      "text_conflict": 2,
+      "unverified_reserved": 17,
+      "detached_verified_past": 12
+    }
+  },
+  "qualification_checks": {
+    "source_name_notaires": 184,
+    "qualification_review_present": 184,
+    "expected_sale_date_parity_confirmed_remaining": 165,
+    "raw_sale_date_column_parity_remaining": 184,
+    "raw_status_column_parity_remaining": 184,
+    "raw_source_blocks_procedure_parity_remaining": 184,
+    "judicial_sales_rows": 184,
+    "judicial_sales_raw_parity": 184,
+    "properties_rows": 184,
+    "properties_raw_parity": 184,
+    "source_checks_present_remaining": 166,
+    "source_checks_object_remaining": 166,
+    "source_checks_current_digest_md5": "f649c11404f8f7f8dfce8b5035d8abfe",
+    "source_checks_application_assertion": "Le SQL appliqué a validé avant/après l'égalité de source_checks sur les 196 lignes; la lecture actuelle conserve les valeurs présentes/nulles restantes.",
+    "qualification_no_closure_invented_true_remaining": 184,
+    "qualification_no_sale_inferred_true_remaining": 184,
+    "qualification_source_freshness_advanced_false_remaining": 184,
+    "confirmed_complete_schedule_remaining": 165,
+    "confirmed_sale_procedure_window_remaining": 165,
+    "confirmed_legacy_reason_absent_remaining": 165,
+    "protected_legacy_reason_present_remaining": 19,
+    "protected_retention_deadline_null_remaining": 19,
+    "no_sold_inferred": true,
+    "no_sold_evidence": "Les qualifications portent no_sale_inferred=true; les 12 outcomes bridgés restent unknown et sans prix."
+  },
+  "analysis_invalidation": {
+    "source_content_changed_true_remaining": 184,
+    "llm_display_status_pending_remaining": 184,
+    "llm_display_description_absent_remaining": 184,
+    "superseded_analysis_present_remaining": 62,
+    "note": "Les 12 lignes purgées ne sont plus lisibles; l'assertion de transaction couvrait les 196 avant purge."
+  },
+  "seysseul": {
+    "id": "6a486c10-90af-4547-8d43-19c3689f1092",
+    "source_conflicts_array_count": 1,
+    "coded_closing_time_unverified_present": 0,
+    "uncoded_procedure_date_conflict_present": 1,
+    "result": "Le conflit codé a disparu; le conflit non codé est conservé."
+  },
+  "retention_bridges": {
+    "preflight_before": {
+      "rows": 12,
+      "outcome_status_unknown": 12,
+      "training_eligible_false": 12,
+      "catalogue_status_announced": 12
+    },
+    "after": {
+      "rows_found": 12,
+      "outcome_status_unknown": 12,
+      "training_eligible_false": 12,
+      "catalogue_status_announced": 12,
+      "source_key_matches": 12,
+      "neutral_source_snapshot": 12,
+      "neutral_outcome_links": 12,
+      "auction_sales_still_attached": 0,
+      "auction_sales_detached_or_naturally_purged": 12,
+      "manual_purge_invoked": false,
+      "detached_expected_verified_past": 12
+    },
+    "rows": [
+      {
+        "bridge_id": "08bd3caa-0b8c-42d7-9013-168023b5ac39",
+        "outcome_status": "unknown",
+        "source_sale_id": "25798b88-7c0f-40a6-995c-ffa21ea81330",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "fd35f8ce-2bde-4d43-bc4c-810fbf614fc1",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/la-garde-83/2031071",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "1cde5125-4fba-495f-9879-0da39957a00d",
+        "outcome_status": "unknown",
+        "source_sale_id": "6af596ea-5c3e-495e-9084-70e2c7979975",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "c3944463-0a4d-4e3b-9b25-c4e8a8e2fbbd",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/immeuble/le-havre-76/2049304",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "2a8a27e5-98f6-4425-af40-87b036fb0d49",
+        "outcome_status": "unknown",
+        "source_sale_id": "eaa604f9-57b6-4f31-a465-2675e2c84ac5",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "27e475d3-247f-49ad-b3ec-13d6de222156",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/apt-84/1977816",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "56fa8fb8-01ee-4899-bbb9-2abc3d91c8e7",
+        "outcome_status": "unknown",
+        "source_sale_id": "e6f75d76-1c4a-4fed-9523-6552ce01accf",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "86c99698-763e-41e1-9936-38df6362ba62",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/grimaud-83/2019830",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "6b97144a-e0f4-4a17-a0a5-df4544d47674",
+        "outcome_status": "unknown",
+        "source_sale_id": "0fd97cfa-d541-4040-8abf-563029b7c80e",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "45318871-17f1-4c38-ab66-80c917835fec",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/bois-grenier-59/2020880",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "8c974812-163b-497a-9b2a-a832513fb7f2",
+        "outcome_status": "unknown",
+        "source_sale_id": "30feed41-3236-425d-8edb-74b13136b6be",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "cdcc9a71-bbdd-42e6-8edd-9a0c2dfbcb0e",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/peypin-13/2019751",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "948b0404-7d14-43e2-9a9a-aedc713f308d",
+        "outcome_status": "unknown",
+        "source_sale_id": "0c2f373d-0fdf-4eea-9688-fd16ed1f19bd",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "04b4f4ab-0154-4613-9eda-8bc6960cbeb6",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/andernos-les-bains-33/2008315",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "9f802e93-cd85-48bd-8450-65b70acf7456",
+        "outcome_status": "unknown",
+        "source_sale_id": "1f9f5a53-a8da-4bae-a913-940d806a0cd4",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "aee133ba-0295-49bb-ba60-43784799351f",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/cazeres-31/2048450",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "c944d987-eca7-4a1e-9f04-f3dcf1f09b4a",
+        "outcome_status": "unknown",
+        "source_sale_id": "f3be66c5-d269-4819-a37e-2588f1cb1aae",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "b59dcdc7-68f5-4a52-94d2-faa983e6c5fe",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/le-havre-76/2049365",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "e4f34841-bce6-461c-b89d-8a853b650313",
+        "outcome_status": "unknown",
+        "source_sale_id": "50819741-f6db-4d46-bd44-dd585c629e68",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "29b3ae1b-d533-4e3e-ba55-990a16494e4e",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/st-martin-boulogne-62/2045837",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "ed5deae1-f1a3-4931-b4c0-6c71cf7d2650",
+        "outcome_status": "unknown",
+        "source_sale_id": "19fa4bcb-14ed-4669-b46b-9d11f39c8e2b",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "fab3eb07-104e-4f36-833c-03badd28203d",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/bagneaux-sur-loing-77/2008271",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      },
+      {
+        "bridge_id": "f0d87826-2b2a-437d-abd1-45273d5a543e",
+        "outcome_status": "unknown",
+        "source_sale_id": "0e4f71a1-afb0-4009-b6f3-73d8cc525986",
+        "auction_sale_id": null,
+        "catalogue_status": "announced",
+        "training_eligible": false,
+        "source_key_matches": true,
+        "unknown_outcome_id": "b50069ab-5b82-4a4b-b0cf-65d94635eb1e",
+        "source_url_snapshot": "https://www.immo-interactif.fr/encheres-en-ligne/maison/cormeilles-27/2055324",
+        "neutral_outcome_link": true,
+        "linked_outcome_status": "unknown",
+        "neutral_source_snapshot": true,
+        "linked_training_eligible": false,
+        "purged_naturally_or_detached": true,
+        "expected_category_from_plan": "verified_window",
+        "expected_status_after_from_plan": "past",
+        "expected_past_closure_retention": true
+      }
+    ],
+    "inference": "Les 12 rows preflight sont toutes des cas verified_window avec status_after=past. Leur auction_sale_id est maintenant NULL, tandis que le bridge et l’outcome unknown neutre sont présents; cela est cohérent avec une purge automatique naturelle. Aucune purge manuelle n’a été invoquée par cet audit."
+  },
+  "protected_19": {
+    "expected": 19,
+    "observed": 19,
+    "deadline_null": 19,
+    "rows": [
+      {
+        "id": "0f73b680-7383-4dd5-81b3-5ee0d8cd1e26",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/toulon-83/1968935",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "12f3efda-6139-4d62-bcad-a84f9122b396",
+        "status": "upcoming",
+        "category": "text_conflict",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/eaubonne-95/2053634",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "2335f176-3771-4ee0-8345-2f05dd05e581",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/immeuble/fontaines-sur-saone-69/2018546",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "290ddc8b-9ef0-4138-9019-9ec990d20491",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/fermanville-50/2042644",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "301246a2-15ff-40dd-949f-fcfb0dce9aaf",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-15-13015/2000223",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "40b7ecbb-1a2a-464e-a74b-653903b18b85",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/alex-74/2031809",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "43ba4038-8b7d-496a-8889-2a66c01e0995",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/terrain/paimpol-22/1939109",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "4fad53cd-aca9-46bc-9bd4-1b7c978ad674",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/pornic-44/2042883",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "5e89473f-3765-41b2-888d-135958530d98",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/embrun-05/1952712",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "6681d20c-764d-4a7c-a954-c28496e55c88",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/la-flotte-17/1982636",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "8055633d-e95b-4e03-86e8-4be05b014d08",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/gagny-93/1986210",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "85744834-bdd3-4d47-bcd5-30556a7ee2d2",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-14-13014/2036307",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "8f3015d4-3381-4fe7-9b1e-4132e238fff0",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/st-pere-marc-en-poulet-35/1992717",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "9e5577d0-82e2-408d-a176-db9da73d471b",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/sevrier-74/2032126",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "b5409d83-f3be-4061-a18d-8818c52d9015",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/st-raphael-83/2030840",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "c68533d8-3b77-4922-9392-ddf4e8752696",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-09-13009/2026315",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "c7c9be1e-e155-40fa-87cc-21aaf6d18279",
+        "status": "upcoming",
+        "category": "text_conflict",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/paris-16-75016/2047725",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "ee09150e-4207-4714-9869-23ea5eb54736",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/marseille-03-13003/2048200",
+        "retention_deadline_is_null": true
+      },
+      {
+        "id": "f642b9d0-89d6-44ba-8ab7-a050ee73ff6b",
+        "status": "upcoming",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/macon-71/1946226",
+        "retention_deadline_is_null": true
+      }
+    ]
+  },
+  "reanalysis_queue": {
+    "current_invalidated_rows": 184,
+    "source_content_changed_pending_expected": 184,
+    "jobs_total_for_current_rows": 405,
+    "target_urls_with_any_job": 184,
+    "target_urls_with_nonterminal_job": 165,
+    "target_urls_with_nonterminal_retryable_job": 165,
+    "nonterminal_jobs": 174,
+    "nonterminal_retryable_jobs": 174,
+    "jobs_created_since_apply_window": 0,
+    "target_urls_with_job_since_apply_window": 0,
+    "latest_nonterminal_old_revision_jobs": 174,
+    "latest_statuses_all_jobs": {
+      "fact_extraction:queued": 9,
+      "fact_extraction:completed": 60,
+      "display_description:queued": 165,
+      "display_description:cancelled": 153,
+      "display_description:completed": 18
+    },
+    "latest_job_types": {
+      "fact_extraction": 67,
+      "display_description": 184
+    },
+    "latest_nonterminal_by_type": {
+      "fact_extraction": 9,
+      "display_description": 165
+    },
+    "by_category": [
+      {
+        "rows": 2,
+        "category": "text_conflict",
+        "urls_without_any_job": 0,
+        "urls_with_nonterminal": 2,
+        "urls_without_nonterminal": 0
+      },
+      {
+        "rows": 17,
+        "category": "unverified_reserved",
+        "urls_without_any_job": 0,
+        "urls_with_nonterminal": 0,
+        "urls_without_nonterminal": 17
+      },
+      {
+        "rows": 165,
+        "category": "verified_window",
+        "urls_without_any_job": 0,
+        "urls_with_nonterminal": 163,
+        "urls_without_nonterminal": 2
+      }
+    ],
+    "vni_updated_at_min": "2026-09-13T10:17:35.802027+00:00",
+    "vni_updated_at_max": "2026-09-13T10:17:35.802027+00:00",
+    "job_created_at_min": "2026-08-19T12:42:47.624043+00:00",
+    "job_created_at_max": "2026-09-12T08:56:58.290407+00:00",
+    "urls_without_nonterminal": [
+      {
+        "id": "0f73b680-7383-4dd5-81b3-5ee0d8cd1e26",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/toulon-83/1968935",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T17:51:55.045222+00:00",
+            "input_hash_prefix": "a96971ff4b6f4e3a91955e06"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "3a0e376a15d5e61c2fb0e1ea"
+          }
+        ]
+      },
+      {
+        "id": "2335f176-3771-4ee0-8345-2f05dd05e581",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/immeuble/fontaines-sur-saone-69/2018546",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-24T01:38:07.875693+00:00",
+            "input_hash_prefix": "5b6a39a65069d611cab1d80e"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "8c1d7bfec336673708fd5b99"
+          }
+        ]
+      },
+      {
+        "id": "290ddc8b-9ef0-4138-9019-9ec990d20491",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/fermanville-50/2042644",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T14:29:55.814264+00:00",
+            "input_hash_prefix": "dec784fdba8f4964a51872c8"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "3d221d8ea43c34e86fc91e95"
+          }
+        ]
+      },
+      {
+        "id": "301246a2-15ff-40dd-949f-fcfb0dce9aaf",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-15-13015/2000223",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-24T03:11:17.479168+00:00",
+            "input_hash_prefix": "3f8dc468f5b31cf6e807994e"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "d9d5b0021a132f9fb33b6a6d"
+          }
+        ]
+      },
+      {
+        "id": "40b7ecbb-1a2a-464e-a74b-653903b18b85",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/alex-74/2031809",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T23:50:51.861813+00:00",
+            "input_hash_prefix": "c502c3d6a5deb31b20da764c"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "1a0e0615323c2eb82c7533e4"
+          }
+        ]
+      },
+      {
+        "id": "43ba4038-8b7d-496a-8889-2a66c01e0995",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/terrain/paimpol-22/1939109",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T22:53:16.886117+00:00",
+            "input_hash_prefix": "f0be38b572fb6f9ea9ade038"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "f2595f3374d7e2f7f9791944"
+          }
+        ]
+      },
+      {
+        "id": "4fad53cd-aca9-46bc-9bd4-1b7c978ad674",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/pornic-44/2042883",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T16:34:37.294532+00:00",
+            "input_hash_prefix": "4fa55ba959401eb51c662811"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "d7a68573eda5e4d0baaf6aaa"
+          }
+        ]
+      },
+      {
+        "id": "5e89473f-3765-41b2-888d-135958530d98",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/embrun-05/1952712",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-24T03:09:25.920208+00:00",
+            "input_hash_prefix": "c6de01ac2577351f0fa84e10"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "271219a2e9fba1ad0fd40820"
+          }
+        ]
+      },
+      {
+        "id": "6681d20c-764d-4a7c-a954-c28496e55c88",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/la-flotte-17/1982636",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T21:52:36.438394+00:00",
+            "input_hash_prefix": "b9d327e16c39e76049e3fb77"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "a18e8a9160213ffc29854bd6"
+          }
+        ]
+      },
+      {
+        "id": "6a486c10-90af-4547-8d43-19c3689f1092",
+        "category": "verified_window",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/terrain/seyssuel-38/2070715",
+        "latest_jobs": [
+          {
+            "status": "cancelled",
+            "job_type": "display_description",
+            "created_at": "2026-09-12T08:56:48.504336+00:00",
+            "input_hash_prefix": "pipeline_v2:8436125bf4a0"
+          }
+        ]
+      },
+      {
+        "id": "8055633d-e95b-4e03-86e8-4be05b014d08",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/gagny-93/1986210",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T23:26:51.803839+00:00",
+            "input_hash_prefix": "7623b65a8d2f993edaa5cba5"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "05972f5ee67ef04ad203932f"
+          }
+        ]
+      },
+      {
+        "id": "85744834-bdd3-4d47-bcd5-30556a7ee2d2",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-14-13014/2036307",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T21:50:25.168062+00:00",
+            "input_hash_prefix": "22550ed2f741fa19034caa04"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "0d123f01819f7f91817d0870"
+          }
+        ]
+      },
+      {
+        "id": "8f3015d4-3381-4fe7-9b1e-4132e238fff0",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/st-pere-marc-en-poulet-35/1992717",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T15:53:29.962866+00:00",
+            "input_hash_prefix": "449c177c5533a157732902f5"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "933f80e3ae779279c937777e"
+          }
+        ]
+      },
+      {
+        "id": "9e5577d0-82e2-408d-a176-db9da73d471b",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/sevrier-74/2032126",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T23:51:11.135976+00:00",
+            "input_hash_prefix": "0470b65dbb9452c9a4001764"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "c333bca70ed3ad2abf794adc"
+          }
+        ]
+      },
+      {
+        "id": "a16bd4b8-7b91-4a68-bf29-46075263aef6",
+        "category": "verified_window",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/cauvigny-60/2051739",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T21:52:18.003981+00:00",
+            "input_hash_prefix": "ecf8edd065619da3d1f3016f"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "6b33ee27419b8257441af495"
+          }
+        ]
+      },
+      {
+        "id": "b5409d83-f3be-4061-a18d-8818c52d9015",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/st-raphael-83/2030840",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-24T03:10:38.398147+00:00",
+            "input_hash_prefix": "fe011b55ce08fd9711037c75"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "81837c4e36637b8507508424"
+          }
+        ]
+      },
+      {
+        "id": "c68533d8-3b77-4922-9392-ddf4e8752696",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/marseille-09-13009/2026315",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-23T23:52:24.533541+00:00",
+            "input_hash_prefix": "a4810ad8f4842ad01e05ee7f"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "036b15d3b7d7fdad129f84c5"
+          }
+        ]
+      },
+      {
+        "id": "ee09150e-4207-4714-9869-23ea5eb54736",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/marseille-03-13003/2048200",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-08-24T04:24:07.335436+00:00",
+            "input_hash_prefix": "025fbe5e7d8ca6c34d58bdd7"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "bbe8b0f468bf90d796013b44"
+          }
+        ]
+      },
+      {
+        "id": "f642b9d0-89d6-44ba-8ab7-a050ee73ff6b",
+        "category": "unverified_reserved",
+        "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/macon-71/1946226",
+        "latest_jobs": [
+          {
+            "status": "completed",
+            "job_type": "display_description",
+            "created_at": "2026-09-09T12:48:00.844587+00:00",
+            "input_hash_prefix": "a09458d131b70daa66c51a3f"
+          },
+          {
+            "status": "completed",
+            "job_type": "fact_extraction",
+            "created_at": "2026-08-19T12:42:47.624043+00:00",
+            "input_hash_prefix": "f8825e65d92da1baa989a28c"
+          }
+        ]
+      }
+    ],
+    "urls_without_any_job": [],
+    "latest_input_hash_statuses": [
+      {
+        "count": 1,
+        "status": "cancelled",
+        "job_type": "display_description"
+      },
+      {
+        "count": 18,
+        "status": "completed",
+        "job_type": "display_description"
+      },
+      {
+        "count": 165,
+        "status": "queued",
+        "job_type": "display_description"
+      },
+      {
+        "count": 58,
+        "status": "completed",
+        "job_type": "fact_extraction"
+      },
+      {
+        "count": 9,
+        "status": "queued",
+        "job_type": "fact_extraction"
+      }
+    ],
+    "assessment": "GAP DE PLANIFICATION À TRAITER: 184 lignes restent source_content_changed=true/llm_display_status=pending, aucun job n’a été créé après l’application. Les 174 jobs non terminaux déjà présents sont antérieurs à la révision, mais le worker relit la vente courante avant écriture et le garde updated_at du code protège le CAS; leur ancien input_hash ne prouve pas une réapplication de l’ancien payload. 19 URLs n’ont aucun job non terminal: 17 unverified_reserved, Seyssuel (à exclure tant que son conflit de procédure/date reste actif) et Cauvigny. Une nouvelle file de 18 lignes reste à valider par policy; aucun fetch source réservé ni DML n’a été exécuté.",
+    "cas": {
+      "read_only_status": "Non exercé par cet audit; aucune réanalyse, claim ou DML. Le worker charge fetch_sale_for_data_refresh à l’exécution, puis _guard_enrichment_revision compare updated_at avant écriture.",
+      "local_guard": "Le code local _guard_enrichment_revision verrouille la ligne et compare updated_at; les anciens jobs relisent donc la révision courante avant upsert. L’input_hash ancien ne suffit pas à conclure à une réapplication de payload.",
+      "required_followup": "Valider par policy une file de 18 lignes (17 unverified_reserved + Cauvigny) sans fetch source réservé; garder Seyssuel hors file tant que le conflit non codé persiste; vérifier ensuite l’exécution CAS en environnement worker.",
+      "old_jobs_current_revision_proven": false,
+      "risk_note": "Les jobs latest ont été créés avant updated_at=2026-09-13T10:17:35.802027Z; ils ne constituent pas une planification post-application, mais le worker relit la ligne courante et son garde updated_at protège l’upsert.",
+      "stale_payload_reapplication_evidence": false,
+      "policy_queue_candidates": 18,
+      "policy_queue_excluded_seyssuel": true,
+      "source_fetch_performed": false
+    },
+    "gap_is_actionable": true,
+    "post_apply_job_count": 0,
+    "urls_without_nonterminal_count": 19
+  },
+  "limitations": [
+    "Aucune purge manuelle ni claim de job n'a été exécuté.",
+    "La lecture ne prouve pas qu'un worker futur a effectivement CAS-éché un ancien job; elle établit seulement l'ancienneté des jobs et le gap de planification.",
+    "Les 12 lignes purgées naturellement restent vérifiables par leurs bridges/outcomes neutres, pas par leurs colonnes catalogue."
+  ]
+}
