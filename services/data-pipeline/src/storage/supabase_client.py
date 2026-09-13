@@ -344,6 +344,13 @@ def upsert_sales_to_supabase(
                 return result
             finally:
                 _PUBLICATION_CONNECTION.reset(token)
+    return _write_sale_revisions(sales, settings, refresh_last_seen=refresh_last_seen)
+
+
+def _write_sale_revisions(sales: list[AuctionSale], settings: dict, *, refresh_last_seen: bool) -> int:
+    """Write all catalogue tables inside the caller's admission/version boundary."""
+    url = settings["supabase_url"]
+    key = settings["supabase_service_role_key"]
     now = datetime.now(UTC).isoformat()
     payload = []
     for sale in sales:

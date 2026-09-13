@@ -89,3 +89,38 @@ def prepare_source_revision(existing, raw: dict):
         if key.startswith('qualification_'):
             result.raw_payload.setdefault(key, value)
     return result
+
+
+def publish_source_revision(sale, job: dict, settings: dict) -> bool:
+    """Commit a verified existing revision and its owned job atomically.
+
+    A verified past date must reach retention even though new expired listings
+    are inadmissible. This path therefore checks both the task lease and the
+    existing catalogue version before using the shared table writer.
+    """
+    from src.storage import supabase_client as storage
+
+    with storage._postgres_connect(str(settings['supabase_db_url'])) as db:
+        db.execute("set local lock_timeout = '15s'")
+        db.execute("set local statement_timeout = '120s'")
+        db.execute("select pg_advisory_xact_lock(hashtextextended('immojudis:outcome_catalogue_bridge:v1',0))")
+        owned = db.execute("""select id from public.auction_enrichment_jobs
+          where id=%s and source_url=%s and job_type='source_detail' and status='running'
+            and attempt_count=%s and locked_at>=now()-interval '30 minutes' for update""",
+          (job['id'], sale.source_url, job['attempt_count'])).fetchone()
+        if not owned:
+            return False
+        if not storage._guard_enrichment_revision(db, [sale]):
+            db.execute("""update public.auction_enrichment_jobs set status='cancelled',locked_at=null,
+              last_error='Catalogue revision changed during source verification',updated_at=now() where id=%s""",
+              (job['id'],))
+            return False
+        db.execute("select set_config('app.pipeline_queue_owner', 'python', true)")
+        token = storage._PUBLICATION_CONNECTION.set(db)
+        try:
+            storage._write_sale_revisions([sale], settings, refresh_last_seen=False)
+            db.execute("""update public.auction_enrichment_jobs set status='completed',locked_at=null,
+              last_error=null,completed_at=now(),updated_at=now() where id=%s""", (job['id'],))
+        finally:
+            storage._PUBLICATION_CONNECTION.reset(token)
+    return True

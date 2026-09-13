@@ -5,6 +5,68 @@ from src import source_detail
 SETTINGS = {'user_agent': 'Immojudis source verification'}
 
 
+@pytest.mark.parametrize('scenario', ['current', 'reclaimed', 'expired_lease', 'newer_revision', 'deleted', 'write_failure'])
+def test_source_publication_checks_lease_version_and_atomicity(monkeypatch, scenario):
+    import os
+    from contextlib import contextmanager
+    from datetime import timedelta
+
+    from src.models import AuctionSale
+    from src.storage import supabase_client as storage
+
+    url = os.getenv('PIPELINE_TEST_DB_URL')
+    if not url:
+        pytest.skip('Requires disposable PostgreSQL')
+    with storage._postgres_connect(url) as db:
+        try:
+            db.execute('create table auction_sales(source_url text primary key,updated_at timestamptz default now(),status text)')
+            db.execute('''create table auction_enrichment_jobs(id text primary key,source_url text,job_type text,
+              status text,attempt_count int,locked_at timestamptz,last_error text,completed_at timestamptz,updated_at timestamptz)''')
+            version = db.execute("insert into auction_sales values('existing',now(),'upcoming') returning updated_at").fetchone()[0]
+            db.execute("insert into auction_enrichment_jobs(id,source_url,job_type,status,attempt_count,locked_at) values('job','existing','source_detail','running',1,now())")
+            sale = AuctionSale.model_construct(source_url='existing',updated_at=version,status='past')
+            if scenario == 'reclaimed':
+                db.execute("update auction_enrichment_jobs set attempt_count=2")
+            elif scenario == 'expired_lease':
+                db.execute("update auction_enrichment_jobs set locked_at=now()-interval '31 minutes'")
+            elif scenario == 'newer_revision':
+                sale.updated_at = version - timedelta(seconds=1)
+            elif scenario == 'deleted':
+                db.execute('delete from auction_sales')
+
+            @contextmanager
+            def connect(_):
+                with db.transaction():
+                    yield db
+
+            writes = []
+
+            def write(sales, settings, *, refresh_last_seen):
+                assert refresh_last_seen is False
+                assert storage._PUBLICATION_CONNECTION.get() is db
+                writes.append(sales[0].source_url)
+                db.execute("update auction_sales set status='past'")
+                if scenario == 'write_failure':
+                    raise RuntimeError('child table failed')
+                return 1
+
+            monkeypatch.setattr(storage, '_postgres_connect', connect)
+            monkeypatch.setattr(storage, '_write_sale_revisions', write)
+            if scenario == 'write_failure':
+                with pytest.raises(RuntimeError, match='child table failed'):
+                    source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1}, {'supabase_db_url':url})
+                assert db.execute('select status from auction_sales').fetchone()[0] == 'upcoming'
+                assert db.execute('select status from auction_enrichment_jobs').fetchone()[0] == 'running'
+            else:
+                assert source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1}, {'supabase_db_url':url}) is (scenario == 'current')
+                assert writes == (['existing'] if scenario == 'current' else [])
+                expected = 'completed' if scenario == 'current' else 'cancelled' if scenario in {'newer_revision','deleted'} else 'running'
+                assert db.execute('select status from auction_enrichment_jobs').fetchone()[0] == expected
+            assert storage._PUBLICATION_CONNECTION.get() is None
+        finally:
+            db.rollback()
+
+
 def test_detail_uses_existing_licitor_parser_after_robots_check(monkeypatch):
     requests = []
 
