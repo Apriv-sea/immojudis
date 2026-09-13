@@ -45,9 +45,9 @@ L’administration a été vérifiée localement avec une session fictive et des
 - Valider factuellement les 100 annonces du diagnostic. L’échantillon initial est une sélection, pas une validation.
 - Expliquer individuellement les différences d’inventaire. Le diagnostic initial comporte 717 URL non expliquées ; aucun taux de couverture complet n’est revendiqué.
 - Qualifier puis étendre aux autres sources, en respectant leurs refus d’accès et leurs capacités. Vérifier la cadence détaillée de chaque adaptateur et la diminution du reliquat.
-- Observer sept jours réels sans relance manuelle, avec au moins 95 % des fiches du périmètre pilote vérifiées à temps, aucun doublon de reprise et aucune contradiction critique connue présentée comme certaine.
+- Vérifier au moins 95 % des fiches du périmètre pilote dans le délai prévu, aucun doublon de reprise et aucune contradiction critique connue présentée comme certaine. La période de sept jours a été annulée explicitement par l’utilisateur le 13 septembre 2026.
 
-Le chantier ne peut pas être clôturé sur la seule livraison du code. L’intervalle d’observation commence après activation prouvée du pilote.
+Le chantier ne peut pas être clôturé sur la seule livraison du code : les validations techniques et de production restent nécessaires, sans attente de sept jours.
 
 ## État réel au 12 septembre 2026, après la première qualification
 
@@ -206,3 +206,15 @@ Prochaine branche `fix/source-detail-evidence-qualification` : nettoyage des car
 ## Changement de périmètre utilisateur — 13 septembre 2026
 
 L'utilisateur annule explicitement les **sept jours d'observation**. Ce critère de durée est retiré : aucune attente équivalente n'est requise avant clôture. Toutes les autres exigences restent actives (diagnostic et réconciliation, qualification, autonomie, fraîcheur pilote >=95 %, reprise sans doublon, capacité et alertes effectivement reçues). Le suivi automatique a été ajusté en conséquence. Les mentions historiques ci-dessus de période non démarrée restent des constats datés, et ne constituent plus un blocage.
+
+À 09:09:37.638623 UTC, huit corrections/réserves appliquées atomiquement sous le verrou global, avec id+URL+updated_at et vérification de l'UPDATE effectif. Preuves : `docs/audits/critical-corrections-applied-20260913.json`. Huit contrôles source inchangés, huit lignes surfaces normalisées concordantes, huit prix d'adjudication nuls, aucune ancienne synthèse encore présentée actuelle. Corbeil/Paris9 : vraies clôtures VNI et surfaces qualifiées ; Gaillard : Carrez91.76/sol109.10/habitable inconnu ; Noisy : sol79.56/Carrez50.52 ; Cannet :65 approximatif, Carrez inconnu, occupation toujours inconnue ; Saint-Père/Mâcon/Cannet : réserve source_detail_unverified. Saint-Étienne est past, jamais vendu ; contradiction API12h30/texte12h conservée et protection de rétention maintenue.
+
+Au tick 09:00, 500 tâches source_detail sont créées, mais le dispatch GitHub reçoit une erreur serveur et le run45c00ec0 reste queued. Le retour à la normale de pipeline.import.unhealthy est enregistré, sa notification échoue HTTP500 : elle n'est pas encore reçue. Capacité analysée :1285 URL propres aux sources du pilote,246 proches ;84.3 contrôles/h nécessaires aux délais6h/24h,94.4/h avec marges5h/23h, contre80/h maximum actuel. Une répartition explicite des voies et un plafond accru sous le budget20min sont en préparation ; ne pas déclarer le reliquat absorbé.
+
+Réception du cycle incident/rétablissement prouvée : pipeline.import.unhealthy ouvert via workflow34713613049 le12septembre19:15:12UTC (signal incident émis), puis rétabli via workflow34749191952 le13septembre09:15:14UTC (signal recovery et conclusion success). Après HTTP500 à09:00, la deuxième tentative de notification est livrée automatiquement à09:15, sans répétition inutile d'une notification déjà reçue. Le reliquat pipeline.enrichment.stalled demeure ouvert.
+
+Le dispatch de migration qui avait répondu HTTP500 a néanmoins créé le run34749075509 à09:11 : application et configuration ordonnanceur réussies, contrôle de dérive interrompu par un échec réseau de téléchargement npm dans la base shadow (brace-expansion), pas par une différence de schéma démontrée. La seconde tentative du workflow est réussie, y compris la vérification de dérive. Cette réponse incertaine confirme l'importance de réutiliser un run_id pour les reprises du dispatch.
+
+PR134 intégrée par avance rapide du SHA testé7f8ca3d1d4125d3367b217ec1568f35b92c64036 après tous les contrôles réussis, l'API de fusion restant en erreur serveur. Déploiement production dpl_8bRWsmaxDB22BzD8dts1TyVfj9V1 READY/PROMOTED sur ce SHA ; smoke 5/5 à 09:18:52.610 UTC. Les huit corrections métier sont aussi synchronisées dans properties/judicial_sales :8/8 lignes concordantes au contrôle.
+
+Correctif dispatch/capacité : trois reprises après la tentative initiale sur le même run_id, CAS du résultat et conservation de Retry-After ; partage de la file 5 contrôles source pour 1 enrichissement, 90 tâches maximum sur 20 minutes, client HTTP conservé entre claims. Revue indépendante sans défaut matériel ; 1 308 tests Python réussis avec PostgreSQL, 18 ignorés, 8 tests dispatch TypeScript réussis et typecheck réussi. Ce résultat de test ne démontre pas encore le débit réel ni la diminution du reliquat.

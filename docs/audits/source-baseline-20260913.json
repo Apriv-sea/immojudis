@@ -1,0 +1,878 @@
+{
+  "baseline": "source-baseline-20260913",
+  "observed_at_utc": "2026-09-13T09:19:40.062690+00:00",
+  "mode": "read_only",
+  "workspace": "/private/tmp/immojudis-reliability-20260912",
+  "production_project": "sgpakxtyvenlpeihuucm",
+  "scope": "Rapprochement du diagnostic initial, de la réconciliation durable, du runbook courant et des tables auction_source_state, auction_runs, auction_collection_items. Aucun inventaire HTTP supplémentaire et aucune mutation de production.",
+  "evidence_snapshots": {
+    "source_state_and_runs_utc": "2026-09-13T09:15:43.926890+00:00",
+    "scheduler_utc": "2026-09-13T09:18:10.899649+00:00",
+    "enrichment_queue_utc": "2026-09-13T09:19:40.062690+00:00",
+    "initial_diagnostic": "docs/audits/diagnostic-production-2026-09-12.md and diagnostic-production-2026-09-12.*.json in the original workspace",
+    "reconciliation": "docs/audits/source-reconciliation-20260912.json",
+    "runbook": "docs/runbooks/pipeline-autonomy-progress.md",
+    "licitor_overnight_log": {
+      "path": "/private/tmp/immojudis-licitor-overnight-success.log",
+      "run_id": "8207d4bf-9786-487f-a6f7-39acd7f3e956",
+      "initial_error_lines": "5326-5355",
+      "final_publication_lines": "6378-6392",
+      "finalizer_health_lines": "6485-6794",
+      "readback_utc": "2026-09-13T09:32:05.069413+00:00"
+    }
+  },
+  "semantics": {
+    "enabled": "Interrupteur de départ dans auction_source_state; ce n'est pas une preuve d'accessibilité ni de disponibilité.",
+    "availability": "État d'audit d'accès/inventaire; unchecked reste inconnu, unavailable/access_denied sont des constats explicites.",
+    "complete_collection": "Dans ce baseline, l'horodatage durable last_inventory_complete_at est la preuve principale; un coverage_complete dans un run global échoué est conservé comme preuve de pagination seulement, pas comme publication complète.",
+    "collection_items": "L'absence de lignes pour un run ne vaut pas zéro rejet, zéro pending ou zéro publication.",
+    "public_certificate": "La certification porte sur le catalogue public adressable au moment du scan; database_completeness_certified=false ne permet pas de déduire la complétude de la base, des lots ou des champs."
+  },
+  "initial_diagnostic_reference": {
+    "utc": "2026-09-12T10:56:12.040059+00:00",
+    "all_ten_last_complete_collection_and_publication": "non établi",
+    "initial_unexplained_urls": 717,
+    "sources": [
+      {
+        "source": "agrasc",
+        "availability": "partiel (cartes sans lien)",
+        "pages_proved": 9,
+        "inventory_urls": 8,
+        "present_direct": 6,
+        "present_merged": 0,
+        "rejections_logged": 1,
+        "unexplained": 1,
+        "urls_with_pending_enrichment": 6
+      },
+      {
+        "source": "avoventes",
+        "availability": "inventaire public certifié",
+        "pages_proved": 1,
+        "inventory_urls": 271,
+        "present_direct": 205,
+        "present_merged": 12,
+        "rejections_logged": 0,
+        "unexplained": 54,
+        "urls_with_pending_enrichment": 204
+      },
+      {
+        "source": "cessions_etat",
+        "availability": "inventaire public certifié",
+        "pages_proved": 23,
+        "inventory_urls": 239,
+        "present_direct": 219,
+        "present_merged": 0,
+        "rejections_logged": 6,
+        "unexplained": 14,
+        "urls_with_pending_enrichment": 1
+      },
+      {
+        "source": "encheres_immobilieres",
+        "availability": "timeout",
+        "pages_proved": null,
+        "inventory_urls": 0,
+        "present_direct": 0,
+        "present_merged": 0,
+        "rejections_logged": 0,
+        "unexplained": 0,
+        "urls_with_pending_enrichment": 0
+      },
+      {
+        "source": "encheres_publiques",
+        "availability": "403",
+        "pages_proved": null,
+        "inventory_urls": 0,
+        "present_direct": 0,
+        "present_merged": 0,
+        "rejections_logged": 0,
+        "unexplained": 0,
+        "urls_with_pending_enrichment": 0
+      },
+      {
+        "source": "info_encheres",
+        "availability": "inventaire public certifié",
+        "pages_proved": 5,
+        "inventory_urls": 85,
+        "present_direct": 59,
+        "present_merged": 12,
+        "rejections_logged": 0,
+        "unexplained": 14,
+        "urls_with_pending_enrichment": 59
+      },
+      {
+        "source": "licitor",
+        "availability": "inventaire public certifié",
+        "pages_proved": 134,
+        "inventory_urls": 643,
+        "present_direct": 549,
+        "present_merged": 94,
+        "rejections_logged": 0,
+        "unexplained": 0,
+        "urls_with_pending_enrichment": 549
+      },
+      {
+        "source": "notaires",
+        "availability": "inventaire public certifié",
+        "pages_proved": 35,
+        "inventory_urls": 827,
+        "present_direct": 193,
+        "present_merged": 0,
+        "rejections_logged": 0,
+        "unexplained": 634,
+        "urls_with_pending_enrichment": 193
+      },
+      {
+        "source": "petites_affiches",
+        "availability": "inventaire public certifié",
+        "pages_proved": 66,
+        "inventory_urls": 653,
+        "present_direct": 596,
+        "present_merged": 57,
+        "rejections_logged": 0,
+        "unexplained": 0,
+        "urls_with_pending_enrichment": 596
+      },
+      {
+        "source": "vench",
+        "availability": "inventaire public certifié",
+        "pages_proved": 56,
+        "inventory_urls": 669,
+        "present_direct": 654,
+        "present_merged": 15,
+        "rejections_logged": 0,
+        "unexplained": 0,
+        "urls_with_pending_enrichment": 654
+      }
+    ]
+  },
+  "reconciliation_reference": {
+    "checked_at": "2026-09-12T19:17:41.064490+00:00",
+    "rows": 717,
+    "counts": {
+      "excluded_after_explicit_closing": 635,
+      "excluded_source_explicitly_expired": 14,
+      "excluded_past_auction": 67,
+      "incorrect_expiration_repaired": 1
+    },
+    "source_counts": {
+      "agrasc": {
+        "excluded_after_explicit_closing": 1
+      },
+      "avoventes": {
+        "excluded_past_auction": 53,
+        "incorrect_expiration_repaired": 1
+      },
+      "cessions_etat": {
+        "excluded_source_explicitly_expired": 14
+      },
+      "info_encheres": {
+        "excluded_past_auction": 14
+      },
+      "notaires": {
+        "excluded_after_explicit_closing": 634
+      }
+    },
+    "limitation": "Ce registre donne des décisions URL par URL, mais ne constitue pas une nouvelle collecte et ne remplace pas un journal auction_collection_items pour les huit sources sans run pilote actuel."
+  },
+  "production": {
+    "control": {
+      "enabled": true,
+      "source_details_enabled": true,
+      "observation_started_at": null,
+      "last_dispatch_at": "2026-09-13T09:00:02.330432+00:00",
+      "next_enrichment_at": "2026-09-13T09:30:02.330432+00:00",
+      "max_ai_predictions_per_run": 40,
+      "daily_ai_budget_usd": 6,
+      "updated_at": "2026-09-13T09:00:02.330432+00:00"
+    },
+    "scheduler": {
+      "job": "immojudis-operational-health",
+      "schedule": "*/15 * * * *",
+      "active": true,
+      "command": "select app_private.invoke_operational_health_endpoint();",
+      "last_24h_runs": {
+        "succeeded": 96
+      },
+      "latest_run": {
+        "status": "succeeded",
+        "start_time": "2026-09-13T09:15:00.100577+00:00",
+        "end_time": "2026-09-13T09:15:00.113448+00:00",
+        "return_message": "1 row"
+      },
+      "interpretation": "Le scheduler global est actif et appelle le contrôle de santé; cela ne prouve pas que les dix sources sont activées ni qu'une publication complète est certifiée pour chacune."
+    },
+    "latest_global_run": {
+      "id": "9a06c3c0-bd7f-4603-8b22-dcc727c899a5",
+      "source": "all",
+      "status": "failed",
+      "scheduler_owned": false,
+      "created_at": "2026-09-12T07:54:01.721819+00:00",
+      "started_at": "2026-09-12T07:54:01.124688+00:00",
+      "finished_at": "2026-09-12T10:53:00.772645+00:00",
+      "stage_status": {
+        "collection": "failed",
+        "enrichment": "partial",
+        "publication": "partial_or_failed"
+      },
+      "collected": 3637,
+      "collected_by_source": {
+        "agrasc": 8,
+        "avoventes": 271,
+        "cessions_etat": 239,
+        "encheres_immobilieres": 242,
+        "encheres_publiques": 0,
+        "info_encheres": 85,
+        "licitor": 643,
+        "notaires": 827,
+        "petites_affiches": 653,
+        "vench": 669
+      },
+      "errors": {
+        "supabase": [
+          "Collection incomplete; catalogue cleanup is disabled."
+        ],
+        "documents": [
+          "https://avoventes.fr/enchere/un-emplacement-de-parking-a-boulogne-billancourt: 1 document errors"
+        ],
+        "encheres_publiques": [
+          "HTTP 403 Forbidden"
+        ]
+      },
+      "auction_collection_items_rows": 0,
+      "interpretation": "Les nombres collectés et les preuves de pagination ci-dessous ne valent pas publication: le run global est failed et aucun journal auction_collection_items n'est attaché à ce run."
+    },
+    "enrichment_queue": {
+      "observed_at": "2026-09-13T09:19:40.062690+00:00",
+      "all_jobs_by_status": {
+        "queued": 3797,
+        "failed": 2,
+        "cancelled": 3469,
+        "completed": 952
+      },
+      "all_jobs_by_type": {
+        "display_description": 5131,
+        "pdf": 1604,
+        "fact_extraction": 837,
+        "source_detail": 648
+      },
+      "source_detail_by_status": {
+        "queued": 648
+      },
+      "interpretation": "Il reste 648 contrôles source_detail en attente alors que le drapeau est actif; aucun de ces compteurs n'est une annonce publiée."
+    },
+    "runbook_current_facts": {
+      "pr134": {
+        "sha": "7f8ca3d1d4125d3367b217ec1568f35b92c64036",
+        "production": "READY",
+        "verified_at": "2026-09-13T09:18:00+00:00",
+        "smoke_routes": "5/5"
+      },
+      "pr133_migration": {
+        "version": "20260913081411",
+        "production_registry": "registre de production aligné/renommé sur la version du dépôt; aucune version distante séparée présentée comme actuelle",
+        "source_details_enabled_at": "2026-09-13T08:59:55.483391+00:00"
+      },
+      "source_detail_dispatch": {
+        "created_at": "2026-09-13T09:00:00+00:00",
+        "created_jobs": 500,
+        "run": "45c00ec0",
+        "status": "queued",
+        "dispatch_error": "HTTP 500"
+      },
+      "alerts": {
+        "pipeline_import_unhealthy_open_workflow": "34713613049",
+        "pipeline_import_unhealthy_recovery_workflow": "34749191952",
+        "recovery_success_at": "2026-09-13T09:15:14+00:00",
+        "pipeline_enrichment_stalled": "open"
+      },
+      "seven_day_observation": "cancelled_by_user; other criteria remain active"
+    },
+    "sources": [
+      {
+        "source": "agrasc",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": {
+          "id": "2db398c7-8501-46ac-aab4-04254a838dc3",
+          "status": "succeeded",
+          "scheduler_owned": false,
+          "started_at": "2026-09-11T10:56:44.251654+00:00",
+          "finished_at": "2026-09-11T10:57:33.072379+00:00",
+          "collected": 3,
+          "upserted": 3,
+          "stage_status": {
+            "collection": "unverified",
+            "enrichment": "complete",
+            "publication": "complete"
+          },
+          "collection_items": null
+        },
+        "latest_global_run_source_evidence": {
+          "collected": 8,
+          "pagination": {
+            "stop_reason": "published_links_exhausted",
+            "pages_fetched": 9,
+            "coverage_complete": null,
+            "listings_emitted": 8,
+            "requests_attempted": 9,
+            "requests_succeeded": 9,
+            "unique_urls_visited": 9,
+            "operator_details": {
+              "complete": 7,
+              "partial": 0,
+              "failed": 0,
+              "unsupported": 1
+            }
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "avoventes",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": null,
+        "latest_global_run_source_evidence": {
+          "collected": 271,
+          "pagination": {
+            "stop_reason": "source_finished",
+            "pages_fetched": null,
+            "coverage_complete": null,
+            "listings_emitted": 271,
+            "requests_attempted": null,
+            "requests_succeeded": null,
+            "inventory_before_department_filter": 271,
+            "unresolved_location_count": 0
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "cessions_etat",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": null,
+        "latest_global_run_source_evidence": {
+          "collected": 239,
+          "pagination": {
+            "stop_reason": "repeated_page",
+            "pages_fetched": 23,
+            "coverage_complete": false,
+            "listings_emitted": 239,
+            "requests_attempted": 262,
+            "requests_succeeded": 262,
+            "unique_urls_visited": 262,
+            "unique_listings_seen": 239,
+            "advertised_total": null
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "encheres_immobilieres",
+        "source_state": {
+          "enabled": false,
+          "availability": "unavailable",
+          "last_attempt_at": "2026-09-12T18:07:14.431782+00:00",
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": "quality_sample audit 34703766845: timeout, budget 20 minutes",
+          "suspension_reason": "Qualification: huit fiches en timeout, une interrompue, une non tentée ; inventaire non certifié."
+        },
+        "latest_auction_run_for_source": null,
+        "latest_global_run_source_evidence": {
+          "collected": 242,
+          "pagination": {
+            "stop_reason": "empty_page_unverified",
+            "pages_fetched": 18,
+            "coverage_complete": false,
+            "listings_emitted": 242,
+            "requests_attempted": 260,
+            "requests_succeeded": 260,
+            "unique_urls_visited": 260,
+            "unique_listings_seen": 242
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; l'inventaire est explicitement non vérifié et aucune ligne collection_items n'est attachée au dernier run global"
+      },
+      {
+        "source": "encheres_publiques",
+        "source_state": {
+          "enabled": false,
+          "availability": "access_denied",
+          "last_attempt_at": "2026-09-12T18:07:14.431782+00:00",
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": "quality_sample audit 34700628712: HTTP 403",
+          "suspension_reason": "Qualification: refus HTTP 403 persistant depuis la production, sans contournement."
+        },
+        "latest_auction_run_for_source": {
+          "id": "40aa3530-e8fd-4ce5-8699-66383bfb5c26",
+          "status": "succeeded",
+          "scheduler_owned": false,
+          "started_at": "2026-07-10T13:22:51.860125+00:00",
+          "finished_at": "2026-07-10T13:27:12.509823+00:00",
+          "collected": 15,
+          "upserted": 15,
+          "collection_items": null
+        },
+        "latest_global_run_source_evidence": {
+          "collected": 0,
+          "pagination": {
+            "stop_reason": "source_errors",
+            "pages_fetched": null,
+            "coverage_complete": false,
+            "listings_emitted": 0,
+            "requests_attempted": 1,
+            "requests_succeeded": 0,
+            "requests_failed": 1
+          },
+          "errors": [
+            "HTTP 403 Forbidden"
+          ]
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; accès refusé et aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "info_encheres",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": {
+          "id": "4d21f401-a66b-4fda-a753-4f9d3758fc8d",
+          "status": "succeeded",
+          "scheduler_owned": false,
+          "started_at": "2026-07-12T19:14:51.240815+00:00",
+          "finished_at": "2026-07-12T19:19:10.688805+00:00",
+          "collected": 16,
+          "upserted": 16,
+          "collection_items": null
+        },
+        "latest_global_run_source_evidence": {
+          "collected": 85,
+          "pagination": {
+            "stop_reason": "published_links_exhausted",
+            "pages_fetched": 5,
+            "coverage_complete": null,
+            "listings_emitted": 85,
+            "requests_attempted": 90,
+            "requests_succeeded": 90,
+            "linked_pages_complete": true
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "licitor",
+        "source_state": {
+          "enabled": true,
+          "availability": "available",
+          "last_attempt_at": "2026-09-13T04:00:05.903877+00:00",
+          "last_inventory_complete_at": "2026-09-13T04:29:43.383143+00:00",
+          "last_publication_complete_at": "2026-09-13T04:29:43.383143+00:00",
+          "last_run_id": "8207d4bf-9786-487f-a6f7-39acd7f3e956",
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": {
+          "id": "8207d4bf-9786-487f-a6f7-39acd7f3e956",
+          "status": "succeeded",
+          "scheduler_owned": true,
+          "started_at": "2026-09-13T04:00:58.783452+00:00",
+          "finished_at": "2026-09-13T04:29:40.134366+00:00",
+          "collected": 643,
+          "upserted": 615,
+          "stage_status": {
+            "collection": "complete",
+            "enrichment": "complete",
+            "publication": "complete"
+          },
+          "summary_errors": {
+            "supabase": [
+              "500 auction_observations: ON CONFLICT DO UPDATE command cannot affect row a second time"
+            ]
+          },
+          "summary_errors_interpretation": "Erreur du batch observations à 04:23-04:24 UTC récupérée dans le même run: les 16 URL de décision affectées sont ensuite publiées, avec une observation présente chacune; la vulnérabilité de payload dupliqué reste à corriger dans le code."
+        },
+        "pagination": {
+          "partitions": 6,
+          "pages_fetched": 134,
+          "advertised_total": 661,
+          "source_rows_seen": 661,
+          "parsed_records": 659,
+          "parsed_unique_urls": 643,
+          "public_unique_urls": 643,
+          "identical_repeated_rows": 2,
+          "coverage_complete": true,
+          "public_discovery_certified": true,
+          "addressable_public_inventory_certified": true,
+          "all_discovered_announcements_emitted": true,
+          "database_completeness_certified": false,
+          "scope": "catalogue public adressable; pas complétude base, champs ou lots"
+        },
+        "last_complete_collection_proof": "2026-09-13T04:29:43.383143+00:00",
+        "latest_collection_items": {
+          "run_id": "8207d4bf-9786-487f-a6f7-39acd7f3e956",
+          "item_count": 643,
+          "published_count": 628,
+          "pending_count": 0,
+          "decisions": {
+            "published": 628,
+            "quarantined": 15
+          },
+          "reasons": {
+            "<null>": 535,
+            "merged_alias": 93,
+            "ambiguous_persisted_identity": 15
+          }
+        },
+        "publication_rejection_pending": "628 published; 15 quarantined; 0 pending. Motifs de journal: 15 ambiguous_persisted_identity; 93 merged_alias (les alias ne sont pas des annonces supplémentaires).",
+        "overnight_log_recovery": {
+          "initial_observation_upsert": {
+            "offset": 625,
+            "postgrest_batch_rows": 10,
+            "rest_attempts": 5,
+            "error_code": "21000",
+            "error_message": "ON CONFLICT DO UPDATE command cannot affect row a second time",
+            "hint": "Ensure that no rows proposed for insertion within the same command have duplicate constrained values.",
+            "direct_postgres_transport_error": "SSL error: bad length; SSL SYSCALL error: EOF detected",
+            "collection_decision_records": 18,
+            "collection_decision_unique_urls": 16,
+            "collection_decision_duplicate_urls": {
+              "https://www.licitor.com/annonce/10/98/63/vente-aux-encheres/une-maison/orange/vaucluse/109863.html": 2,
+              "https://www.licitor.com/annonce/10/99/99/vente-aux-encheres/une-maison-a-usage-d-habitation/ganges/herault/109999.html": 2
+            },
+            "first_ten_admitted_rows": [
+              "https://www.licitor.com/annonce/10/98/63/vente-aux-encheres/une-maison/orange/vaucluse/109863.html",
+              "https://www.licitor.com/annonce/10/98/63/vente-aux-encheres/un-hangar/orange/vaucluse/109863.html",
+              "https://www.licitor.com/annonce/10/93/87/vente-aux-encheres/un-appartement/marignane/bouches-du-rhone/109387.html",
+              "https://www.licitor.com/annonce/10/95/44/vente-aux-encheres/un-village-de-vacances/port-saint-louis-du-rhone/bouches-du-rhone/109544.html",
+              "https://www.licitor.com/annonce/10/93/73/vente-aux-encheres/un-appartement/marseille-3eme/bouches-du-rhone/109373.html",
+              "https://www.licitor.com/annonce/10/95/41/vente-aux-encheres/un-appartement/marseille-14eme/bouches-du-rhone/109541.html",
+              "https://www.licitor.com/annonce/10/96/65/vente-aux-encheres/un-appartement/marseille-13eme/bouches-du-rhone/109665.html",
+              "https://www.licitor.com/annonce/10/98/14/vente-aux-encheres/un-appartement/aix-en-provence/bouches-du-rhone/109814.html",
+              "https://www.licitor.com/annonce/10/99/72/vente-aux-encheres/une-maison-a-usage-d-habitation/eyragues/bouches-du-rhone/109972.html",
+              "https://www.licitor.com/annonce/10/95/69/vente-aux-encheres/un-terrain-non-constructible/bandol/var/109569.html"
+            ],
+            "first_ten_admitted_distinct_urls": 10,
+            "interpretation": "Le nombre 10 est le batch de lignes observations REST; les décisions de vente journalisées couvrent 18 lignes et 16 URL uniques, donc les deux décomptes ne sont pas interchangeables.",
+            "admission_lines": "5281-5298"
+          },
+          "affected_decision_urls": [
+            "https://www.licitor.com/annonce/10/98/63/vente-aux-encheres/une-maison/orange/vaucluse/109863.html",
+            "https://www.licitor.com/annonce/10/93/87/vente-aux-encheres/un-appartement/marignane/bouches-du-rhone/109387.html",
+            "https://www.licitor.com/annonce/10/95/44/vente-aux-encheres/un-village-de-vacances/port-saint-louis-du-rhone/bouches-du-rhone/109544.html",
+            "https://www.licitor.com/annonce/10/93/73/vente-aux-encheres/un-appartement/marseille-3eme/bouches-du-rhone/109373.html",
+            "https://www.licitor.com/annonce/10/95/41/vente-aux-encheres/un-appartement/marseille-14eme/bouches-du-rhone/109541.html",
+            "https://www.licitor.com/annonce/10/96/65/vente-aux-encheres/un-appartement/marseille-13eme/bouches-du-rhone/109665.html",
+            "https://www.licitor.com/annonce/10/98/14/vente-aux-encheres/un-appartement/aix-en-provence/bouches-du-rhone/109814.html",
+            "https://www.licitor.com/annonce/10/99/72/vente-aux-encheres/une-maison-a-usage-d-habitation/eyragues/bouches-du-rhone/109972.html",
+            "https://www.licitor.com/annonce/10/95/69/vente-aux-encheres/un-terrain-non-constructible/bandol/var/109569.html",
+            "https://www.licitor.com/annonce/10/96/71/vente-aux-encheres/une-maison-individuelle/saint-paul-en-foret/var/109671.html",
+            "https://www.licitor.com/annonce/10/97/65/vente-aux-encheres/une-cave/cannes/alpes-maritimes/109765.html",
+            "https://www.licitor.com/annonce/10/98/78/vente-aux-encheres/une-propriete/menton/alpes-maritimes/109878.html",
+            "https://www.licitor.com/annonce/10/95/09/vente-aux-encheres/locaux-commerciaux/perols/herault/109509.html",
+            "https://www.licitor.com/annonce/10/99/99/vente-aux-encheres/une-maison-a-usage-d-habitation/ganges/herault/109999.html",
+            "https://www.licitor.com/annonce/10/95/50/vente-aux-encheres/diverses-parcelles/escales/aude/109550.html",
+            "https://www.licitor.com/annonce/10/99/43/vente-aux-encheres/un-appartement/leucate/aude/109943.html"
+          ],
+          "final_readback": {
+            "read_at_utc": "2026-09-13T09:32:05.069413+00:00",
+            "affected_urls_queried": 16,
+            "collection_items_published": 16,
+            "collection_items_quarantined": 0,
+            "collection_items_pending": 0,
+            "auction_observation_rows_present": 16,
+            "auction_sales_rows_last_run": 16,
+            "judicial_sales_rows_last_run": 16,
+            "all_affected_urls_have_final_state": "published + one auction_observations row",
+            "recovery_status": "recovered_in_same_run; no current reproduction evidence in the final retry"
+          },
+          "final_ledger": {
+            "collection_items_rows": 643,
+            "decisions_complete": true,
+            "published": 628,
+            "quarantined": 15,
+            "pending": 0,
+            "quarantine_reason": "ambiguous_persisted_identity",
+            "run_summary_upserted": 615,
+            "run_summary_observations_upserted": 745,
+            "run_summary_final_upserted": 615,
+            "run_summary_final_supabase_sales_changed": 643,
+            "interpretation": "643/643 décisions du ledger sont présentes; 615 est le compteur de lignes canoniques upsertées, et 15 identités sont explicitement quarantainées."
+          },
+          "root_cause_diagnosis": {
+            "cause": "payload observations contenant une même source_url plus d’une fois dans un INSERT/UPSERT portant on_conflict=source_url",
+            "code_path": [
+              "services/data-pipeline/src/main.py:400 (upsert_observations_to_supabase(admitted))",
+              "services/data-pipeline/src/storage/supabase_client.py:918-962 (construction du payload, sans déduplication par source_url)",
+              "services/data-pipeline/src/storage/supabase_client.py:_postgrest_upsert(..., on_conflict=\"source_url\")"
+            ],
+            "input_duplicate_signal": "Les admissions 5281-5298 contiennent deux lignes pour 109863 et deux lignes pour 109999; la première tranche de dix admissions contient déjà deux lignes 109863.",
+            "minimal_fix_proposal": "Dédupliquer ou fusionner déterministement le payload par source_url avant les chemins PostgreSQL et REST, en conservant la dernière observation et les champs raw_payload utiles; ajouter un test de payload avec clé répétée. Aucune mutation de storage effectuée ici.",
+            "current_reproduction": "non démontrée après la reprise finale; risque de réapparition tant que la garde de payload n’est pas déployée"
+          }
+        }
+      },
+      {
+        "source": "notaires",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": {
+          "id": "af4e052c-cc73-4501-aacb-21ccf6fb4363",
+          "status": "succeeded",
+          "scheduler_owned": false,
+          "started_at": "2026-07-10T08:24:46.730126+00:00",
+          "finished_at": "2026-07-10T08:30:48.390332+00:00",
+          "collected": 50,
+          "upserted": 50,
+          "collection_items": null
+        },
+        "latest_global_run_source_evidence": {
+          "collected": 827,
+          "pagination": {
+            "stop_reason": "source_finished",
+            "pages_fetched": 36,
+            "advertised_total": 827,
+            "coverage_complete": true,
+            "listings_emitted": 827,
+            "requests_attempted": 863,
+            "requests_succeeded": 863,
+            "total_changed_during_scan": false
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; coverage source true dans un run global failed, mais aucun timestamp source_state ni journal collection_items pour cette exécution"
+      },
+      {
+        "source": "petites_affiches",
+        "source_state": {
+          "enabled": false,
+          "availability": "unchecked",
+          "last_attempt_at": null,
+          "last_inventory_complete_at": null,
+          "last_publication_complete_at": null,
+          "last_run_id": null,
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": null,
+        "latest_global_run_source_evidence": {
+          "collected": 653,
+          "pagination": {
+            "stop_reason": "published_links_exhausted",
+            "pages_fetched": 70,
+            "coverage_complete": null,
+            "listings_emitted": 653,
+            "requests_attempted": 723,
+            "requests_succeeded": 723,
+            "linked_pages_complete": true
+          },
+          "errors": []
+        },
+        "last_complete_collection_proof": null,
+        "latest_collection_items": null,
+        "publication_rejection_pending": "non établi; aucune ligne collection_items pour ce source dans le dernier run global"
+      },
+      {
+        "source": "vench",
+        "source_state": {
+          "enabled": true,
+          "availability": "available",
+          "last_attempt_at": "2026-09-13T08:30:07.010317+00:00",
+          "last_inventory_complete_at": "2026-09-13T08:47:17.521060+00:00",
+          "last_publication_complete_at": "2026-09-13T08:47:17.521060+00:00",
+          "last_run_id": "54fb0078-0a68-499b-b841-8ca9b54e3651",
+          "last_error": null,
+          "suspension_reason": null
+        },
+        "latest_auction_run_for_source": {
+          "id": "54fb0078-0a68-499b-b841-8ca9b54e3651",
+          "status": "succeeded",
+          "scheduler_owned": true,
+          "started_at": "2026-09-13T08:30:51.409707+00:00",
+          "finished_at": "2026-09-13T08:47:15.164127+00:00",
+          "collected": 669,
+          "upserted": 660,
+          "stage_status": {
+            "collection": "complete",
+            "enrichment": "complete",
+            "publication": "complete"
+          }
+        },
+        "pagination": {
+          "partitions": 1,
+          "pages_fetched": 56,
+          "catalogue_total": 669,
+          "source_rows_seen": 669,
+          "public_unique_urls": 669,
+          "coverage_complete": true,
+          "public_discovery_certified": true,
+          "addressable_public_inventory_certified": true,
+          "all_discovered_announcements_emitted": true,
+          "database_completeness_certified": false,
+          "coverage_basis": "liens de pagination publiés; aucun total indépendant"
+        },
+        "last_complete_collection_proof": "2026-09-13T08:47:17.521060+00:00",
+        "latest_collection_items": {
+          "run_id": "54fb0078-0a68-499b-b841-8ca9b54e3651",
+          "item_count": 669,
+          "published_count": 669,
+          "pending_count": 0,
+          "decisions": {
+            "published": 669
+          },
+          "reasons": {
+            "<null>": 654,
+            "merged_alias": 15
+          }
+        },
+        "publication_rejection_pending": "669 published; 0 pending et 0 quarantined dans ce journal. 15 merged_alias sont des alias fusionnés."
+      }
+    ]
+  },
+  "criteria_status": {
+    "seven_day_observation": {
+      "required": false,
+      "status": "cancelled_by_user_on_2026-09-13"
+    },
+    "diagnostic_and_reconciliation": {
+      "status": "partially_evidenced",
+      "reason": "réconciliation URL disponible, mais aucun run actuel avec journal de publication pour huit sources"
+    },
+    "pilot_sources": {
+      "status": "Licitor/Vench only; both latest source_state runs complete",
+      "freshness_95_percent": "not established by this baseline"
+    },
+    "autonomy": {
+      "status": "scheduler global active; only two sources enabled; observation_started_at null (seven-day criterion cancelled, not a defect)"
+    },
+    "recovery_without_duplicate": {
+      "status": "Licitor batch recovered; latent duplicate-input guard remains",
+      "evidence": "16 URL uniques affectées ont une décision finale published et une observation; le ledger du run est complet à 643/643 avec 15 quarantaines d’identité séparées.",
+      "limitation": "La robustesse dix sources et une reproduction négative après correctif restent non démontrées."
+    },
+    "capacity": {
+      "status": "not demonstrated",
+      "evidence": "648 source_detail queued; 3797 queued jobs overall"
+    },
+    "alerts": {
+      "status": "incident/recovery received per current runbook; pipeline.enrichment.stalled remains open"
+    }
+  },
+  "remaining_severe_defects": [
+    {
+      "id": "SB-P1-01",
+      "severity": "P1",
+      "title": "Autonomie et publication dix sources non démontrées",
+      "evidence": "Le scheduler pg_cron est actif, mais auction_source_state.enabled=true seulement pour Licitor et Vench. Le dernier run all (9a06c3c0...) est failed et a zéro auction_collection_items; les huit autres sources n'ont aucun last_inventory_complete_at/last_publication_complete_at durable.",
+      "impact": "Impossible de certifier une collecte complète publiée et réconciliée pour les dix sources.",
+      "next_evidence": "Obtenir pour chaque source un run complet avec preuve de pagination, journal collection_items et timestamps source_state; respecter les suspensions d'accès."
+    },
+    {
+      "id": "SB-P1-02",
+      "severity": "P1",
+      "title": "Capacité du contrôle récurrent encore insuffisante",
+      "evidence": "648 jobs source_detail sont queued; 3797 jobs sont queued au total. Le runbook estime 84,3 contrôles/h requis (94,4/h avec marges) contre 80/h maximum actuel; le reliquat pipeline.enrichment.stalled reste ouvert.",
+      "impact": "La fraîcheur pilote >=95 % et la diminution du reliquat ne sont pas prouvées.",
+      "next_evidence": "Mesurer un débit automatique stable, traiter le reliquat sans doublon et vérifier la reprise des échecs."
+    },
+    {
+      "id": "SB-P1-04",
+      "severity": "P1",
+      "title": "Accès et couverture non certifiables pour trois sources",
+      "evidence": "Enchères Publiques reste access_denied/HTTP 403; Enchères Immobilières reste unavailable avec timeout et empty_page_unverified; Cessions État s'arrête sur repeated_page avec coverage_complete=false.",
+      "impact": "Aucune absence ou publication ne peut être déduite pour ces sources.",
+      "next_evidence": "Qualification d'accès autorisée et bornée, ou maintien explicite en suspension avec dernier catalogue conservé."
+    },
+    {
+      "id": "SB-P2-01",
+      "severity": "P2",
+      "title": "Certificat public distinct de la complétude base/lot",
+      "evidence": "Licitor et Vench ont public_discovery_certified=true et addressable_public_inventory_certified=true, mais database_completeness_certified=false; les journaux comptent respectivement 93 et 15 merged_alias.",
+      "impact": "Les URL, annonces et lots ne doivent pas être assimilés sans réconciliation d'identité.",
+      "next_evidence": "Conserver le décompte URL/alias et valider les identités de lots avant d'agréger des annonces."
+    },
+    {
+      "id": "SB-P2-02",
+      "severity": "P2",
+      "title": "Garde d’unicité absente dans upsert_observations",
+      "evidence": "Le batch Licitor à offset 625 a reçu cinq réponses REST 500 après une perte SSL du chemin PostgreSQL; Postgres/PostgREST a renvoyé le code 21000 sur on_conflict=source_url. Le code construit le payload depuis sale.observations sans déduplication finale par source_url.",
+      "impact": "Le défaut a provoqué un échec intermédiaire mais la reprise finale a publié les 16 URL affectées et laissé une observation pour chacune; il reste un risque latent de nouvel échec de batch.",
+      "next_evidence": "Appliquer la déduplication/fusion déterministe du payload et vérifier par test ciblé puis lecture du ledger; ne pas considérer l’erreur initiale comme une perte de publication actuelle."
+    }
+  ],
+  "write_audit": {
+    "allowed_outputs": [
+      "docs/audits/source-baseline-20260913.md",
+      "docs/audits/source-baseline-20260913.json"
+    ],
+    "production_mutations": 0,
+    "new_source_collections": 0,
+    "code_or_migration_mutations": 0,
+    "notes": [
+      "Lecture Supabase uniquement; aucune mutation de production, aucune nouvelle collecte et aucun changement storage/code.",
+      "Le journal Licitor est une preuve d’incident et de reprise; il ne remplace pas une preuve de collecte complète pour les huit sources désactivées."
+    ]
+  }
+}
