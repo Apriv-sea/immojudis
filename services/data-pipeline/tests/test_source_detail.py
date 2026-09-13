@@ -145,6 +145,32 @@ def test_failed_detail_does_not_advance_freshness():
     assert 'source_checks' not in existing.raw_payload
 
 
+def test_unchanged_source_preserves_later_documentary_qualification(monkeypatch):
+    from copy import deepcopy
+    from decimal import Decimal
+
+    from src import main
+    from src.freshness import record_source_checks
+    from src.normalize import normalize_sale
+
+    monkeypatch.setattr(main, '_finalize_sale_for_app', lambda sale, **kwargs: None)
+    raw = {'source_name':'licitor','source_url':'https://www.licitor.com/annonce/1',
+           'raw_text':'Appartement 50 m²','starting_price_eur':10000,'habitable_surface_m2':50}
+    first = deepcopy(raw)
+    record_source_checks([first], {})
+    existing = normalize_sale(first)
+    existing.habitable_surface_m2 = None
+    existing.carrez_surface_m2 = Decimal('48')
+    existing.quality_flags = ['surface_type_unverified']
+    existing.raw_payload['qualification_surface'] = {'document':'PV','page':3,'carrez':48}
+    revised = source_detail.prepare_source_revision(existing, deepcopy(raw))
+    assert revised.habitable_surface_m2 is None
+    assert revised.carrez_surface_m2 == 48
+    assert revised.quality_flags == ['surface_type_unverified']
+    assert revised.raw_payload['qualification_surface']['page'] == 3
+    assert revised.raw_payload['source_checks'][existing.source_url]['checked_at'] >= first['source_checks'][existing.source_url]['checked_at']
+
+
 def test_reused_url_for_different_lot_holds_existing_identity(monkeypatch):
     from src import main
     from src.normalize import normalize_sale

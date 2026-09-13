@@ -59,7 +59,7 @@ def fetch_public_detail(source: str, source_url: str, settings: dict, clients: d
 
 def prepare_source_revision(existing, raw: dict):
     """Reconcile a verified detail without losing identity or advancing a DB lease."""
-    from src.freshness import record_source_checks
+    from src.freshness import SOURCE_EXTRACTION_VERSION, record_source_checks
     from src.main import _finalize_sale_for_app, _preserve_known_enrichment_payloads
     from src.normalize import normalize_sale
     from src.publication_identity import conflicting_identity, merge_revision
@@ -73,6 +73,9 @@ def prepare_source_revision(existing, raw: dict):
     incoming = normalize_sale(raw)
     incoming.last_run_id = existing.last_run_id
     _finalize_sale_for_app(incoming, geocode=False)
+    old_check = (existing.raw_payload.get('source_checks') or {}).get(fetched_url) or {}
+    new_check = (raw.get('source_checks') or {}).get(fetched_url) or {}
+    unchanged = bool(old_check.get('fingerprint')) and old_check.get('fingerprint') == new_check.get('fingerprint') and old_check.get('extractor_version') == SOURCE_EXTRACTION_VERSION
     if conflicting_identity(existing, incoming):
         result = existing.model_copy(deep=True)
         result.status = 'quarantined'
@@ -81,6 +84,11 @@ def prepare_source_revision(existing, raw: dict):
             'source_url': fetched_url, 'reason': 'verified_detail_identity_conflict',
             'incoming_address': incoming.address, 'incoming_lot': incoming.raw_payload.get('lot_number'),
         }
+    elif unchanged:
+        # Re-fetching the same source must not erase a later documentary or
+        # manual qualification merely by normalizing the original card again.
+        result = existing.model_copy(deep=True)
+        result.raw_payload['source_checks'] = raw['source_checks']
     else:
         result = merge_revision(existing, incoming)
     # This version is compared under the existing publication row lock.
@@ -88,6 +96,10 @@ def prepare_source_revision(existing, raw: dict):
     for key, value in existing.raw_payload.items():
         if key.startswith('qualification_'):
             result.raw_payload.setdefault(key, value)
+    if any(key.startswith('qualification_') for key in existing.raw_payload):
+        result.quality_flags = sorted(set(result.quality_flags) | set(existing.quality_flags))
+        if 'occupation_conflict' in result.quality_flags and result.occupancy_status == 'vacant':
+            result.occupancy_status = 'unknown'
     return result
 
 
