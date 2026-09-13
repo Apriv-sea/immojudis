@@ -189,3 +189,32 @@ def test_register_run_exports_only_valid_uuid(tmp_path, monkeypatch):
     assert target.read_text() == "PIPELINE_CURRENT_RUN_ID=11111111-1111-4111-8111-111111111111\n"
     with pytest.raises(ValueError):
         register_run("bad\nINJECTED=value")
+
+
+@pytest.mark.parametrize('mode,fail_at', [('display_description', 1), ('structured_then_display', 1), ('structured_then_display', 2)])
+def test_budget_exhaustion_reaches_queue_without_becoming_extraction_failure(tmp_path, monkeypatch, mode, fail_at):
+    from src.pipeline_usage import PipelineBudgetExhausted
+
+    monkeypatch.setenv('LLM_ENABLED', 'true')
+    monkeypatch.setattr(extraction, 'load_llm_fact_context_chunks_for_sale', lambda *a, **kw: ['chunk-A'])
+    monkeypatch.setattr(extraction, 'load_llm_context_for_sale', lambda *a, **kw: 'Maison')
+
+    class Client:
+        model = 'budget-test'
+        calls = 0
+
+        def is_available(self):
+            return True
+
+        def generate_json(self, *args):
+            self.calls += 1
+            if self.calls == fail_at:
+                raise PipelineBudgetExhausted('Daily AI budget exhausted')
+            return {'display_description': 'Maison décrite par les pièces.'}
+
+    sale = AuctionSale(source_name='licitor', source_url='https://example.test/budget', description='Maison')
+    client = Client()
+    with pytest.raises(PipelineBudgetExhausted):
+        extraction.enrich_sale_with_llm(sale, client=client, output_dir=tmp_path, extraction_mode=mode)
+    assert client.calls == fail_at
+    assert not list(tmp_path.glob('*.json'))
