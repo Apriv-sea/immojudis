@@ -1,0 +1,40 @@
+{
+  "audit_id": "retention-json-access-benchmark-20260913",
+  "recorded_at": "2026-09-13 11:36:14 UTC",
+  "production_mutations": false,
+  "method": "Read-only EXPLAIN (ANALYZE, BUFFERS, TIMING OFF), 100 active/upcoming/postponed/unknown auction_sales ordered by id, materialized sample. Compare one deadline call with raw_payload versus raw_payload || '{}'::jsonb.",
+  "samples": 100,
+  "passes": [
+    {
+      "order": [
+        "original",
+        "expanded_json"
+      ],
+      "original_ms": 371.987,
+      "expanded_json_ms": 25.681
+    },
+    {
+      "order": [
+        "expanded_json",
+        "original"
+      ],
+      "original_ms": 104.004,
+      "expanded_json_ms": 29.348
+    }
+  ],
+  "shared_hits": {
+    "original": 5911,
+    "expanded_json": 1936
+  },
+  "equivalence": {
+    "compared": 100,
+    "deadline_mismatches": 0,
+    "null_deadlines_each": 7
+  },
+  "interpretation": "The reversed warm pass also improves; repeated TOAST access inside the retention function is avoidable. This is a bounded production read benchmark, not the full worker throughput.",
+  "constraints": [
+    "Keep every retention rule and signature unchanged.",
+    "Expand object payload once in the helper; preserve SQL NULL and non-object JSON semantics.",
+    "Validate old/new function equivalence before deployment."
+  ]
+}

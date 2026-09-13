@@ -112,6 +112,12 @@ begin
         join public.auction_sales s on s.source_url = j.source_url
         join public.auction_source_state state
           on state.source_name = j.detail_source_name
+        cross join lateral (
+          select app_private.sale_retention_deadline(
+            s.sale_date, s.status, s.sale_procedure, s.raw_payload
+          ) as retention_deadline
+          offset 0
+        ) retention
        where (
          j.status in ('queued', 'failed')
          or (j.status = 'running'
@@ -128,14 +134,7 @@ begin
          and state.enabled
          and (state.suspended_until is null or state.suspended_until <= now())
          and s.status in ('active', 'unknown', 'upcoming', 'postponed', 'past')
-         and (
-           app_private.sale_retention_deadline(
-             s.sale_date, s.status, s.sale_procedure, s.raw_payload
-           ) is null
-           or app_private.sale_retention_deadline(
-             s.sale_date, s.status, s.sale_procedure, s.raw_payload
-           ) > now()
-         )
+         and (retention.retention_deadline is null or retention.retention_deadline > now())
          and not exists (
            select 1
              from public.auction_enrichment_jobs active
@@ -202,6 +201,12 @@ begin
     select j.id
       from public.auction_enrichment_jobs j
       join public.auction_sales s on s.source_url = j.source_url
+      cross join lateral (
+        select app_private.sale_retention_deadline(
+          s.sale_date, s.status, s.sale_procedure, s.raw_payload
+        ) as retention_deadline
+        offset 0
+      ) retention
      where (
        j.status in ('queued', 'failed')
        or (j.status = 'running'
@@ -232,14 +237,7 @@ begin
          )
        )
        and s.status in ('active', 'unknown', 'upcoming', 'postponed', 'past')
-       and (
-         app_private.sale_retention_deadline(
-           s.sale_date, s.status, s.sale_procedure, s.raw_payload
-         ) is null
-         or app_private.sale_retention_deadline(
-           s.sale_date, s.status, s.sale_procedure, s.raw_payload
-         ) > now()
-       )
+       and (retention.retention_deadline is null or retention.retention_deadline > now())
        and not exists (
          select 1
            from public.auction_enrichment_jobs active

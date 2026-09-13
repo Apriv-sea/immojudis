@@ -1,0 +1,192 @@
+{
+  "diagnostic_id": "immojudis-pipeline-dispatch-diagnostic-20260913",
+  "generated_at": "2026-09-13T13:20:13+02:00",
+  "read_only": true,
+  "production_mutations": 0,
+  "supabase_project": "sgpakxtyvenlpeihuucm",
+  "db_read_window": {
+    "db_now_observed": "2026-09-13 11:17:56.287351+00",
+    "timezone": "UTC",
+    "scope": "10:30:00–11:20:00 UTC on 2026-09-13"
+  },
+  "cron_scheduler": {
+    "job": {
+      "jobname": "immojudis-operational-health",
+      "schedule": "*/15 * * * *",
+      "active": true
+    },
+    "ticks": [
+      {
+        "at": "2026-09-13 10:45:00 UTC",
+        "cron_status": "succeeded",
+        "return_message": "1 row",
+        "endpoint_status": 500
+      },
+      {
+        "at": "2026-09-13 11:00:00 UTC",
+        "cron_status": "succeeded",
+        "return_message": "1 row",
+        "endpoint_status": 500
+      },
+      {
+        "at": "2026-09-13 11:15:00 UTC",
+        "cron_status": "succeeded",
+        "return_message": "1 row",
+        "endpoint_status": 500
+      }
+    ],
+    "interpretation": "pg_cron recorded successful net.http_get enqueue/processing; it does not mean the HTTP endpoint returned 2xx."
+  },
+  "endpoint_and_internal_runs": [
+    {
+      "started_at": "2026-09-13 10:30:06.111380 UTC",
+      "finished_at": "2026-09-13 10:30:15.111075 UTC",
+      "status": "success",
+      "dispatch": {
+        "dispatched": true,
+        "source": "enrichment-queue",
+        "mode": "enrichment"
+      }
+    },
+    {
+      "started_at": "2026-09-13 10:45:01.098973 UTC",
+      "finished_at": "2026-09-13 10:45:09.311890 UTC",
+      "status": "failed",
+      "message": "canceling statement due to statement timeout"
+    },
+    {
+      "started_at": "2026-09-13 11:00:01.578748 UTC",
+      "finished_at": "2026-09-13 11:00:09.829175 UTC",
+      "status": "failed",
+      "message": "canceling statement due to statement timeout"
+    },
+    {
+      "started_at": "2026-09-13 11:15:01.852840 UTC",
+      "finished_at": "2026-09-13 11:15:10.245623 UTC",
+      "status": "failed",
+      "message": "canceling statement due to statement timeout"
+    }
+  ],
+  "pipeline_control": {
+    "enabled": true,
+    "next_enrichment_at": "2026-09-13 11:00:06.215391 UTC",
+    "last_dispatch_at": "2026-09-13 10:30:06.215391 UTC",
+    "enrichment_due_at_observation": true,
+    "last_dispatch_minutes_before_db_now": 47.8345,
+    "source_details_enabled": true
+  },
+  "licitor_state": {
+    "enabled": true,
+    "availability": "available",
+    "next_inventory_at": "2026-09-13 10:29:44.150923 UTC",
+    "last_attempt_at": "2026-09-13 04:00:05.903877 UTC",
+    "last_inventory_complete_at": "2026-09-13 04:29:43.383143 UTC",
+    "last_publication_complete_at": "2026-09-13 04:29:43.383143 UTC",
+    "consecutive_failures": 0
+  },
+  "queue": {
+    "observation_10:45": {
+      "backlog": 3737,
+      "older_than_24h": 2202
+    },
+    "observation_11:00": {
+      "backlog": 3755,
+      "older_than_24h": 2202
+    },
+    "observation_11:15": {
+      "backlog": 3755,
+      "older_than_24h": 2202
+    },
+    "current_by_type_status": {
+      "display_description": {
+        "queued": 2485,
+        "cancelled": 2624,
+        "completed": 72
+      },
+      "fact_extraction": {
+        "queued": 310,
+        "cancelled": 317,
+        "completed": 204
+      },
+      "pdf": {
+        "queued": 359,
+        "failed": 3,
+        "cancelled": 591,
+        "completed": 659
+      },
+      "source_detail": {
+        "queued": 598,
+        "completed": 50
+      }
+    }
+  },
+  "async_run": {
+    "source": "enrichment-queue",
+    "status": "failed",
+    "started_at": "2026-09-13 10:31:05.031528 UTC",
+    "finished_at": "2026-09-13 10:32:16.283450 UTC",
+    "completion_status": "interrupted",
+    "dispatch_state": "accepted",
+    "runner_error": "Worker failed",
+    "no_later_auction_runs_in_observed_window": true
+  },
+  "http_response_window": {
+    "responses": 14,
+    "ok_2xx": 10,
+    "failures": 4,
+    "first": "2026-09-13 10:30:00.092916 UTC",
+    "last": "2026-09-13 11:15:00.138326 UTC",
+    "note": "The four failures align with operational-health failures; sale-retention remained healthy on its */5 ticks."
+  },
+  "pg_stat_statements_claim_rpc": {
+    "calls": 79,
+    "rows": 79,
+    "total_exec_time_ms": 47728.726391,
+    "mean_exec_time_ms": 604.161094,
+    "max_exec_time_ms": 7588.164304,
+    "query_shape": "PostgREST call to public.claim_autonomous_pipeline_run"
+  },
+  "alerts": [
+    {
+      "alert_key": "cron.stale",
+      "severity": "critical",
+      "status": "open",
+      "last_seen_at": "2026-09-13 11:15:01.908 UTC"
+    },
+    {
+      "alert_key": "pipeline.enrichment.stalled",
+      "severity": "warning",
+      "status": "open",
+      "last_seen_at": "2026-09-13 11:15:01.908 UTC"
+    },
+    {
+      "alert_key": "pipeline.import.unhealthy",
+      "severity": "warning",
+      "status": "open",
+      "last_seen_at": "2026-09-13 11:15:01.908 UTC"
+    },
+    {
+      "alert_key": "valuation.queue.degraded",
+      "severity": "critical",
+      "status": "open",
+      "last_seen_at": "2026-09-13 11:15:01.908 UTC"
+    }
+  ],
+  "finding": {
+    "proven": [
+      "The operational-health endpoint is called at the expected ticks and its internal run fails at 10:45, 11:00 and 11:15 with statement timeout.",
+      "The control row remains due since 11:00 and last_dispatch_at remains 10:30; no later scheduler-owned auction run exists in the window.",
+      "The 10:30 dispatch created an enrichment-queue run accepted by the external dispatch, but that worker run failed/interrupted at 10:32.",
+      "Licitor is enabled and overdue; no inventory completion followed its 04:29 completion."
+    ],
+    "strong_inference": "The timeout is in dispatchDuePipeline before it can return a dispatch result, most likely the claim_autonomous_pipeline_run RPC. Health observations and alerts were written at the same ticks, while failed endpoint runs have no dispatch result; pg_stat_statements shows that claim RPC reaching 7.588 seconds at its maximum.",
+    "unresolved": "The exact internal statement within claim_autonomous_pipeline_run (including enqueue_due_source_details versus another branch) cannot be isolated without server statement logs or executing the mutating RPC; neither was done."
+  },
+  "source_files_read": [
+    "src/app/api/cron/operational-health/route.ts",
+    "src/lib/cron-jobs.ts",
+    "src/lib/pipeline-dispatch.ts",
+    "supabase/migrations/20260913091558_pipeline_dispatch_retries.sql",
+    "supabase/migrations/20260913081411_recurring_source_detail_jobs.sql"
+  ]
+}

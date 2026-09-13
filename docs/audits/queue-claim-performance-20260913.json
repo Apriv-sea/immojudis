@@ -1,0 +1,274 @@
+{
+  "artifact_id": "immojudis-claim-perf-selects-20260913",
+  "measured_at": "2026-09-13T11:31:52Z",
+  "project_ref": "sgpakxtyvenlpeihuucm",
+  "read_only": true,
+  "dml_executed": false,
+  "explain_mode": "EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)",
+  "bounded_limit": 10,
+  "lock_clause": "omitted intentionally (no FOR UPDATE/SKIP LOCKED)",
+  "passes": [
+    {
+      "name": "pass1_current_then_optimized",
+      "order": [
+        "source_detail/current",
+        "source_detail/optimized",
+        "enrichment/current",
+        "enrichment/optimized",
+        "all/current",
+        "all/optimized"
+      ]
+    },
+    {
+      "name": "pass2_optimized_then_current",
+      "order": [
+        "all/optimized",
+        "all/current",
+        "enrichment/optimized",
+        "enrichment/current",
+        "source_detail/optimized",
+        "source_detail/current"
+      ]
+    }
+  ],
+  "sql_artifact": "/tmp/immojudis-claim-perf-selects-20260913.sql",
+  "sql_artifact_sha256": "73a15beb0bd867c76c63586404af02df5ba09e4a9ceab664d8ce6b1457ced648",
+  "raw_runs": [
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "source_detail",
+      "variant": "current",
+      "execution_ms": 878.424,
+      "planning_ms": 3.728,
+      "shared_hit": 68570,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "source_detail",
+      "variant": "optimized",
+      "execution_ms": 507.557,
+      "planning_ms": 4.084,
+      "shared_hit": 37674,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "enrichment",
+      "variant": "current",
+      "execution_ms": 4372.244,
+      "planning_ms": 4.088,
+      "shared_hit": 306908,
+      "shared_read": 0,
+      "shared_dirtied": 2,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "enrichment",
+      "variant": "optimized",
+      "execution_ms": 3122.132,
+      "planning_ms": 4.031,
+      "shared_hit": 190524,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "all",
+      "variant": "current",
+      "execution_ms": 4532.966,
+      "planning_ms": 3.905,
+      "shared_hit": 308102,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass1_current_then_optimized",
+      "family": "all",
+      "variant": "optimized",
+      "execution_ms": 3570.556,
+      "planning_ms": 4.143,
+      "shared_hit": 221989,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "all",
+      "variant": "optimized",
+      "execution_ms": 3620.675,
+      "planning_ms": 4.199,
+      "shared_hit": 221989,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "all",
+      "variant": "current",
+      "execution_ms": 4422.292,
+      "planning_ms": 3.953,
+      "shared_hit": 308102,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "enrichment",
+      "variant": "optimized",
+      "execution_ms": 3130.624,
+      "planning_ms": 4.16,
+      "shared_hit": 190524,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "enrichment",
+      "variant": "current",
+      "execution_ms": 4359.224,
+      "planning_ms": 3.755,
+      "shared_hit": 306905,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "source_detail",
+      "variant": "optimized",
+      "execution_ms": 474.022,
+      "planning_ms": 4.144,
+      "shared_hit": 37674,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    },
+    {
+      "pass": "pass2_optimized_then_current",
+      "family": "source_detail",
+      "variant": "current",
+      "execution_ms": 884.612,
+      "planning_ms": 3.834,
+      "shared_hit": 68570,
+      "shared_read": 0,
+      "shared_dirtied": 0,
+      "shared_written": 0,
+      "root_actual_rows": 10
+    }
+  ],
+  "averages": {
+    "source_detail": {
+      "current_mean_execution_ms": 881.518,
+      "optimized_mean_execution_ms": 490.789,
+      "execution_delta_ms": -390.729,
+      "execution_reduction_percent": 44.32,
+      "current_mean_shared_hit": 68570.0,
+      "optimized_mean_shared_hit": 37674.0,
+      "shared_hit_reduction_percent": 45.06
+    },
+    "enrichment": {
+      "current_mean_execution_ms": 4365.734,
+      "optimized_mean_execution_ms": 3126.378,
+      "execution_delta_ms": -1239.356,
+      "execution_reduction_percent": 28.39,
+      "current_mean_shared_hit": 306906.5,
+      "optimized_mean_shared_hit": 190524.0,
+      "shared_hit_reduction_percent": 37.92
+    },
+    "all": {
+      "current_mean_execution_ms": 4477.629,
+      "optimized_mean_execution_ms": 3595.615,
+      "execution_delta_ms": -882.014,
+      "execution_reduction_percent": 19.7,
+      "current_mean_shared_hit": 308102.0,
+      "optimized_mean_shared_hit": 221989.0,
+      "shared_hit_reduction_percent": 27.95
+    }
+  },
+  "parity": {
+    "source_detail": {
+      "same_ids": true,
+      "count": 10,
+      "ids": [
+        "7bb02882-2103-471f-b492-068a02fb5ee3",
+        "7bf08449-911c-4439-9f6a-c7cbb080d210",
+        "805600b8-9729-4ff8-b722-f95413192de6",
+        "8171851c-ff06-4743-8b07-4c59f977f5df",
+        "890aa3a9-e377-4269-9e46-399167350068",
+        "8cd49712-9517-470e-842d-3ab207e1dcb2",
+        "8e66361f-06f4-44c6-96bf-cd657f9999ad",
+        "8f9d54f3-7f96-47eb-9f87-849127a375f2",
+        "973153f0-6bcc-4925-8d8d-dffb8c1667a3",
+        "97869691-5371-43ad-a823-b962640c5230"
+      ]
+    },
+    "enrichment": {
+      "same_ids": true,
+      "count": 10,
+      "ids": [
+        "0fd6db80-9231-4ec3-9ca7-2c996d590e15",
+        "18fa06a8-d1dd-45f4-8e82-3da55a30da18",
+        "1ef34531-bc31-4720-9acb-3e7fece728ea",
+        "2251e442-9c14-4ea4-ba34-6f52ceae85b0",
+        "26dd24fe-394a-45ee-9602-975883cb3d9a",
+        "3a83c851-cd04-4221-9ed8-68fdb0ad9a36",
+        "49e09c63-dc0f-45fe-aebf-2ba00032d9db",
+        "6f23a99d-acd7-4d8b-aecb-0aa4da4a364b",
+        "7aa9e401-1160-4e79-94ba-57ca55cd85aa",
+        "7b891686-d700-44f7-9372-55399233f81d"
+      ]
+    },
+    "all": {
+      "same_ids": true,
+      "count": 10,
+      "ids": [
+        "7bb02882-2103-471f-b492-068a02fb5ee3",
+        "7bf08449-911c-4439-9f6a-c7cbb080d210",
+        "805600b8-9729-4ff8-b722-f95413192de6",
+        "8171851c-ff06-4743-8b07-4c59f977f5df",
+        "890aa3a9-e377-4269-9e46-399167350068",
+        "8cd49712-9517-470e-842d-3ab207e1dcb2",
+        "8e66361f-06f4-44c6-96bf-cd657f9999ad",
+        "8f9d54f3-7f96-47eb-9f87-849127a375f2",
+        "973153f0-6bcc-4925-8d8d-dffb8c1667a3",
+        "97869691-5371-43ad-a823-b962640c5230"
+      ]
+    }
+  },
+  "interpretation": "deadline_1x conserve les prédicats, le classement et LIMIT 10; seul le calcul STABLE sale_retention_deadline est matérialisé une fois par ligne jointe via LATERAL/OFFSET 0. Les trois familles renvoient les mêmes 10 IDs. Les mesures sont exécutées sur la base live en lecture seule; la seconde passe réchauffe le cache et l’ordre est inversé pour chaque famille.",
+  "audit_path": "docs/audits/queue-claim-performance-20260913.json",
+  "implementation_validation": {
+    "migration_path": "supabase/migrations/20260913103118_pipeline_queue_source_fairness.sql",
+    "migration_sha256_after_local_change": "6802cbea557f1da8d4d9a0391f9a062a89529b38ec37c3dc855c6134cd746ad0",
+    "migration_production_applied": false,
+    "dml_production_executed": false,
+    "tests": {
+      "command": "PIPELINE_TEST_DB_URL=postgresql://... python -m pytest -q tests/test_queue_source_fairness_postgres.py tests/test_queue_source_fairness_perf_postgres.py",
+      "result": "8 passed"
+    },
+    "scope": "Lateral single-pass deadline in source_detail and common enrichment/all candidates; global cleanup deliberately unchanged."
+  }
+}

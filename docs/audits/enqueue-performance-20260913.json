@@ -1,0 +1,71 @@
+{
+  "artifact": "enqueue-source-detail-performance",
+  "generated_at": "2026-09-13T11:37:30.331Z",
+  "scope": {
+    "function": "public.enqueue_due_source_details(timestamptz, integer)",
+    "claim_family_changed": false,
+    "production_mutation": false,
+    "migration": "20260913113045_enqueue_source_detail_single_scan.sql",
+    "test": "340_enqueue_source_detail_single_scan.sql"
+  },
+  "production_explain_snapshot": {
+    "frozen_p_now": "2026-09-13T11:00:06.215391Z",
+    "baseline_current": {
+      "execution_ms": 7344.596,
+      "shared_hit_buffers": 446325,
+      "active_sales_rows": 2592,
+      "due_rows": 598,
+      "chosen_rows": 0
+    },
+    "materialized_single_scan": {
+      "execution_ms": 3775.265,
+      "shared_hit_buffers": 226535,
+      "active_sales_rows": 2592,
+      "eligible_alias_rows": 1285,
+      "due_rows": 598,
+      "chosen_rows": 0,
+      "execution_reduction_percent": 48.6,
+      "shared_hit_reduction_percent": 49.2
+    },
+    "candidate_signature_parity": {
+      "baseline_due": 598,
+      "optimized_due": 598,
+      "baseline_only": 0,
+      "optimized_only": 0,
+      "key": "canonical_url, source_name, source_url, source_detail_v1 signature"
+    },
+    "interpretation": "The measured reduction combines one retention calculation per sale, one normalized source_checks/observations scan and the planner selecting idx_auction_sales_status. The anti-duplicate predicates, aliases, source state guards, cadence and signature are unchanged."
+  },
+  "fixture_validation": {
+    "database": "PostgreSQL 17.11",
+    "host": "127.0.0.1",
+    "port": 55493,
+    "fixture": "minimal schema with exact retention and checked-at helper semantics",
+    "test_assertions": 18,
+    "passed": 18,
+    "rolled_back": true,
+    "coverage": [
+      "canonical source alias",
+      "observations alias",
+      "source_checks alias",
+      "fresh source_checks timestamp",
+      "suspended source",
+      "disabled source",
+      "expired retention deadline",
+      "postponed sale retention",
+      "contradictory sale-date retention",
+      "source_detail_v1 signature",
+      "idempotent replay"
+    ]
+  },
+  "sha256": {
+    "read_only_explain_sql": "a8b319fca328b7b48f1395e8c8e528bbbcaa23dda97426e15862b9115ce221db",
+    "migration": "9f47995e9c357c177e414cca985f909a3f4aee2c5aa5f2b510145730be17e411",
+    "test": "a093b4b3a48922b33becf364e2f295964a48a58ce682ed6d72e77bd23d52a6e7"
+  },
+  "risks": [
+    "MATERIALIZED CTEs can increase memory or temporary storage on a larger active corpus.",
+    "The fixture validates behavior and parity but cannot reproduce production TOAST volume; rerun EXPLAIN on a representative staging dataset before rollout.",
+    "No speculative index was added; the current anti-duplicate scan is secondary to raw_payload retention cost."
+  ]
+}
