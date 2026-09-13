@@ -168,7 +168,12 @@ def test_paid_predictions_are_reserved_before_use_and_budget_deferral_preserves_
             monkeypatch.setenv('PIPELINE_AUTONOMOUS_RUN_ID',run)
             monkeypatch.setattr(pipeline_usage,'load_settings',lambda: {'supabase_db_url':url})
             monkeypatch.setattr(supabase_client,'_postgres_connect',lambda _: nullcontext(db))
-            pipeline_usage.record_prediction({'id':'prediction-1','status':'succeeded','metrics':{'predict_time':10,'input_token_count':123}},reservation=str(first))
+            pipeline_usage.record_prediction({'id':'prediction-1','status':'starting'},reservation=str(first))
+            assert db.execute('select prediction_id,status,estimated_usd from auction_pipeline_usage where id=%s',(first,)).fetchone() == ('prediction-1','starting',None)
+            pending_summary = db.execute('select pipeline_usage_summary()').fetchone()[0]
+            assert float(pending_summary['ai_reserved_usd']) == pytest.approx(0.2925)
+            assert pending_summary['ai_unpriced_requests'] == 1
+            pipeline_usage.record_prediction({'id':'prediction-1','status':'succeeded','metrics':{'predict_time':10,'input_token_count':123}})
             summary = db.execute('select pipeline_usage_summary()').fetchone()[0]
             assert float(summary['ai_estimated_usd']) == pytest.approx(0.00975)
             assert summary['ai_unpriced_requests'] == 0
