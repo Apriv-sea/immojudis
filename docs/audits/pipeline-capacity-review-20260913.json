@@ -1,0 +1,140 @@
+{
+  "date": "2026-09-13",
+  "scope": "read_only_capacity_complement",
+  "worker": {
+    "family_cycle": [
+      "source_detail",
+      "source_detail",
+      "source_detail",
+      "source_detail",
+      "source_detail",
+      "enrichment"
+    ],
+    "max_jobs": 90,
+    "budget_seconds": 1200,
+    "claim_limit": 1,
+    "operational_health_tick_minutes": 15,
+    "enrichment_dispatch_interval_minutes": 30,
+    "execution_model": "sequential_worker_one_claim_at_a_time",
+    "theoretical_full_pass": {
+      "source_detail_jobs": 75,
+      "general_jobs": 15,
+      "dispatches_per_hour": 2.0,
+      "calendar_source_detail_jobs_per_hour_before_inventory": 150.0,
+      "calendar_general_jobs_per_hour_before_inventory": 30.0,
+      "calendar_mixed_jobs_per_hour_before_inventory": 180.0,
+      "classification": "calendar_bound_not_promise"
+    }
+  },
+  "observed_run": {
+    "workflow": "34750715142",
+    "worker_log": "/private/tmp/immojudis-automatic-retry-worker-34750715142.log",
+    "start_utc": "2026-09-13T10:00:57.2119188Z",
+    "end_utc": "2026-09-13T10:22:16.5256573Z",
+    "wall_seconds": 1279.3137385,
+    "mixed_jobs": 54,
+    "source_detail_jobs_inferred_from_5_to_1": 45,
+    "general_jobs_inferred_from_5_to_1": 9,
+    "completed_jobs": 52,
+    "document_errors": 2,
+    "mixed_jobs_per_hour": 151.9565,
+    "source_detail_jobs_per_hour_inferred": 126.6304,
+    "general_jobs_per_hour_inferred": 25.3261,
+    "source_detail_jobs_per_30_min_cycle": 45,
+    "calendar_source_detail_jobs_per_hour_observed_single_cycle": 90.0,
+    "general_jobs_per_30_min_cycle": 9,
+    "calendar_general_jobs_per_hour_observed_single_cycle": 18.0,
+    "average_seconds_per_slot": 23.691,
+    "equivalent_slots_in_1200_seconds": 50.6522,
+    "equivalent_source_detail_slots_in_1200_seconds": 42.2101,
+    "claim_interval_observation": {
+      "source_detail_intervals_seconds_approx": "7.8-10.9",
+      "general_intervals_seconds_observed": [4.8, 15.6, 61.0, 81.6, 96.5, 103.5, 209.5, 220.5],
+      "interpretation": "general_slots_can_include_long_pdf_or_ocr_work;_intervals_are_not_pure_claim_latency"
+    },
+    "classification": "observed_single_mixed_run_not_sla"
+  },
+  "planning_demand": {
+    "pilot_own_urls": 1285,
+    "pilot_near_urls": 246,
+    "strict_per_hour": 84.3,
+    "margin_per_hour": 94.4,
+    "strict_per_6h": 505.8,
+    "margin_per_6h": 566.4,
+    "strict_per_24h": 2023.2,
+    "margin_per_24h": 2265.6,
+    "source": "docs/runbooks/pipeline-autonomy-progress.md",
+    "classification": "planning_input_not_remeasured_here"
+  },
+  "inventory_occupancy": {
+    "licitor_minutes_per_6h_planning": 29,
+    "vench_minutes_per_6h_planning": 17,
+    "combined_minutes_per_6h": 46,
+    "occupancy_percent_per_6h": 12.7778,
+    "dispatch_ticks_per_6h": 12,
+    "conservative_blocked_dispatch_ticks_per_6h": 2,
+    "conservative_active_worker_passes_per_6h": 10,
+    "conservative_active_worker_passes_per_24h": 40,
+    "required_source_jobs_per_active_pass": {
+      "strict": 50.58,
+      "margin": 56.64
+    },
+    "evidence_variability": {
+      "licitor_full_workflow_approx_minutes": 30,
+      "licitor_scrape_seconds": 898.48,
+      "licitor_scrape_total_seconds": 913.49,
+      "licitor_enrich_wall_seconds": 437.91,
+      "licitor_pdf_targets": 0,
+      "licitor_llm_targets": 0,
+      "vench_health_source_seconds": 619.97,
+      "vench_diagnostic_source_seconds": 1227.0,
+      "interpretation": "planning_times_are_not_a_single_stable_scraper_constant"
+    }
+  },
+  "capacity_scenarios": {
+    "observed_45_source_per_active_pass_conservative_inventory": {
+      "source_detail_per_24h": 1800.0,
+      "strict_daily_gap": -223.2,
+      "margin_daily_gap": -465.6
+    },
+    "observed_45_source_per_pass_full_inventory_overlap": {
+      "source_detail_per_24h": 2160.0,
+      "strict_daily_gap": 136.8,
+      "margin_daily_gap": -105.6
+    },
+    "runbook_80_per_hour_conservative_inventory": {
+      "source_detail_per_24h": 1600.0,
+      "strict_daily_gap": -423.2,
+      "margin_daily_gap": -665.6
+    },
+    "classification": "conditional_estimates_not_observed_capacity"
+  },
+  "sql_signal": {
+    "diagnostic": "/private/tmp/immojudis-pipeline-performance-diagnostic-20260913.json",
+    "baseline_execution_ms": 7344.596,
+    "optimized_candidate_execution_ms": 3775.265,
+    "execution_reduction_percent": 48.6,
+    "shared_hit_reduction_percent": 49.2,
+    "baseline_due_rows": 598,
+    "optimized_due_rows": 598,
+    "classification": "read_only_plan_candidate_not_end_to_end_worker_gain"
+  },
+  "recommended_single_adjustment": {
+    "action": "conditionally_extend_existing_worker_budget_below_the_30_minute_dispatch_interval_after_sql_validation",
+    "preserve": [
+      "existing_7_day_near_sale_claim_order",
+      "one general enrichment slot per six when available",
+      "same sequential worker",
+      "same writer",
+      "same scheduler"
+    ],
+    "reason": "use_existing_between_tick_headroom_without_starving_general_enrichment_or_adding_workers",
+    "capacity_claim": "none_until_three_comparable_post_sql_runs"
+  },
+  "limitations": [
+    "inventory occupancy assumes serial shared writer; overlap is unproven",
+    "54-job sample is mixed and single-run",
+    "OCR/PDF job duration is not a source_detail rate",
+    "no production mutation, paid call, or heavy test was performed"
+  ]
+}

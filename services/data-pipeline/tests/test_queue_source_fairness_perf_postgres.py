@@ -10,7 +10,6 @@ from test_autonomy_postgres import migration, setup
 
 from src.storage.supabase_client import _postgres_connect
 
-
 FAIRNESS_MIGRATION = "20260913103118_pipeline_queue_source_fairness.sql"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
