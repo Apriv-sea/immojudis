@@ -10,13 +10,21 @@ from src.court_competence import CompetentCourtAssignment
 from src.enrichment.display_quality import DISPLAY_QUALITY_VERSION
 from src.models import AuctionSale
 from src.normalize import normalize_sale
+from src.reviewed_aliases import registry_from_rows
 from src.storage import supabase_client
 from src.storage.supabase_client import _sanitize_postgrest_payload, _secondary_source_urls
+
+_REAL_FETCH_REVIEWED_ALIAS_REGISTRY = supabase_client._fetch_reviewed_alias_registry
 
 
 @pytest.fixture(autouse=True)
 def isolate_enrichment_queue(monkeypatch):
     monkeypatch.setattr(supabase_client, "_enqueue_due_enrichment", lambda *args: None)
+    monkeypatch.setattr(
+        supabase_client,
+        "_fetch_reviewed_alias_registry",
+        lambda *args: registry_from_rows([]),
+    )
 
 
 def test_finish_enrichment_respects_retry_after_and_exact_lease(monkeypatch):
@@ -162,6 +170,83 @@ def test_fetch_known_sale_details_uses_bounded_pages(monkeypatch) -> None:
 
     assert len(details) == supabase_client.KNOWN_SALE_DETAIL_PAGE_SIZE
     assert calls == [("100", "0"), ("100", "100")]
+
+
+def test_reviewed_alias_rpc_rejects_non_list_payload(monkeypatch) -> None:
+    class Response:
+        is_error = False
+        status_code = 200
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr(supabase_client.httpx, "post", lambda *args, **kwargs: Response())
+    monkeypatch.setattr(
+        supabase_client,
+        "_fetch_reviewed_alias_registry",
+        _REAL_FETCH_REVIEWED_ALIAS_REGISTRY,
+    )
+
+    with pytest.raises(supabase_client.ReviewedAliasRegistryError, match="Malformed"):
+        supabase_client._fetch_reviewed_alias_registry("https://supabase.test", "secret")
+
+
+def test_fetch_known_sale_details_overrides_reviewed_alias_after_full_pagination(monkeypatch) -> None:
+    alias_id = "00000000-0000-0000-0000-000000000081"
+    canonical_id = "00000000-0000-0000-0000-000000000082"
+    alias_url = "https://cessions.test/mn222"
+    canonical_url = "https://notaires.test/mn222"
+    monkeypatch.setattr(
+        supabase_client,
+        "load_settings",
+        lambda: {"supabase_url": "https://supabase.test", "supabase_service_role_key": "secret"},
+    )
+    monkeypatch.setattr(
+        supabase_client,
+        "_fetch_reviewed_alias_registry",
+        lambda *_args: registry_from_rows(
+            [
+                (
+                    alias_id,
+                    canonical_id,
+                    alias_url,
+                    canonical_url,
+                    "agde-mn222",
+                    {"audit": "docs/audits/agde-identity-review-20260913.json"},
+                    "2026-09-13T08:33:51Z",
+                    "test",
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(supabase_client, "KNOWN_SALE_DETAIL_PAGE_SIZE", 1)
+
+    class Response:
+        is_error = False
+        status_code = 200
+        text = ""
+
+        def __init__(self, rows):
+            self._rows = rows
+
+        def json(self):
+            return self._rows
+
+    pages = {
+        "0": [{"id": alias_id, "source_url": alias_url, "source_urls": []}],
+        "1": [{"id": canonical_id, "source_url": canonical_url, "source_urls": []}],
+        "2": [],
+    }
+    monkeypatch.setattr(
+        supabase_client.httpx,
+        "get",
+        lambda _endpoint, params, headers, timeout: Response(pages[params["offset"]]),
+    )
+
+    details = supabase_client.fetch_known_sale_details()
+
+    assert details[alias_url]["id"] == canonical_id
+    assert details[alias_url]["source_url"] == canonical_url
 
 
 def test_fetch_known_sale_details_raises_instead_of_returning_partial_data(monkeypatch) -> None:
@@ -639,6 +724,136 @@ def test_secondary_sale_cleanup_is_explicit_and_uses_postgres(monkeypatch) -> No
     assert calls == ["delete_secondary"]
 
 
+def test_secondary_sale_cleanup_skips_reviewed_alias_before_any_delete(monkeypatch) -> None:
+    alias_id = "00000000-0000-0000-0000-000000000091"
+    canonical_id = "00000000-0000-0000-0000-000000000092"
+    alias_url = "https://cessions.test/mt301"
+    canonical_url = "https://notaires.test/mt301"
+    sale = normalize_sale(
+        {
+            "source_name": "notaires",
+            "source_url": canonical_url,
+            "source_urls": [canonical_url, alias_url],
+        }
+    )
+    registry = registry_from_rows(
+        [
+            (
+                alias_id,
+                canonical_id,
+                alias_url,
+                canonical_url,
+                "agde-mt301",
+                {"audit": "docs/audits/agde-identity-review-20260913.json"},
+                "2026-09-13T08:33:51Z",
+                "test",
+            )
+        ]
+    )
+    monkeypatch.setattr(
+        supabase_client,
+        "load_settings",
+        lambda: {
+            "supabase_url": "https://supabase.test",
+            "supabase_service_role_key": "secret",
+        },
+    )
+    monkeypatch.setattr(supabase_client, "_fetch_reviewed_alias_registry", lambda *_args: registry)
+    deleted: list[list[str]] = []
+    monkeypatch.setattr(
+        supabase_client,
+        "_postgrest_delete_by_source_urls",
+        lambda _url, _key, _table, urls: deleted.append(urls) or len(urls),
+    )
+
+    assert supabase_client.delete_secondary_sales_in_supabase([sale]) == 0
+    assert deleted == []
+
+
+def test_secondary_cleanup_does_not_fallback_after_registry_failure(monkeypatch) -> None:
+    sale = normalize_sale(
+        {
+            "source_name": "notaires",
+            "source_url": "https://notaires.test/canonical",
+            "source_urls": ["https://notaires.test/canonical", "https://cessions.test/alias"],
+        }
+    )
+    monkeypatch.setattr(
+        supabase_client,
+        "load_settings",
+        lambda: {
+            "supabase_url": "https://supabase.test",
+            "supabase_service_role_key": "secret",
+            "supabase_db_url": "postgresql://example",
+        },
+    )
+    monkeypatch.setattr(
+        supabase_client,
+        "_delete_secondary_sale_rows_with_postgres",
+        lambda *_args: (_ for _ in ()).throw(
+            supabase_client.ReviewedAliasRegistryError("registry unavailable under lock")
+        ),
+    )
+    monkeypatch.setattr(
+        supabase_client,
+        "_delete_secondary_sale_rows",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("registry failure must not fall back")),
+    )
+
+    with pytest.raises(supabase_client.ReviewedAliasRegistryError, match="under lock"):
+        supabase_client.delete_secondary_sales_in_supabase([sale])
+
+
+def test_dedupe_candidate_fetch_excludes_both_reviewed_parent_ids(monkeypatch) -> None:
+    alias_id = "00000000-0000-0000-0000-000000000101"
+    canonical_id = "00000000-0000-0000-0000-000000000102"
+    other_id = "00000000-0000-0000-0000-000000000103"
+    alias_url = "https://cessions.test/alias"
+    canonical_url = "https://notaires.test/canonical"
+    registry = registry_from_rows(
+        [
+            (
+                alias_id,
+                canonical_id,
+                alias_url,
+                canonical_url,
+                "review",
+                {"audit": "docs/audits/agde-identity-review-20260913.json"},
+                "2026-09-13T08:33:51Z",
+                "test",
+            )
+        ]
+    )
+    rows = []
+    for sale_id, source_name, source_url in (
+        (alias_id, "cessions_etat", alias_url),
+        (canonical_id, "notaires", canonical_url),
+        (other_id, "notaires", "https://notaires.test/other"),
+    ):
+        sale = normalize_sale({"source_name": source_name, "source_url": source_url, "starting_price_eur": 1000})
+        rows.append({**sale.to_storage_dict(exclude_none=False), "id": sale_id, "status": "upcoming"})
+
+    class Response:
+        is_error = False
+        status_code = 200
+        text = ""
+
+        def json(self):
+            return rows
+
+    monkeypatch.setattr(supabase_client.httpx, "get", lambda *args, **kwargs: Response())
+
+    candidates = supabase_client._fetch_dedupe_candidate_sales(
+        "https://supabase.test",
+        "secret",
+        statuses=("upcoming",),
+        limit=20,
+        reviewed_aliases=registry,
+    )
+
+    assert [sale.id for sale in candidates] == [other_id]
+
+
 def test_upsert_sales_can_preserve_last_seen_during_recompute(monkeypatch) -> None:
     sale = normalize_sale(
         {
@@ -740,7 +955,7 @@ def test_reconcile_duplicate_sales_in_supabase_merges_historical_rows(monkeypatc
         captured["fetch_params"] = params
         return Response()
 
-    def fake_delete(supabase_url, api_key, sales):
+    def fake_delete(supabase_url, api_key, sales, **kwargs):
         captured["delete_sales"] = sales
         return len(supabase_client._secondary_source_urls(sales))
 

@@ -4,7 +4,13 @@ import pytest
 
 from src.normalize import normalize_sale
 from src.publication_identity import merge_revision, resolve_publication_identities
+from src.reviewed_aliases import registry_from_rows
 from src.storage.supabase_client import _postgres_connect
+
+
+@pytest.fixture(autouse=True)
+def isolate_reviewed_alias_registry(monkeypatch):
+    monkeypatch.setattr("src.publication_identity.load_reviewed_aliases", lambda _connection: registry_from_rows([]))
 
 
 def sale(url, price=100000, checked='2026-09-12T10:00:00+00:00'):

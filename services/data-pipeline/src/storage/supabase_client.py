@@ -38,6 +38,12 @@ from src.freshness import document_fingerprint, documents_are_current
 from src.models import AuctionSale
 from src.normalize import make_sale_signature
 from src.pdf_enrichment import classify_document_type, sale_storage_id
+from src.reviewed_aliases import (
+    ReviewedAliasRegistry,
+    ReviewedAliasRegistryError,
+    load_reviewed_aliases,
+    registry_from_rows,
+)
 from src.urban_planning import build_urban_planning_signal_rows
 
 LOGGER = logging.getLogger(__name__)
@@ -216,6 +222,7 @@ LLM_BACKFILL_SALE_SELECT = ",".join(
 )
 DEDUPLICATION_SALE_SELECT = ",".join(
     (
+        "id",
         *UPSERT_COLUMNS,
         "first_seen_at",
         "last_seen_at",
@@ -235,6 +242,32 @@ def get_supabase_client() -> Client | None:
 
 
 _PUBLICATION_CONNECTION: ContextVar[Any] = ContextVar("publication_connection", default=None)
+
+
+def _fetch_reviewed_alias_registry(supabase_url: str, api_key: str) -> ReviewedAliasRegistry:
+    """Load the reviewed alias relation and fail closed on any RPC failure."""
+    try:
+        response = httpx.post(
+            f"{supabase_url.rstrip('/')}/rest/v1/rpc/list_reviewed_publication_aliases",
+            headers=_rest_headers(api_key, prefer="count=none"),
+            json={},
+            timeout=30,
+        )
+    except httpx.HTTPError as exc:
+        raise ReviewedAliasRegistryError("Reviewed-alias registry lookup failed") from exc
+    if response.is_error:
+        raise ReviewedAliasRegistryError(
+            f"Reviewed-alias registry lookup failed ({response.status_code})"
+        )
+    try:
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise ReviewedAliasRegistryError("Malformed reviewed-alias RPC response")
+        return registry_from_rows(payload)
+    except ReviewedAliasRegistryError:
+        raise
+    except (ValueError, TypeError) as exc:
+        raise ReviewedAliasRegistryError("Malformed reviewed-alias RPC response") from exc
 
 
 def _transaction_write(table: str, payload: list[dict[str, object]], on_conflict: str | None = None, *, ignore_conflicts: bool = False) -> None:
@@ -429,18 +462,26 @@ def delete_secondary_sales_in_supabase(sales: list[AuctionSale]) -> int:
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
     db_url = settings.get("supabase_db_url")
-    if not url or not key or not _secondary_source_urls(sales):
+    secondary_urls = _secondary_source_urls(sales)
+    if not url or not key or not secondary_urls:
+        return 0
+    reviewed_aliases = _fetch_reviewed_alias_registry(str(url), str(key))
+    protected_urls = reviewed_aliases.protected_source_urls()
+    secondary_urls = [source_url for source_url in secondary_urls if source_url not in protected_urls]
+    if not secondary_urls:
         return 0
 
     if db_url:
         try:
             return _delete_secondary_sale_rows_with_postgres(str(db_url), sales)
+        except ReviewedAliasRegistryError:
+            raise
         except Exception as exc:
             LOGGER.warning(
                 "Direct Postgres secondary sale cleanup failed; falling back to REST: %s",
                 exc,
             )
-    return _delete_secondary_sale_rows(str(url), str(key), sales)
+    return _delete_secondary_sale_rows(str(url), str(key), sales, registry=reviewed_aliases)
 
 
 def upsert_cadastre_parcels_to_supabase(rows: list[dict[str, object]]) -> int:
@@ -1137,12 +1178,24 @@ def reconcile_duplicate_sales_in_supabase(
     if max_rows <= 0:
         return 0
 
-    sales = _fetch_dedupe_candidate_sales(str(url), str(key), statuses=statuses, limit=max_rows)
+    reviewed_aliases = _fetch_reviewed_alias_registry(str(url), str(key))
+    sales = _fetch_dedupe_candidate_sales(
+        str(url),
+        str(key),
+        statuses=statuses,
+        limit=max_rows,
+        reviewed_aliases=reviewed_aliases,
+    )
     if len(sales) < 2:
         return 0
 
     merged = merge_duplicate_sales(sales)
-    secondary_urls = _secondary_source_urls(merged)
+    protected_urls = reviewed_aliases.protected_source_urls()
+    secondary_urls = [
+        source_url
+        for source_url in _secondary_source_urls(merged)
+        if source_url not in protected_urls
+    ]
     if not secondary_urls:
         return 0
 
@@ -1177,11 +1230,18 @@ def reconcile_duplicate_sales_in_supabase(
             _sync_normalized_sale_tables_with_rest(str(url), str(key), impacted_sales, now)
             _upsert_asset_tables_with_rest(str(url), str(key), impacted_sales, now)
             return deleted
+        except ReviewedAliasRegistryError:
+            raise
         except Exception as exc:
             LOGGER.warning("Direct Postgres duplicate reconciliation failed; falling back to REST: %s", exc)
 
     _upsert_with_rest(str(url), str(key), payload)
-    deleted = _delete_secondary_sale_rows(str(url), str(key), impacted_sales)
+    deleted = _delete_secondary_sale_rows(
+        str(url),
+        str(key),
+        impacted_sales,
+        registry=reviewed_aliases,
+    )
     _sync_normalized_sale_tables_with_rest(str(url), str(key), impacted_sales, now)
     _upsert_asset_tables_with_rest(str(url), str(key), impacted_sales, now)
     return deleted
@@ -1193,7 +1253,10 @@ def _fetch_dedupe_candidate_sales(
     *,
     statuses: tuple[str, ...],
     limit: int,
+    reviewed_aliases: ReviewedAliasRegistry | None = None,
 ) -> list[AuctionSale]:
+    reviewed_aliases = reviewed_aliases or _fetch_reviewed_alias_registry(supabase_url, api_key)
+    protected_ids = reviewed_aliases.protected_sale_ids()
     endpoint = f"{supabase_url.rstrip('/')}/rest/v1/auction_sales"
     rows: list[dict[str, Any]] = []
     offset = 0
@@ -1227,7 +1290,12 @@ def _fetch_dedupe_candidate_sales(
         page_rows = response.json()
         if not page_rows:
             break
-        rows.extend(row for row in page_rows if isinstance(row, dict))
+        rows.extend(
+            row
+            for row in page_rows
+            if isinstance(row, dict)
+            and (not row.get("id") or str(row["id"]) not in protected_ids)
+        )
         if len(page_rows) < page_size:
             break
         offset += page_size
@@ -1268,6 +1336,7 @@ def _has_recent_llm_description_failure(
 
 KNOWN_SALE_DETAIL_SELECT = ",".join(
     (
+        "id",
         "source_url",
         "source_urls",
         "sale_date",
@@ -1362,8 +1431,9 @@ def fetch_known_sale_details() -> dict[str, dict[str, Any]]:
     if not url or not key:
         return {}
 
+    reviewed_aliases = _fetch_reviewed_alias_registry(str(url), str(key))
     endpoint = f"{str(url).rstrip('/')}/rest/v1/auction_sales"
-    details: dict[str, dict[str, Any]] = {}
+    all_rows: list[dict[str, Any]] = []
     offset = 0
     while True:
         try:
@@ -1382,15 +1452,35 @@ def fetch_known_sale_details() -> dict[str, dict[str, Any]]:
                     f"Could not fetch known sale details ({response.status_code}): {response.text[:200]}"
                 )
             rows = response.json()
+            if not isinstance(rows, list):
+                raise ReviewedAliasRegistryError("Malformed auction_sales detail response")
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Known sale detail lookup failed: {exc}") from exc
         for row in rows:
+            if not isinstance(row, dict):
+                raise ReviewedAliasRegistryError("Malformed auction_sales detail row")
             row["_signature"] = make_sale_signature(row.get("sale_date"), row.get("starting_price_eur"))
-            for source_url in _known_source_urls(row):
-                details.setdefault(source_url, row)
+            all_rows.append(row)
         if len(rows) < KNOWN_SALE_DETAIL_PAGE_SIZE:
             break
         offset += KNOWN_SALE_DETAIL_PAGE_SIZE
+
+    details: dict[str, dict[str, Any]] = {}
+    rows_by_id = {
+        str(row["id"]): row
+        for row in all_rows
+        if row.get("id")
+    }
+    for row in all_rows:
+        for source_url in _known_source_urls(row):
+            details.setdefault(source_url, row)
+    for alias in reviewed_aliases.by_alias_url.values():
+        canonical = rows_by_id.get(alias.canonical_sale_id)
+        if canonical is None or canonical.get("source_url") != alias.canonical_source_url:
+            raise ReviewedAliasRegistryError(
+                f"Canonical row missing for reviewed alias {alias.alias_source_url}"
+            )
+        details[alias.alias_source_url] = canonical
     return details
 
 
@@ -1529,8 +1619,20 @@ def _upsert_with_rest(supabase_url: str, api_key: str, payload: list[dict[str, o
     _postgrest_upsert(supabase_url, api_key, "auction_sales", payload, on_conflict="source_url")
 
 
-def _delete_secondary_sale_rows(supabase_url: str, api_key: str, sales: list[AuctionSale]) -> int:
-    secondary_urls = _secondary_source_urls(sales)
+def _delete_secondary_sale_rows(
+    supabase_url: str,
+    api_key: str,
+    sales: list[AuctionSale],
+    *,
+    registry: ReviewedAliasRegistry | None = None,
+) -> int:
+    registry = registry or _fetch_reviewed_alias_registry(supabase_url, api_key)
+    protected_urls = registry.protected_source_urls()
+    secondary_urls = [
+        source_url
+        for source_url in _secondary_source_urls(sales)
+        if source_url not in protected_urls
+    ]
     if not secondary_urls:
         return 0
     return _postgrest_delete_by_source_urls(supabase_url, api_key, "auction_sales", secondary_urls)
@@ -1545,14 +1647,49 @@ def _delete_secondary_sale_rows_with_postgres(db_url: str, sales: list[AuctionSa
     with _postgres_connect(db_url) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "delete from public.auction_observations where source_url = any(%s)",
+                "select pg_advisory_xact_lock(hashtextextended('immojudis:outcome_catalogue_bridge:v1', 0))"
+            )
+            # Re-read the relation while holding the publication lock.  The
+            # REST snapshot used by the caller is only an early filter; this
+            # is the final guard immediately before deleting parent rows.
+            reviewed_aliases = load_reviewed_aliases(cursor)
+            protected_ids = reviewed_aliases.protected_sale_ids()
+            protected_urls = reviewed_aliases.protected_source_urls()
+            secondary_urls = [
+                source_url
+                for source_url in secondary_urls
+                if source_url not in protected_urls
+            ]
+            if not secondary_urls:
+                return 0
+            rows = cursor.execute(
+                """
+                select id::text, source_url
+                from public.auction_sales
+                where source_url = any(%s)
+                for update
+                """,
                 (secondary_urls,),
+            ).fetchall()
+            deletable = [
+                (str(sale_id), source_url)
+                for sale_id, source_url in rows
+                if str(sale_id) not in protected_ids
+                and source_url not in protected_urls
+            ]
+            if not deletable:
+                return 0
+            deletable_ids = [sale_id for sale_id, _source_url in deletable]
+            deletable_urls = [source_url for _sale_id, source_url in deletable]
+            cursor.execute(
+                "delete from public.auction_observations where source_url = any(%s)",
+                (deletable_urls,),
             )
             cursor.execute(
-                "delete from public.auction_sales where source_url = any(%s)",
-                (secondary_urls,),
+                "delete from public.auction_sales where id = any(%s::uuid[])",
+                (deletable_ids,),
             )
-    return len(secondary_urls)
+    return len(deletable_ids)
 
 
 def _postgres_upsert(
