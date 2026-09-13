@@ -2,10 +2,9 @@
 import os
 
 import pytest
-
-from src.storage.supabase_client import _postgres_connect
 from test_autonomy_postgres import migration, setup
 
+from src.storage.supabase_client import _postgres_connect
 
 DISPATCH_MIGRATION = "20260913091558_pipeline_dispatch_retries.sql"
 
