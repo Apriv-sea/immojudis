@@ -178,9 +178,13 @@ def test_paid_predictions_are_reserved_before_use_and_budget_deferral_preserves_
             assert float(summary['ai_estimated_usd']) == pytest.approx(0.00975)
             assert summary['ai_unpriced_requests'] == 0
             db.execute("insert into auction_sales(source_url,sale_date) values('future',now()+interval '5 days')")
-            job = db.execute("insert into auction_enrichment_jobs(source_url,job_type,input_hash,status,attempt_count) values('future','pdf','one','running',1) returning id,attempt_count").fetchone()
-            pipeline_usage.defer_budget_jobs([{'id':str(job[0]),'attempt_count':job[1]}],pipeline_usage.PipelineBudgetExhausted('Daily AI budget exhausted'))
+            job = db.execute("insert into auction_enrichment_jobs(source_url,job_type,input_hash,status,attempt_count,locked_at) values('future','pdf','one','running',1,now()-interval '1 second') returning id,attempt_count,locked_at").fetchone()
+            old_claim = {'id':str(job[0]),'attempt_count':job[1],'locked_at':job[2]}
+            pipeline_usage.defer_budget_jobs([old_claim],pipeline_usage.PipelineBudgetExhausted('Daily AI budget exhausted'))
             assert db.execute('select status,attempt_count,locked_at from auction_enrichment_jobs where id=%s',(job[0],)).fetchone() == ('queued',0,None)
+            db.execute("update auction_enrichment_jobs set status='running',attempt_count=1,locked_at=now() where id=%s",(job[0],))
+            pipeline_usage.defer_budget_jobs([old_claim],pipeline_usage.PipelineBudgetExhausted('Daily AI budget exhausted'))
+            assert db.execute('select status,attempt_count from auction_enrichment_jobs where id=%s',(job[0],)).fetchone() == ('running',1)
         finally:
             db.rollback()
 

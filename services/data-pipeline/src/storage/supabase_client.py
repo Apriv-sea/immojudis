@@ -601,6 +601,8 @@ def finish_auction_enrichment_job_in_supabase(
     succeeded: bool,
     error_message: str | None = None,
     attempt_count: int | None = None,
+    locked_at: str | datetime | None = None,
+    retry_not_before: str | datetime | None = None,
 ) -> None:
     settings = load_settings()
     url = settings["supabase_url"]
@@ -616,10 +618,19 @@ def finish_auction_enrichment_job_in_supabase(
         "updated_at": now.isoformat(),
     }
     if not succeeded:
-        payload["next_attempt_at"] = (now + timedelta(minutes=30)).isoformat()
+        retry_at = now + timedelta(minutes=30)
+        if retry_not_before:
+            try:
+                requested = retry_not_before if isinstance(retry_not_before, datetime) else datetime.fromisoformat(str(retry_not_before).replace('Z', '+00:00'))
+                if requested.tzinfo is not None:
+                    retry_at = max(retry_at, requested)
+            except ValueError:
+                pass
+        payload["next_attempt_at"] = retry_at.isoformat()
     response = httpx.patch(
         f"{str(url).rstrip('/')}/rest/v1/auction_enrichment_jobs",
         params={"id": f"eq.{job_id}", "status": "eq.running",
+                **({"locked_at": f"eq.{locked_at.isoformat() if isinstance(locked_at, datetime) else locked_at}"} if locked_at is not None else {}),
                 **({"attempt_count": f"eq.{attempt_count}"} if attempt_count is not None else {})},
         headers=_rest_headers(str(key), prefer="return=minimal"),
         json=payload,

@@ -25,10 +25,13 @@ def defer_budget_jobs(jobs: list, error: PipelineBudgetExhausted) -> None:
     from src.storage.supabase_client import _postgres_connect
     with _postgres_connect(str(load_settings()['supabase_db_url'])) as db:
         for job in jobs:
+            lease_filter = ' and locked_at=%s' if job.get('locked_at') is not None else ''
+            parameters = (error.next_attempt_at,str(error),job['id'],job['attempt_count'])
+            if lease_filter:
+                parameters += (job['locked_at'],)
             db.execute("""update public.auction_enrichment_jobs set status='queued',locked_at=null,
               attempt_count=greatest(0,attempt_count-1),next_attempt_at=%s,last_error=%s,updated_at=now()
-              where id=%s and status='running' and attempt_count=%s""",
-              (error.next_attempt_at,str(error),job['id'],job['attempt_count']))
+              where id=%s and status='running' and attempt_count=%s""" + lease_filter, parameters)
 
 
 def reserve_prediction(model: str) -> str | None:

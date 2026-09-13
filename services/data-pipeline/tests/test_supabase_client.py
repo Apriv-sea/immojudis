@@ -19,6 +19,23 @@ def isolate_enrichment_queue(monkeypatch):
     monkeypatch.setattr(supabase_client, "_enqueue_due_enrichment", lambda *args: None)
 
 
+def test_finish_enrichment_respects_retry_after_and_exact_lease(monkeypatch):
+    captured = {}
+
+    def patch(url, **kwargs):
+        captured.update(kwargs)
+        return httpx.Response(204, request=httpx.Request('PATCH', url))
+
+    monkeypatch.setattr(supabase_client, 'load_settings', lambda: {'supabase_url':'https://supabase.test','supabase_service_role_key':'test-only'})
+    monkeypatch.setattr(supabase_client.httpx, 'patch', patch)
+    lease = datetime(2026, 9, 13, tzinfo=UTC)
+    retry_at = datetime(2099, 1, 1, tzinfo=UTC)
+    supabase_client.finish_auction_enrichment_job_in_supabase('job', succeeded=False,
+        attempt_count=1, locked_at=lease, retry_not_before=retry_at.isoformat())
+    assert captured['params'] == {'id':'eq.job','status':'eq.running','attempt_count':'eq.1','locked_at':f'eq.{lease.isoformat()}'}
+    assert captured['json']['next_attempt_at'] == retry_at.isoformat()
+
+
 def test_postgrest_upsert_batch_retries_cloudflare_520(monkeypatch) -> None:
     responses = iter(
         [

@@ -5,7 +5,7 @@ from src import source_detail
 SETTINGS = {'user_agent': 'Immojudis source verification'}
 
 
-@pytest.mark.parametrize('scenario', ['current', 'reclaimed', 'expired_lease', 'newer_revision', 'deleted', 'write_failure'])
+@pytest.mark.parametrize('scenario', ['current', 'reclaimed', 'expired_lease', 'newer_revision', 'deleted', 'write_failure', 'reused_attempt'])
 def test_source_publication_checks_lease_version_and_atomicity(monkeypatch, scenario):
     import os
     from contextlib import contextmanager
@@ -21,13 +21,17 @@ def test_source_publication_checks_lease_version_and_atomicity(monkeypatch, scen
         try:
             db.execute('create table auction_sales(source_url text primary key,updated_at timestamptz default now(),status text)')
             db.execute('''create table auction_enrichment_jobs(id text primary key,source_url text,job_type text,
-              status text,attempt_count int,locked_at timestamptz,last_error text,completed_at timestamptz,updated_at timestamptz)''')
+              status text,attempt_count int,locked_at timestamptz,last_error text,completed_at timestamptz,updated_at timestamptz,next_attempt_at timestamptz)''')
             version = db.execute("insert into auction_sales values('existing',now(),'upcoming') returning updated_at").fetchone()[0]
             db.execute("insert into auction_enrichment_jobs(id,source_url,job_type,status,attempt_count,locked_at) values('job','existing','source_detail','running',1,now())")
             sale = AuctionSale.model_construct(source_url='existing',updated_at=version,status='past')
-            if scenario == 'reclaimed':
+            lease = version
+            if scenario == 'reused_attempt':
+                db.execute("update auction_enrichment_jobs set locked_at=now()+interval '1 second'")
+            elif scenario == 'reclaimed':
                 db.execute("update auction_enrichment_jobs set attempt_count=2")
             elif scenario == 'expired_lease':
+                lease = version - timedelta(minutes=31)
                 db.execute("update auction_enrichment_jobs set locked_at=now()-interval '31 minutes'")
             elif scenario == 'newer_revision':
                 sale.updated_at = version - timedelta(seconds=1)
@@ -54,14 +58,16 @@ def test_source_publication_checks_lease_version_and_atomicity(monkeypatch, scen
             monkeypatch.setattr(storage, '_write_sale_revisions', write)
             if scenario == 'write_failure':
                 with pytest.raises(RuntimeError, match='child table failed'):
-                    source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1}, {'supabase_db_url':url})
+                    source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1,'locked_at':lease}, {'supabase_db_url':url})
                 assert db.execute('select status from auction_sales').fetchone()[0] == 'upcoming'
                 assert db.execute('select status from auction_enrichment_jobs').fetchone()[0] == 'running'
             else:
-                assert source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1}, {'supabase_db_url':url}) is (scenario == 'current')
+                assert source_detail.publish_source_revision(sale, {'id':'job','attempt_count':1,'locked_at':lease}, {'supabase_db_url':url}) is (scenario == 'current')
                 assert writes == (['existing'] if scenario == 'current' else [])
-                expected = 'completed' if scenario == 'current' else 'cancelled' if scenario in {'newer_revision','deleted'} else 'running'
+                expected = 'completed' if scenario == 'current' else 'cancelled' if scenario == 'deleted' else 'queued' if scenario == 'newer_revision' else 'running'
                 assert db.execute('select status from auction_enrichment_jobs').fetchone()[0] == expected
+                if scenario == 'newer_revision':
+                    assert db.execute('select attempt_count,next_attempt_at<=now()+interval \'5 minutes\' from auction_enrichment_jobs').fetchone() == (0,True)
             assert storage._PUBLICATION_CONNECTION.get() is None
         finally:
             db.rollback()
@@ -89,10 +95,32 @@ def test_detail_uses_existing_licitor_parser_after_robots_check(monkeypatch):
     assert 'Vente non requise' in body
 
 
-def test_detail_rejects_other_origin_before_any_request(monkeypatch):
+@pytest.mark.parametrize('source', ['licitor','notaires'])
+def test_detail_rejects_other_origin_before_any_request(monkeypatch, source):
     monkeypatch.setattr(source_detail, 'PoliteHttpClient', lambda **kwargs: pytest.fail('Unexpected HTTP client'))
     with pytest.raises(ValueError, match='Unsupported source endpoint'):
-        source_detail.fetch_public_detail('licitor', 'https://example.test/annonce/1', SETTINGS, {})
+        source_detail.fetch_public_detail(source, 'https://example.test/annonce/1', SETTINGS, {})
+
+
+@pytest.mark.parametrize('body,should_succeed', [('{}',False), ('{"id":2}',False), ('{"id":1,"typeTransaction":"VAE","vae":{"descriptions":[{"langue":"fr","descCourte":"Appartement"}]}}',True)])
+@pytest.mark.parametrize('origin', ['https://www.immobilier.notaires.fr','https://www.immo-interactif.fr'])
+def test_notarial_detail_keeps_requested_identity_and_rejects_empty_payload(monkeypatch, body, should_succeed, origin):
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def get(self, url):
+            return body
+
+    monkeypatch.setattr(source_detail, 'PoliteHttpClient', Client)
+    url = origin + '/fr/annonce-immo/1'
+    if not should_succeed:
+        with pytest.raises(ValueError):
+            source_detail.fetch_public_detail('notaires', url, SETTINGS, {})
+    else:
+        _, _, raw = source_detail.fetch_public_detail('notaires', url, SETTINGS, {})
+        assert raw['source_url'] == url
+        assert raw['source_name'] == 'notaires'
 
 
 def test_robots_refusal_prevents_detail_request(monkeypatch):
@@ -169,6 +197,28 @@ def test_unchanged_source_preserves_later_documentary_qualification(monkeypatch)
     assert revised.quality_flags == ['surface_type_unverified']
     assert revised.raw_payload['qualification_surface']['page'] == 3
     assert revised.raw_payload['source_checks'][existing.source_url]['checked_at'] >= first['source_checks'][existing.source_url]['checked_at']
+
+
+@pytest.mark.parametrize('change,expected', [({'status':'withdrawn'},'withdrawn'), ({'habitable_surface_m2':70},70)])
+def test_structured_source_change_is_not_mistaken_for_unchanged_text(monkeypatch, change, expected):
+    from copy import deepcopy
+
+    from src import main
+    from src.freshness import record_source_checks
+    from src.normalize import normalize_sale
+
+    monkeypatch.setattr(main, '_finalize_sale_for_app', lambda sale, **kwargs: None)
+    raw = {'source_name':'licitor','source_url':'https://www.licitor.com/annonce/1',
+           'raw_text':'Appartement','status':'upcoming','starting_price_eur':10000,'habitable_surface_m2':50}
+    first = deepcopy(raw)
+    record_source_checks([first], {})
+    existing = normalize_sale(first)
+    existing.raw_payload['llm_display_description'] = 'Previous analysis'
+    revised = source_detail.prepare_source_revision(existing, {**raw,**change})
+    field = next(iter(change))
+    assert getattr(revised, field) == expected
+    assert revised.raw_payload['source_content_changed'] is True
+    assert not revised.raw_payload.get('llm_display_description')
 
 
 def test_reused_url_for_different_lot_holds_existing_identity(monkeypatch):

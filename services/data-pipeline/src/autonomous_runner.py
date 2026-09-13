@@ -6,7 +6,9 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from psycopg.types.json import Jsonb
@@ -14,6 +16,11 @@ from psycopg.types.json import Jsonb
 from src.config import load_settings
 from src.run_finalizer import register_run
 from src.storage.supabase_client import _postgres_connect
+
+INVENTORY_CADENCE = timedelta(hours=6)
+INVENTORY_DISPATCH_MARGIN = timedelta(minutes=45)
+NEAR_SALE_HORIZON = timedelta(days=7)
+ACTIVE_LISTING_STATUSES = frozenset({'active', 'upcoming', 'postponed', 'unknown'})
 
 
 def next_attempt(*, failures: int, access_denied: bool, retry_not_before: str | None,
@@ -30,10 +37,136 @@ def next_attempt(*, failures: int, access_denied: bool, retry_not_before: str | 
     return deadline
 
 
+def _aware_timestamp(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        candidate = value
+    elif isinstance(value, str):
+        try:
+            candidate = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    else:
+        return None
+    if candidate.tzinfo is None or candidate.utcoffset() is None:
+        return None
+    return candidate.astimezone(UTC)
+
+
+def _near_sale(row: dict[str, object], now: datetime) -> bool:
+    evidence = row.get('evidence')
+    evidence = evidence if isinstance(evidence, dict) else {}
+    status = str(row.get('status') or evidence.get('status') or '').lower()
+    if status not in ACTIVE_LISTING_STATUSES:
+        return False
+    sale_date = _aware_timestamp(row.get('sale_date')) or _aware_timestamp(evidence.get('sale_date'))
+    return sale_date is not None and now <= sale_date <= now + NEAR_SALE_HORIZON
+
+
+def _source_check_times(payload: object, *, source: str, source_url: str, now: datetime,
+                        allow_checkpoint_checked_at: bool = False) -> list[datetime]:
+    if not isinstance(payload, dict):
+        return []
+    result: list[datetime] = []
+    if allow_checkpoint_checked_at:
+        checkpoint_checked_at = _aware_timestamp(payload.get('_checkpoint_checked_at'))
+        if checkpoint_checked_at is not None and checkpoint_checked_at <= now:
+            result.append(checkpoint_checked_at)
+    checks = payload.get('source_checks')
+    if isinstance(checks, dict):
+        check = checks.get(source_url)
+        if isinstance(check, dict) and (not check.get('source_name') or check.get('source_name') == source):
+            checked_at = _aware_timestamp(check.get('checked_at'))
+            if checked_at is not None and checked_at <= now:
+                result.append(checked_at)
+    nested = payload.get('raw_payload')
+    if isinstance(nested, dict):
+        result.extend(_source_check_times(nested, source=source, source_url=source_url, now=now))
+    return result
+
+
+def _row_payloads(row: dict[str, object]) -> Iterable[tuple[object, bool]]:
+    # A catalogue raw_payload can contain a stale private checkpoint marker
+    # copied from another source. Only the SQL row selected for this run/URL
+    # and a matching observation are allowed to carry that marker.
+    yield row.get('raw_payload'), False
+    yield row.get('checkpoint_payload'), True
+    observations = row.get('observations')
+    if isinstance(observations, list):
+        for observation in observations:
+            if not isinstance(observation, dict):
+                continue
+            if observation.get('source_url') == row.get('source_url'):
+                yield observation.get('raw_payload') or observation, True
+
+
+def next_inventory_deadline(*, now: datetime, started_at: object | None, source: str,
+                            evidence_rows: Iterable[dict[str, object]]) -> datetime:
+    """Return a bounded source deadline from verified rows in the real run.
+
+    ``evidence_rows`` is deliberately supplied by the current run's collection
+    items. A stale alias which was absent from this run cannot move the
+    deadline backwards. A checkpoint timestamp is the time the detail was
+    actually checked, while ``started_at`` is only a conservative fallback for
+    a row observed by this run without a usable check timestamp.
+    """
+    current = _aware_timestamp(now)
+    if current is None:
+        raise ValueError('now must be timezone-aware')
+    run_started = _aware_timestamp(started_at)
+    anchors: list[datetime] = []
+    for row in evidence_rows:
+        if not _near_sale(row, current):
+            continue
+        source_url = str(row.get('source_url') or '')
+        checks: list[datetime] = []
+        if source_url:
+            for payload, allow_checkpoint_checked_at in _row_payloads(row):
+                checks.extend(_source_check_times(
+                    payload, source=source, source_url=source_url, now=current,
+                    allow_checkpoint_checked_at=allow_checkpoint_checked_at,
+                ))
+        if checks:
+            # A stale checkpoint marker must not override a newer source check
+            # for the same URL. The inventory cadence is based on the oldest
+            # URL after each URL's strongest reusable evidence is selected.
+            anchors.append(max(checks))
+        elif run_started is not None and run_started <= current:
+            anchors.append(run_started)
+    if not anchors:
+        # No close listing was evidenced by this run. Keep the ordinary six
+        # hour cadence instead of inheriting an old alias/checkpoint forever.
+        return current + INVENTORY_CADENCE
+    return max(current, min(anchors) + INVENTORY_CADENCE - INVENTORY_DISPATCH_MARGIN)
+
+
+def _schedule_evidence_rows(db: Any, run_id: str, source: str) -> list[dict[str, object]]:
+    rows = db.execute("""select i.source_url,i.canonical_source_url,i.evidence,
+            s.sale_date,s.status,s.raw_payload,s.observations,c.payload
+        from public.auction_collection_items i
+        left join public.auction_sales s
+          on s.source_url=coalesce(i.canonical_source_url,i.source_url)
+        left join public.auction_collection_checkpoints c
+          on c.run_id=i.run_id and c.source_url=i.source_url
+        where i.run_id=%s and i.source_name=%s""", (run_id, source)).fetchall()
+    return [
+        {
+            'source_url': row[0],
+            'canonical_source_url': row[1],
+            'evidence': row[2],
+            'sale_date': row[3],
+            'status': row[4],
+            'raw_payload': row[5],
+            'observations': row[6],
+            'checkpoint_payload': row[7],
+        }
+        for row in rows
+    ]
+
+
 def finish_source(db_url: str, run_id: str) -> None:
     with _postgres_connect(db_url) as db:
-        row = db.execute('select source,status,summary,errors from public.auction_runs where id=%s', (run_id,)).fetchone()
-        source, status, summary, errors = row
+        row = db.execute('select source,status,summary,errors,started_at from public.auction_runs where id=%s', (run_id,)).fetchone()
+        source, status, summary, errors, started_at = row
         if source == 'enrichment-queue':
             return
         summary, errors = summary or {}, errors or {}
@@ -47,8 +180,18 @@ def finish_source(db_url: str, run_id: str) -> None:
         complete = coverage.get('coverage_complete') is True
         publication_complete = complete and not pending and status == 'succeeded'
         now = datetime.now(UTC)
-        deadline = next_attempt(failures=failures, access_denied=denied,
-            retry_not_before=coverage.get('retry_not_before'), now=now) if failures else now + timedelta(hours=6)
+        if failures:
+            # Retry-After and persistent access refusals retain their existing
+            # bounded policy and must not be shortened by freshness cadence.
+            deadline = next_attempt(failures=failures, access_denied=denied,
+                retry_not_before=coverage.get('retry_not_before'), now=now)
+        else:
+            deadline = next_inventory_deadline(
+                now=now,
+                started_at=started_at,
+                source=source,
+                evidence_rows=_schedule_evidence_rows(db, run_id, source),
+            )
         record_source_presence(db, run_id, source, availability, complete)
         db.execute("""update public.auction_source_state set
             availability=%s,coverage=%s,last_error=%s,consecutive_failures=%s,

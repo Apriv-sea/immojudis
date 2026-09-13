@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from urllib.parse import urlsplit
 
 from src.sources.cessions_etat import cessions_tls_context
@@ -13,12 +14,18 @@ def fetch_public_detail(source: str, source_url: str, settings: dict, clients: d
     endpoint = source_url
     parser = getattr(module, 'parse_' + source + '_detail_html', None)
     base = module.BASE_URL
+    public_origins = (base, 'https://www.immo-interactif.fr', 'https://immo-interactif.fr') if source == 'notaires' else (base,)
+    if source != 'agrasc' and not is_allowed_origin_url(source_url, public_origins):
+        raise ValueError('Unsupported source endpoint')
     if source == 'notaires':
         marker = urlsplit(endpoint).path.rstrip('/').split('/')[-1]
         if not marker.isdigit():
             raise ValueError('Unsupported notarial URL identity')
         endpoint = module._detail_api_url({'external_id': marker})
-        def parser(body, url, listing_url=source_url):
+        def parser(body, url, listing_url=source_url, expected_id=marker):
+            data = json.loads(body)
+            if isinstance(data, dict) and data.get('id') is not None and str(data['id']) != expected_id:
+                raise ValueError('Notarial detail identity does not match requested URL')
             return module.parse_notaires_detail_json(body, fallback={'source_url': listing_url})
     elif source == 'agrasc':
         from src.sources.agrasc_operators import (
@@ -54,6 +61,15 @@ def fetch_public_detail(source: str, source_url: str, settings: dict, clients: d
         raise ValueError('Robots access refused')
     body = client.get(endpoint)
     raw = parser(body, endpoint)
+    factual_fields = ('title', 'description', 'address', 'city', 'starting_price_eur', 'sale_date',
+                      'surface_m2', 'habitable_surface_m2', 'carrez_surface_m2', 'land_surface_m2', 'documents')
+    if not isinstance(raw, dict) or not (
+        any(raw.get(field) for field in factual_fields)
+        or (raw.get('status') in {'withdrawn', 'cancelled', 'postponed'} and raw.get('raw_text'))
+    ):
+        raise ValueError('Source detail contains no verifiable facts')
+    raw.setdefault('source_url', source_url)
+    raw.setdefault('source_name', source)
     return endpoint, body, raw
 
 
@@ -118,14 +134,16 @@ def publish_source_revision(sale, job: dict, settings: dict) -> bool:
         db.execute("select pg_advisory_xact_lock(hashtextextended('immojudis:outcome_catalogue_bridge:v1',0))")
         owned = db.execute("""select id from public.auction_enrichment_jobs
           where id=%s and source_url=%s and job_type='source_detail' and status='running'
-            and attempt_count=%s and locked_at>=now()-interval '30 minutes' for update""",
-          (job['id'], sale.source_url, job['attempt_count'])).fetchone()
+            and attempt_count=%s and locked_at=%s and locked_at>=now()-interval '30 minutes' for update""",
+          (job['id'], sale.source_url, job['attempt_count'], job['locked_at'])).fetchone()
         if not owned:
             return False
         if not storage._guard_enrichment_revision(db, [sale]):
-            db.execute("""update public.auction_enrichment_jobs set status='cancelled',locked_at=null,
+            exists = db.execute('select 1 from public.auction_sales where source_url=%s', (sale.source_url,)).fetchone()
+            db.execute("""update public.auction_enrichment_jobs set status=%s,locked_at=null,
+              attempt_count=greatest(0,attempt_count-1),next_attempt_at=now()+interval '5 minutes',
               last_error='Catalogue revision changed during source verification',updated_at=now() where id=%s""",
-              (job['id'],))
+              ('queued' if exists else 'cancelled', job['id']))
             return False
         db.execute("select set_config('app.pipeline_queue_owner', 'python', true)")
         token = storage._PUBLICATION_CONNECTION.set(db)

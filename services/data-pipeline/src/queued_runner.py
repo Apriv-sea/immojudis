@@ -26,6 +26,7 @@ from src.main import (
 from src.pdf_enrichment import enrich_sale_from_pdfs
 from src.pipeline_usage import PipelineBudgetExhausted, defer_budget_jobs
 from src.sale_procedure import classify_sale_procedure
+from src.source_detail_worker import run_source_detail_jobs
 from src.storage.supabase_client import (
     claim_auction_enrichment_jobs_from_supabase,
     fail_stale_running_runs_in_supabase,
@@ -211,6 +212,8 @@ def _finish_job(job: dict[str, object], **kwargs) -> None:
     # A worker whose lease expired must not finish a later worker's attempt.
     if job.get("attempt_count") is not None:
         kwargs["attempt_count"] = int(job["attempt_count"])
+    if job.get("locked_at") is not None:
+        kwargs["locked_at"] = job["locked_at"]
     finish_auction_enrichment_job_in_supabase(str(job.get("id") or ""), **kwargs)
 
 
@@ -218,13 +221,23 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
     jobs = claim_auction_enrichment_jobs_from_supabase(limit=limit)
     if not jobs:
         return 0
+    settings = load_settings()
+    detail_jobs = [job for job in jobs if str(job.get("job_type") or "") == "source_detail"]
+    enrichment_jobs = [job for job in jobs if str(job.get("job_type") or "") != "source_detail"]
+
+    # Source details are deliberately completed before grouping the remaining
+    # enrichment work.  Each regular group fetches its sale again below, so a
+    # PDF/LLM job never writes a stale pre-detail catalogue snapshot.
+    processed_detail_jobs = run_source_detail_jobs(detail_jobs, settings=settings)
+    if not enrichment_jobs:
+        return processed_detail_jobs
+
     jobs_by_sale: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for job in jobs:
+    for job in enrichment_jobs:
         source_url = str(job.get("source_url") or "")
         if source_url:
             jobs_by_sale[source_url].append(job)
 
-    settings = load_settings()
     prompt_version = str(settings.get("llm_prompt_version") or "")
     llm_client = None
 
@@ -285,9 +298,9 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
             normalize_asset_features(sale)
             upsert_sales_to_supabase([sale], refresh_last_seen=False)
         except PipelineBudgetExhausted as exc:
-            defer_budget_jobs(jobs, exc)
+            defer_budget_jobs(enrichment_jobs, exc)
             LOGGER.info("Enrichment deferred without consuming retry attempts: %s", exc)
-            return 0
+            return processed_detail_jobs
         except Exception as exc:
             LOGGER.exception("Enrichment queue failed for %s: %s", source_url, exc)
             for job in sale_jobs:
@@ -300,7 +313,7 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
             _finish_job(job,
                 succeeded=True,
             )
-    return len(jobs)
+    return processed_detail_jobs + len(enrichment_jobs)
 
 
 if __name__ == "__main__":
