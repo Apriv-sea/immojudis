@@ -577,22 +577,59 @@ def fetch_next_queued_run_from_supabase() -> dict[str, Any] | None:
     return rows[0]
 
 
-def claim_auction_enrichment_jobs_from_supabase(limit: int = 10) -> list[dict[str, Any]]:
+ENRICHMENT_QUEUE_FAMILIES = frozenset({'source_detail', 'enrichment'})
+
+
+def _claim_auction_enrichment_jobs_rpc(
+    rpc_name: str,
+    payload: dict[str, Any],
+) -> list[dict[str, Any]]:
     settings = load_settings()
     url = settings["supabase_url"]
     key = settings["supabase_service_role_key"]
     if not url or not key:
         return []
     response = httpx.post(
-        f"{str(url).rstrip('/')}/rest/v1/rpc/claim_auction_enrichment_jobs",
+        f"{str(url).rstrip('/')}/rest/v1/rpc/{rpc_name}",
         headers=_rest_headers(str(key), prefer="return=representation"),
-        json={"p_limit": max(1, min(100, int(limit)))},
+        json=payload,
         timeout=30,
     )
     if response.is_error:
         response.raise_for_status()
     rows = response.json()
     return [row for row in rows if isinstance(row, dict)]
+
+
+def claim_auction_enrichment_jobs_from_supabase(
+    limit: int = 10,
+    *,
+    family: str | None = None,
+) -> list[dict[str, Any]]:
+    """Claim through the historical RPC, or one explicit family when given."""
+    if family is not None:
+        return claim_auction_enrichment_jobs_family_from_supabase(family=family, limit=limit)
+    return _claim_auction_enrichment_jobs_rpc(
+        "claim_auction_enrichment_jobs",
+        {"p_limit": max(1, min(100, int(limit)))},
+    )
+
+
+def claim_auction_enrichment_jobs_family_from_supabase(
+    family: str,
+    limit: int = 1,
+) -> list[dict[str, Any]]:
+    """Claim one explicit queue family through the fairness RPC."""
+    normalized_family = str(family or "").strip().lower()
+    if normalized_family not in ENRICHMENT_QUEUE_FAMILIES:
+        raise ValueError(f"Unknown enrichment queue family: {family!r}")
+    return _claim_auction_enrichment_jobs_rpc(
+        "claim_auction_enrichment_jobs_family",
+        {
+            "p_family": normalized_family,
+            "p_limit": max(1, min(100, int(limit))),
+        },
+    )
 
 
 def finish_auction_enrichment_job_in_supabase(

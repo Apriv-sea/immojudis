@@ -363,3 +363,123 @@ def test_enrichment_queue_does_not_pay_twice_for_scan_description(monkeypatch) -
 
     assert queued_runner.run_enrichment_queue_batch(limit=10) == 1
     assert finished == [("job-display", True, None)]
+
+
+def test_enrichment_worker_uses_five_to_one_lane_cycle(monkeypatch) -> None:
+    calls: list[tuple[int, str]] = []
+
+    def fake_batch(*, limit: int, family: str, provider_clients: dict | None = None) -> int:
+        calls.append((limit, family))
+        return 1
+
+    monkeypatch.setattr(queued_runner, "run_enrichment_queue_batch", fake_batch)
+
+    assert queued_runner.run_enrichment_queue_worker(max_jobs=6, budget_seconds=1200) == 6
+    assert calls == [
+        (1, queued_runner.SOURCE_DETAIL_FAMILY),
+        (1, queued_runner.SOURCE_DETAIL_FAMILY),
+        (1, queued_runner.SOURCE_DETAIL_FAMILY),
+        (1, queued_runner.SOURCE_DETAIL_FAMILY),
+        (1, queued_runner.SOURCE_DETAIL_FAMILY),
+        (1, queued_runner.ENRICHMENT_FAMILY),
+    ]
+
+
+def test_enrichment_worker_gives_empty_lane_slot_to_other_family(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_batch(*, limit: int, family: str, provider_clients: dict | None = None) -> int:
+        calls.append(family)
+        return 0 if family == queued_runner.SOURCE_DETAIL_FAMILY else 1
+
+    monkeypatch.setattr(queued_runner, "run_enrichment_queue_batch", fake_batch)
+
+    assert queued_runner.run_enrichment_queue_worker(max_jobs=1, budget_seconds=1200) == 1
+    assert calls == [queued_runner.SOURCE_DETAIL_FAMILY, queued_runner.ENRICHMENT_FAMILY]
+
+
+def test_enrichment_worker_reuses_provider_clients_between_detail_claims(monkeypatch) -> None:
+    jobs = iter(
+        [
+            {"id": "detail-1", "job_type": "source_detail"},
+            {"id": "detail-2", "job_type": "source_detail"},
+        ]
+    )
+    observed_maps: list[dict[str, object]] = []
+    observed_clients: list[object] = []
+
+    def claim(*, family: str, limit: int) -> list[dict[str, object]]:
+        if family != queued_runner.SOURCE_DETAIL_FAMILY:
+            return []
+        try:
+            return [next(jobs)]
+        except StopIteration:
+            return []
+
+    def process_details(*args, settings, clients) -> int:
+        observed_maps.append(clients)
+        client = clients.setdefault(
+            "https://provider.test",
+            SimpleNamespace(
+                _access_denials=1,
+                _retry_not_before="2099-01-01T00:00:00+00:00",
+            ),
+        )
+        observed_clients.append(client)
+        return 1
+
+    monkeypatch.setattr(queued_runner, "claim_auction_enrichment_jobs_family_from_supabase", claim)
+    monkeypatch.setattr(queued_runner, "load_settings", lambda: {})
+    monkeypatch.setattr(queued_runner, "run_source_detail_jobs", process_details)
+
+    assert queued_runner.run_enrichment_queue_worker(max_jobs=2, budget_seconds=1200) == 2
+    assert observed_maps[0] is observed_maps[1]
+    assert observed_clients[0] is observed_clients[1]
+    assert observed_clients[1]._access_denials == 1
+    assert observed_clients[1]._retry_not_before == "2099-01-01T00:00:00+00:00"
+
+
+def test_general_budget_deferral_is_a_handled_lane_outcome(monkeypatch) -> None:
+    from src.pipeline_usage import PipelineBudgetExhausted
+
+    sale = normalize_sale(
+        {
+            "source_name": "avoventes",
+            "source_url": "https://example.test/general-budget",
+            "description": "Maison",
+        }
+    )
+    job = {
+        "id": "job-general-budget",
+        "source_url": sale.source_url,
+        "job_type": "fact_extraction",
+        "attempt_count": 1,
+        "locked_at": "2026-09-13T08:00:00+00:00",
+    }
+    deferred: list[tuple[list[dict[str, object]], PipelineBudgetExhausted]] = []
+
+    monkeypatch.setattr(
+        queued_runner,
+        "claim_auction_enrichment_jobs_family_from_supabase",
+        lambda *, family, limit: [job],
+    )
+    monkeypatch.setattr(queued_runner, "load_settings", lambda: {"llm_prompt_version": "test"})
+    monkeypatch.setattr(queued_runner, "fetch_sale_for_data_refresh", lambda _: sale)
+    monkeypatch.setattr(queued_runner, "create_llm_client", lambda: object())
+    monkeypatch.setattr(
+        queued_runner,
+        "enrich_sale_with_llm",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            PipelineBudgetExhausted("Daily AI budget exhausted")
+        ),
+    )
+    monkeypatch.setattr(
+        queued_runner,
+        "defer_budget_jobs",
+        lambda jobs, error: deferred.append((jobs, error)),
+    )
+
+    assert queued_runner.run_enrichment_queue_batch(limit=1, family=queued_runner.ENRICHMENT_FAMILY) == 1
+    assert len(deferred) == 1
+    assert deferred[0][0] == [job]
+    assert isinstance(deferred[0][1], PipelineBudgetExhausted)

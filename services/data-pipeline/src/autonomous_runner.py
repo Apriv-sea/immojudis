@@ -238,7 +238,7 @@ def execute(run_id: str) -> int:
         return 0
     source = row[0]
     register_run(run_id)
-    env = {**os.environ, 'PIPELINE_AUTONOMOUS_RUN_ID':run_id, 'PIPELINE_ENRICHMENT_BUDGET_SECONDS':'1200', 'PIPELINE_ENRICHMENT_MAX_JOBS':'40', 'REPLICATE_CANCEL_AFTER':'5m',
+    env = {**os.environ, 'PIPELINE_AUTONOMOUS_RUN_ID':run_id, 'PIPELINE_ENRICHMENT_BUDGET_SECONDS':'1200', 'PIPELINE_ENRICHMENT_MAX_JOBS':'90', 'REPLICATE_CANCEL_AFTER':'5m',
            'CADASTRE_ENRICH_ENABLED':'false', 'DPE_ENRICH_ENABLED':'false'}
     if source == 'enrichment-queue':
         command = [sys.executable,'-m','src.queued_runner','--enrichment-only']
