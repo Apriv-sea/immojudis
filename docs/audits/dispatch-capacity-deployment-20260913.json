@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "pr": 135,
+  "merge_commit": "277556b292b4e97899d504f6b1983f8951df487d",
+  "migration_versions": [
+    "20260913091558",
+    "20260913091614"
+  ],
+  "migration_registry_alignment": "Generated connector versions 20260913094504/20260913094509 aligned to committed filenames after matching names and SQL statement hashes; no DDL re-execution.",
+  "deployment": "dpl_Axnhi8CkBZjjepFFfbq5xmnstWP9",
+  "legacy_adoption": {
+    "id": "45c00ec0-b1b4-4a8c-babd-4f38539e384c",
+    "status": "queued",
+    "source": "enrichment-queue",
+    "created_at": "2026-09-13 09:00:02.330432+00",
+    "updated_at": "2026-09-13 09:47:25.350324+00",
+    "github_dispatch": {
+      "state": "legacy",
+      "attempt": 1,
+      "version": 1,
+      "lease_until": "2026-09-13T10:47:25.350324+00:00",
+      "max_attempts": 4,
+      "next_attempt_at": "2026-09-13T09:15:02.330432+00:00",
+      "migration_adopted_at": "2026-09-13T09:47:25.350324+00:00",
+      "migration_adoption_reason": "Preserve pre-migration queued run for the next automatic retry; no workflow dispatched by migration"
+    }
+  },
+  "manual_workflow_dispatch": false,
+  "automatic_retry_verified": true,
+  "smoke": {
+    "checked_at": "2026-09-13T09:47:38.339Z",
+    "passed": 5,
+    "failed": 0
+  },
+  "production_migration_validation": {
+    "github_run_id": 34750304142,
+    "conclusion": "success"
+  },
+  "automatic_retry": {
+    "run_id": "45c00ec0-b1b4-4a8c-babd-4f38539e384c",
+    "attempt": 2,
+    "attempt_started_at": "2026-09-13T10:00:05.896033+00:00",
+    "result_at": "2026-09-13T10:00:13.408959+00:00",
+    "http_status": 204,
+    "state": "accepted",
+    "github_run_id": 34750715142,
+    "github_created_at": "2026-09-13T10:00:13Z",
+    "worker_completion_verified": false
+  }
+}

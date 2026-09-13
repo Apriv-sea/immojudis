@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup, Tag
 
+from src.catalogue_proof import CatalogueEvidence
 from src.config import FRANCE_DEPARTMENTS, FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import SURFACE_VALUE_PATTERN, clean_text
 from src.raw_models import validate_raw_sales
@@ -57,8 +58,10 @@ def scrape_petites_affiches_aquitaine_result(
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
     partitions: list[dict[str, Any]] = []
+    catalogue = CatalogueEvidence("petites_affiches")
     seen_sales: set[str] = set()
     for department in _department_filters():
+        partition = f"department:{department or 'all'}"
         pages = LinkedPages(LIST_URL, "", 1, max_pages or 100,
                             path_pattern=r"/encheres-immobilieres/ventes-aux-encheres-immobilieres-p(\d+)\.html")
         for page_url in pages:
@@ -70,7 +73,12 @@ def scrape_petites_affiches_aquitaine_result(
                 errors.append(f"{page_url}: {exc}")
                 break
             pages.observe(html, page_url)
-            for sale in parse_petites_affiches_html(html, page_url=page_url, fallback_department=department):
+            page_sales = parse_petites_affiches_html(html, page_url=page_url, fallback_department=department)
+            # Certify every department POST before the global URL deduplication.
+            # A URL repeated by two department partitions is still evidence in
+            # both public catalogues and must not hide a partial partition.
+            catalogue.observe(html, page_url, page_sales, partition=partition)
+            for sale in page_sales:
                 url = str(sale.get("source_url"))
                 if url in seen_sales:
                     continue
@@ -78,13 +86,29 @@ def scrape_petites_affiches_aquitaine_result(
                 if should_fetch_detail(sale, known):
                     _enrich_sale_from_detail(client, sale, errors)
                 raw_sales.append(sale)
-        partitions.append({"department": department, **pages.metrics()})
+        partitions.append({"department": department, "partition": partition, **pages.metrics()})
+
+    pagination_incomplete = [item for item in partitions if not item["linked_pages_complete"]]
+    pagination_metrics = {
+        "coverage_complete": False if pagination_incomplete else None,
+        "stop_reason": "partition_pagination_incomplete" if pagination_incomplete else "published_links_exhausted",
+    }
+    validated_sales = validate_raw_sales("petites_affiches", unique_dicts(raw_sales, "source_url"), errors)
+    catalogue_metrics = catalogue.metrics(
+        validated_sales,
+        errors,
+        coverage=pagination_metrics,
+        scope={"public": "configured_departments", "configured": "target_departments"},
+    )
 
     return ScrapeResult(
-        validate_raw_sales("petites_affiches", unique_dicts(raw_sales, "source_url"), errors),
+        validated_sales,
         errors,
-        {**getattr(client, "coverage_metrics", lambda: {})(), "partitions": partitions,
-         "linked_pages_complete": all(p["linked_pages_complete"] for p in partitions)},
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+         **pagination_metrics,
+         "partitions": partitions,
+         "linked_pages_complete": not pagination_incomplete,
+         **catalogue_metrics},
     )
 
 

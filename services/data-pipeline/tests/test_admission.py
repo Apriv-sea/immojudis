@@ -33,8 +33,9 @@ def test_enrichment_can_make_previously_rejected_sale_admissible():
 
 @pytest.mark.parametrize('date,status,raw,expected', [
     ('2026-09-10T12:00:00+00:00', 'upcoming', {}, '2026-09-11T12:00:00+00:00'),
-    ('2026-09-10T00:00:00+00:00', 'upcoming', {'sale_date': '10/09/2026'}, '2026-09-10T22:00:00+00:00'),
-    ('2026-03-29T00:00:00+00:00', 'upcoming', {'sale_date': '2026-03-29'}, '2026-03-29T23:00:00+00:00'),
+    ('2026-09-10T00:00:00+00:00', 'upcoming', {'sale_date': '10/09/2026'}, '2026-09-11T22:00:00+00:00'),
+    ('2026-03-29T00:00:00+00:00', 'upcoming', {'sale_date': '2026-03-29'}, '2026-03-30T22:00:00+00:00'),
+    ('2026-10-25T00:00:00+00:00', 'upcoming', {'sale_date': '2026-10-25'}, '2026-10-26T23:00:00+00:00'),
     ('2026-09-10T12:00:00+00:00', 'postponed', {}, None),
     (None, 'upcoming', {}, None),
     ('2026-09-10T12:00:00+00:00', 'past', {'status': 'Vente reportée'}, None),
@@ -44,6 +45,83 @@ def test_retention_deadline_matches_database(date, status, raw, expected):
     sale = AuctionSale(source_name='test', source_url='https://example.org/sale', sale_date=date, status=status, raw_payload=raw)
     deadline = retention_deadline(sale)
     assert (deadline.isoformat() if deadline else None) == expected
+
+
+def test_date_only_sale_is_retained_after_a_sale_at_14h_until_civil_day_plus_24h():
+    from datetime import UTC, datetime
+
+    from src.admission import is_expired, retention_deadline
+
+    sale = AuctionSale(
+        source_name='test',
+        source_url='https://example.org/date-only',
+        sale_date='2026-09-10T00:00:00+00:00',
+        raw_payload={'sale_date': '10/09/2026'},
+    )
+    deadline = retention_deadline(sale)
+    assert deadline == datetime(2026, 9, 11, 22, tzinfo=UTC)
+    assert not is_expired(sale, datetime(2026, 9, 11, 14, tzinfo=UTC))
+    assert is_expired(sale, deadline)
+
+
+def test_date_precision_marker_protects_legacy_midnight_normalization():
+    from datetime import UTC, datetime
+
+    from src.admission import retention_deadline
+
+    sale = AuctionSale(
+        source_name='test',
+        source_url='https://example.org/date-precision',
+        sale_date='2026-09-10T00:00:00+00:00',
+        raw_payload={
+            'sale_date': '2026-09-10T00:00:00Z',
+            'date_precision': '  ',
+            'sale_date_precision': ' day ',
+        },
+    )
+    assert retention_deadline(sale) == datetime(2026, 9, 11, 22, tzinfo=UTC)
+
+
+def test_date_only_marker_uses_the_paris_civil_date_for_an_aware_midnight():
+    from datetime import UTC, datetime
+
+    from src.admission import retention_deadline
+
+    sale = AuctionSale(
+        source_name='test',
+        source_url='https://example.org/aware-date-only',
+        sale_date='2026-10-25T00:00:00+02:00',
+        raw_payload={'sale_date': '2026-10-25T00:00:00+02:00', 'date_precision': 'day'},
+    )
+    assert retention_deadline(sale) == datetime(2026, 10, 26, 23, tzinfo=UTC)
+
+
+def test_midnight_sale_date_without_date_only_evidence_keeps_timestamp_semantics():
+    from datetime import UTC, datetime
+
+    from src.admission import retention_deadline
+
+    sale = AuctionSale(
+        source_name='test',
+        source_url='https://example.org/source-date',
+        sale_date='2026-09-10T00:00:00+00:00',
+        raw_payload={'source_date': '2026-09-10'},
+    )
+    assert retention_deadline(sale) == datetime(2026, 9, 11, tzinfo=UTC)
+
+
+def test_explicit_sale_hour_still_uses_sale_timestamp_plus_24h():
+    from datetime import UTC, datetime
+
+    from src.admission import retention_deadline
+
+    sale = AuctionSale(
+        source_name='test',
+        source_url='https://example.org/explicit-hour',
+        sale_date='2026-09-10T12:00:00+00:00',
+        raw_payload={'sale_date': '10/09/2026 à 14h'},
+    )
+    assert retention_deadline(sale) == datetime(2026, 9, 11, 12, tzinfo=UTC)
 
 
 def test_checkpoint_waits_for_usable_enrichment(monkeypatch):

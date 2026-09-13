@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import parse_qs, urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -35,7 +37,7 @@ def page_index(source: str, url: str) -> int:
     return int(values[0]) if values[0].isdigit() else first
 
 
-def public_page_proof(source: str, body: str, url: str) -> dict:
+def public_page_proof(source: str, body: str, url: str, partition: str | None = None) -> dict:
     soup = BeautifulSoup(body, 'html.parser')
     if source == 'agrasc':
         soup = soup.select_one('.view-liste-ventes-immobilieres') or soup
@@ -56,7 +58,10 @@ def public_page_proof(source: str, body: str, url: str) -> dict:
     elif source == 'petites_affiches':
         cards = soup.select('div[class*="annonce_lot_"]')
     elif source == 'cessions_etat':
-        cards = soup.select('div[id^="bien-"][data-url]')
+        # Count every public card before looking for its identifier. A card
+        # without ``data-url`` is evidence of an unaddressable public
+        # announcement and must fail the inventory proof.
+        cards = soup.select('div[id^="bien-"]')
     elif source == 'info_encheres':
         cards = [r for r in soup.select('tr') if r.find('td') and r.find('td').get_text(strip=True).isdigit()]
     elif source == 'licitor':
@@ -91,40 +96,90 @@ def public_page_proof(source: str, body: str, url: str) -> dict:
             target = urljoin(url, str(a['href']))
             if urlparse(target).netloc == urlparse(url).netloc:
                 last_indices.add(page_index(source, target))
-    partition = urlparse(url).path if source == 'licitor' else source
-    return {'partition': partition, 'page_index': page_index(source, url),
+    catalogue_partition = (
+        partition if partition is not None else urlparse(url).path if source == 'licitor' else source
+    )
+    return {'partition': catalogue_partition, 'page_index': page_index(source, url),
             'advertised_totals': sorted(totals), 'advertised_last_pages': sorted(last_indices),
             'public_urls': sorted(candidates), 'outside_scope_urls': sorted(excluded),
             'unlinked_cards': missing_links, 'card_nodes': len(cards), 'public_record_ids': sorted(records), 'unlinked_records': unlinked_records}
 
 
-def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]],
-                      emitted: set[str], errors: list, budget_exhausted: bool, coverage: dict, parsed_records: dict[str, set[str]] | None = None) -> dict:
+def _normalise_exclusions(exclusions: Mapping[str, str] | list[dict[str, str]] | None) -> dict[str, str]:
+    """Return URL -> reason without turning validation failures into exclusions."""
+    if not exclusions:
+        return {}
+    entries: list[tuple[Any, Any]] = (
+        list(exclusions.items()) if isinstance(exclusions, Mapping)
+        else [
+            (item.get('url') or item.get('source_url'), item.get('reason'))
+            for item in exclusions if isinstance(item, Mapping)
+        ]
+    )
+    result: dict[str, str] = {}
+    for raw_url, raw_reason in entries:
+        if not raw_url:
+            continue
+        url = canonical(str(raw_url))
+        reason = str(raw_reason or '').strip() or 'unspecified'
+        result[url] = reason
+    return result
+
+
+def certify_catalogue(
+    source: str,
+    pages: list[dict],
+    parsed: dict[str, set[str]],
+    emitted: set[str],
+    errors: list,
+    budget_exhausted: bool,
+    coverage: dict,
+    parsed_records: dict[str, set[str]] | None = None,
+    exclusions: Mapping[str, str] | list[dict[str, str]] | None = None,
+    scope: Any = None,
+) -> dict:
     """Fail closed; every positive certificate names its exact scope and evidence."""
     partitions = []
     discovered: set[str] = set()
+    unhandled_urls: set[str] = set()
+    public_urls_all = {canonical(str(u)) for p in pages for u in p.get('public_urls', []) if u}
+    outside_urls_all = {canonical(str(u)) for p in pages for u in p.get('outside_scope_urls', []) if u}
+    parsed_urls_all = {canonical(str(u)) for values in parsed.values() for u in values if u}
+    emitted = {canonical(str(u)) for u in emitted if u}
+    explicit_exclusions = _normalise_exclusions(exclusions)
+    # Outside-scope cards are still public evidence. Give them a reason even
+    # when an adapter did not supply a source-specific label; adapters such as
+    # Avoventes override this with ``vente_amiable``.
+    effective_exclusions = {**{url: 'outside_scope' for url in outside_urls_all}, **explicit_exclusions}
+    valid_exclusion_urls = public_urls_all | outside_urls_all | parsed_urls_all
+    invalid_exclusion_urls = sorted(set(effective_exclusions) - valid_exclusion_urls)
     for partition in sorted({p['partition'] for p in pages}):
         group = [p for p in pages if p['partition'] == partition]
-        urls = {u for p in group for u in p['public_urls']}
-        outside = {u for p in group for u in p['outside_scope_urls']}
-        extracted = parsed.get(partition, set())
-        discovered.update(extracted)
+        urls = {canonical(str(u)) for p in group for u in p.get('public_urls', []) if u}
+        outside = {canonical(str(u)) for p in group for u in p.get('outside_scope_urls', []) if u}
+        extracted = {canonical(str(u)) for u in parsed.get(partition, set()) if u}
         totals = {n for p in group for n in p['advertised_totals']}
         lasts = {n for p in group for n in p['advertised_last_pages']}
         indices = {p['page_index'] for p in group}
         first = 0 if source in {'agrasc', 'cessions_etat', 'info_encheres'} else 1
         missing_pages = sorted(set(range(first, max(lasts) + 1)) - indices) if lasts else []
-        omitted = sorted(urls - extracted)
-        extra = sorted(extracted - urls) if urls else []
+        # Avoventes exposes amicable sales on the same page. They are an
+        # explicit outside-of-scope part of the public proof, so a parser may
+        # see them without making the judicial catalogue incomplete.
+        scoped_extracted = extracted - outside
+        discovered.update(scoped_extracted)
+        required = urls or scoped_extracted
+        omitted = sorted(urls - scoped_extracted)
+        extra = sorted(scoped_extracted - urls) if urls else []
         expected = next(iter(totals)) - len(outside) if len(totals) == 1 else None
-        count_proof = expected is not None and expected == len(extracted)
+        count_proof = expected is not None and expected == len(scoped_extracted)
         public_records = {r for p in group for r in p.get('public_record_ids', [])}
         extracted_records = (parsed_records or {}).get(partition, set())
         source_rows = sum({p['page_index']: p.get('card_nodes', 0) for p in group}.values())
         if source == 'licitor':
             count_proof = bool(expected is not None and expected == source_rows
                                and public_records == extracted_records)
-        page_proof = bool(lasts and len(lasts) == 1 and not missing_pages and urls and urls == extracted)
+        page_proof = bool(lasts and len(lasts) == 1 and not missing_pages and urls and urls == scoped_extracted)
         reasons = []
         if len(totals) > 1:
             reasons.append('advertised_total_changed_or_ambiguous')
@@ -143,12 +198,24 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
         addressable_certified = bool(certified or (reasons == ['public_cards_without_identifiers']
                                                   and unlinked and all(r['sold'] for r in unlinked.values())
                                                   and (count_proof or page_proof)))
+        partition_exclusions = {
+            url: reason for url, reason in effective_exclusions.items()
+            if url in required or url in outside or url in extracted
+        }
+        partition_emitted = emitted & (required | outside | extracted)
+        partition_unhandled = required - partition_emitted - set(partition_exclusions)
+        unhandled_urls.update(partition_unhandled)
         partitions.append({'partition': partition, 'certified': certified,
                            'addressable_inventory_certified': addressable_certified,
                            'unlinked_public_cards': list(unlinked.values()),
                            'basis': 'advertised_total' if count_proof else 'advertised_terminal_page_and_all_public_cards' if page_proof else None,
                            'advertised_totals': sorted(totals), 'outside_scope_count': len(outside),
-                           'public_unique_urls': len(urls), 'parsed_unique_urls': len(extracted),
+                           'public_unique_urls': len(urls), 'parsed_unique_urls': len(scoped_extracted),
+                           'public_parsed_urls': sorted(extracted),
+                           'returned_validated_urls': sorted(partition_emitted),
+                           'excluded_urls': [{'url': url, 'reason': partition_exclusions[url]}
+                                             for url in sorted(partition_exclusions)],
+                           'unhandled_urls': sorted(partition_unhandled),
                            'public_records': len(public_records), 'parsed_records': len(extracted_records),
                            'source_rows_seen': source_rows,
                            'identical_repeated_rows': max(0, source_rows - len(public_records)) if source == 'licitor' else None,
@@ -161,15 +228,30 @@ def certify_catalogue(source: str, pages: list[dict], parsed: dict[str, set[str]
     else:
         discovery = bool(partitions) and all(p['certified'] for p in partitions)
     discovery = bool(discovery and not errors and not budget_exhausted)
-    not_emitted = discovered - emitted
-    return {'scope': 'Public catalogue exposed by the configured listing pages at audit time; not private inventory, field completeness or database persistence.',
+    not_emitted = unhandled_urls
+    scope_value = scope if scope is not None else (
+        'Public catalogue exposed by the configured listing pages at audit time; '
+        'not private inventory, field completeness or database persistence.'
+    )
+    discovery = bool(discovery and not invalid_exclusion_urls)
+    all_handled = bool(discovery and not unhandled_urls and not invalid_exclusion_urls)
+    return {'scope': scope_value,
+            'scope_detail': scope_value,
             'public_discovery_certified': discovery,
             'addressable_public_inventory_certified': bool((discovery or (partitions and all(p['addressable_inventory_certified'] for p in partitions))) and not errors and not budget_exhausted),
-            'all_discovered_announcements_emitted': bool(discovery and not not_emitted),
+            'all_discovered_announcements_emitted': all_handled,
             'database_completeness_certified': False,
             'discovered_but_not_emitted_count': len(not_emitted),
             'discovered_but_not_emitted_urls': sorted(not_emitted),
+            'public_parsed_urls': sorted(parsed_urls_all),
+            'returned_validated_urls': sorted(emitted),
+            'excluded_urls': [{'url': url, 'reason': effective_exclusions[url]}
+                             for url in sorted(effective_exclusions)],
+            'unhandled_public_urls': sorted(unhandled_urls),
+            'invalid_exclusion_urls': invalid_exclusion_urls,
             'partitions': partitions}
+
+
 class CatalogueEvidence:
     """Use the same independent public-card proof during normal collection."""
 
@@ -179,15 +261,44 @@ class CatalogueEvidence:
         self.parsed = {}
         self.records = {}
 
-    def observe(self, body: str, url: str, rows: list[dict]) -> None:
-        proof = public_page_proof(self.source, body, url)
+    def observe(self, body: str, url: str, rows: list[dict], partition: str | None = None) -> dict:
+        proof = public_page_proof(self.source, body, url, partition=partition)
         self.pages.append(proof)
         partition = proof['partition']
         self.parsed.setdefault(partition, set()).update(canonical(str(r['source_url'])) for r in rows if r.get('source_url'))
         self.records.setdefault(partition, set()).update(record_id(str(r['source_url']), lot['raw_text'])
             for r in rows for lot in r.get('source_lots', []) if r.get('source_url') and lot.get('raw_text'))
+        return proof
 
-    def metrics(self, rows: list[dict], errors: list[str]) -> dict:
-        certificate = certify_catalogue(self.source, self.pages, self.parsed,
-            {canonical(str(r['source_url'])) for r in rows if r.get('source_url')}, errors, False, {}, self.records)
-        return {'certificate': certificate, 'coverage_complete': certificate['all_discovered_announcements_emitted']}
+    def metrics(
+        self,
+        rows: list[dict],
+        errors: list[str],
+        coverage: dict | None = None,
+        budget_exhausted: bool = False,
+        exclusions: Mapping[str, str] | list[dict[str, str]] | None = None,
+        scope: Any = None,
+    ) -> dict:
+        certificate = certify_catalogue(
+            self.source,
+            self.pages,
+            self.parsed,
+            {canonical(str(r['source_url'])) for r in rows if r.get('source_url')},
+            errors,
+            budget_exhausted,
+            coverage or {},
+            self.records,
+            exclusions=exclusions,
+            scope=scope,
+        )
+        pagination_complete = coverage is None or coverage.get('coverage_complete') is not False
+        if not pagination_complete:
+            certificate['coverage_gate_failed'] = {
+                'coverage_complete': coverage.get('coverage_complete'),
+                'stop_reason': coverage.get('stop_reason'),
+            }
+            certificate['public_discovery_certified'] = False
+            certificate['addressable_public_inventory_certified'] = False
+            certificate['all_discovered_announcements_emitted'] = False
+        return {'certificate': certificate, 'coverage_complete': bool(
+            pagination_complete and certificate['all_discovered_announcements_emitted'])}

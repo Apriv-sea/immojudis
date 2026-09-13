@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
+from src.catalogue_proof import CatalogueEvidence, canonical
 from src.config import TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text, extract_department
 from src.raw_models import validate_raw_sales
@@ -41,6 +42,8 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
+    catalogue = CatalogueEvidence("avoventes")
+    exclusions: dict[str, str] = {}
     seen_urls: set[str] = set()
     parsed_count = 0
     unresolved_locations: list[str] = []
@@ -56,8 +59,17 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
         html = None
     if html:
         parsed_sales = parse_avoventes_html(html, page_url=url, fallback_department=None)
+        # Certify the public national catalogue before applying the configured
+        # department filter. The proof itself excludes cards marked ``Vente
+        # amiable``; counting only the filtered output would hide omissions.
+        proof = catalogue.observe(html, url, parsed_sales)
+        amicable_urls = set(proof["outside_scope_urls"])
+        exclusions.update({source_url: "vente_amiable" for source_url in amicable_urls})
         parsed_count = len(parsed_sales)
         for sale in parsed_sales:
+            source_url = canonical(str(sale.get("source_url") or ""))
+            if source_url in amicable_urls:
+                continue
             postal_code = sale.get("postal_code")
             department = extract_department(str(postal_code) if postal_code else None)
             from src.source_checkpoint import restore_detail
@@ -71,6 +83,7 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
                 unresolved_locations.append(str(sale["source_url"]))
                 continue
             if department not in TARGET_DEPARTMENTS:
+                exclusions[source_url] = "department_filter"
                 continue
             sale["department"] = department
             if sale["source_url"] in seen_urls:
@@ -81,13 +94,21 @@ def scrape_avoventes_aquitaine_result(known: dict[str, str] | None = None) -> Sc
             if not detail_checked:
                 _enrich_sale_from_detail(client, sale, errors)
             raw_sales.append(sale)
+    validated_sales = validate_raw_sales("avoventes", raw_sales, errors)
+    catalogue_metrics = catalogue.metrics(
+        validated_sales,
+        errors,
+        exclusions=exclusions,
+        scope={"public": "national", "configured": "target_departments"},
+    )
     return ScrapeResult(
-        validate_raw_sales("avoventes", raw_sales, errors),
+        validated_sales,
         errors,
         {**getattr(client, "coverage_metrics", lambda: {})(),
          "inventory_before_department_filter": parsed_count,
          "unresolved_location_count": len(unresolved_locations),
-         "unresolved_location_urls": unresolved_locations},
+         "unresolved_location_urls": unresolved_locations,
+         **catalogue_metrics},
     )
 
 

@@ -56,44 +56,132 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
-    coverage = []
+    partition_states: list[dict[str, Any]] = []
+    inventory_errors: list[str] = []
     for transaction_type in TRANSACTION_TYPES:
         for department in _department_filters():
             pagination = PaginationCoverage()
-            coverage.append(pagination)
+            state = _new_inventory_partition(transaction_type, department, pagination)
+            partition_states.append(state)
             for page in range(1, max_pages + 1):
                 url = _api_url(page, transaction_type, department)
                 try:
                     payload = client.get(url)
                 except httpx.HTTPStatusError as exc:
                     if _is_page_out_of_range_error(exc, page):
-                        pagination.exhausted = bool(pagination.seen and not pagination.total_changed and
-                                                    (pagination.expected_total is None or
-                                                     len(pagination.seen) == pagination.expected_total))
+                        state["out_of_range"] = True
+                        state["reasons"].append(
+                            "page_out_of_range_before_advertised_terminal"
+                            if state["advertised_pages"] is not None
+                            else "page_out_of_range_without_terminal_metadata"
+                        )
                         LOGGER.info("Notaires pagination ended at %s", url)
                         break
                     LOGGER.error("Notaires API fetch failed for %s: %s", url, exc)
-                    errors.append(f"{url}: {exc}")
+                    message = f"{url}: {exc}"
+                    errors.append(message)
+                    inventory_errors.append(message)
+                    state["api_errors"].append(message)
                     continue
                 except Exception as exc:
                     LOGGER.error("Notaires API fetch failed for %s: %s", url, exc)
-                    errors.append(f"{url}: {exc}")
+                    message = f"{url}: {exc}"
+                    errors.append(message)
+                    inventory_errors.append(message)
+                    state["api_errors"].append(message)
                     continue
-                sales = parse_notaires_json(payload)
                 try:
                     metadata = json.loads(payload)
-                except ValueError:
-                    errors.append(f"{url}: invalid JSON inventory")
+                except (TypeError, ValueError):
+                    message = f"{url}: invalid JSON inventory"
+                    errors.append(message)
+                    inventory_errors.append(message)
+                    state["json_valid"] = False
+                    state["reasons"].append("invalid_json")
                     break
                 if not isinstance(metadata, dict) or not isinstance(metadata.get("annonceResumeDto"), list):
-                    errors.append(f"{url}: missing inventory rows")
+                    message = f"{url}: missing inventory rows"
+                    errors.append(message)
+                    inventory_errors.append(message)
+                    state["json_valid"] = True
+                    state["reasons"].append("inventory_rows_missing")
                     break
-                total = metadata.get("nbTotalAnnonces") if isinstance(metadata, dict) else None
-                pages = metadata.get("nbPages") if isinstance(metadata, dict) else None
-                terminal = type(pages) is int and pages >= 0 and page >= pages
-                if not pagination.accept(sales, terminal=terminal, expected_total=total):
-                    break
+
+                state["json_valid"] = True
+                state["metadata_pages_seen"] += 1
+                rows = metadata["annonceResumeDto"]
+                total = metadata.get("nbTotalAnnonces")
+                pages = metadata.get("nbPages")
+                valid_total = type(total) is int and total >= 0
+                valid_pages = type(pages) is int and pages >= 0
+                if valid_total:
+                    if state["advertised_total"] is not None and total != state["advertised_total"]:
+                        state["reasons"].append("advertised_total_changed")
+                    state["advertised_total"] = total
+                else:
+                    state["metadata_complete"] = False
+                    state["reasons"].append(
+                        "advertised_total_missing" if total is None else "advertised_total_invalid"
+                    )
+                if valid_pages:
+                    if state["advertised_pages"] is not None and pages != state["advertised_pages"]:
+                        state["reasons"].append("advertised_page_count_changed")
+                    state["advertised_pages"] = pages
+                else:
+                    state["metadata_complete"] = False
+                    state["reasons"].append(
+                        "advertised_page_count_missing" if pages is None else "advertised_page_count_invalid"
+                    )
+                terminal = bool(valid_pages and (page == pages or (pages == 0 and page == 1)))
+                if valid_pages and page > pages and not terminal:
+                    state["reasons"].append("page_after_advertised_terminal")
+                if terminal:
+                    state["terminal_page_seen"] = True
+
+                payload_for_parser = payload if isinstance(payload, (str, bytes, bytearray)) else json.dumps(metadata)
+                sales = parse_notaires_json(payload_for_parser)
+                state["api_rows_seen"] += len(rows)
+                state["unparsed_rows"] += max(0, len(rows) - len(sales))
+                if len(rows) != len(sales):
+                    state["reasons"].append("api_rows_not_emitted")
+                for item in rows:
+                    if not isinstance(item, dict) or item.get("typeTransaction") != transaction_type:
+                        state["reasons"].append("unexpected_transaction_type")
+                        break
+
+                page_urls: set[str] = set()
                 for sale in sales:
+                    source_url = str(sale.get("source_url") or "")
+                    if not source_url:
+                        state["reasons"].append("source_url_missing")
+                        continue
+                    if source_url in page_urls or source_url in state["source_urls"]:
+                        state["duplicate_source_urls"].add(source_url)
+                    page_urls.add(source_url)
+
+                accepted = pagination.accept(
+                    sales,
+                    terminal=terminal,
+                    expected_total=total if valid_total else None,
+                )
+                if not accepted:
+                    # An empty terminal page is valid when the advertised
+                    # total has already been reached.  Other rejected pages
+                    # are evidence that the public inventory is incomplete.
+                    if not pagination.exhausted:
+                        state["reasons"].append(pagination.metrics()["stop_reason"])
+                    break
+                state["source_emitted_rows"] += len(sales)
+                for sale in sales:
+                    source_url = str(sale.get("source_url") or "")
+                    if source_url:
+                        state["source_urls"].add(source_url)
+                for sale in sales:
+                    # Keep the department advertised by the public inventory
+                    # row as the filter key.  Detail enrichment may omit or
+                    # rewrite the department; that must not turn an API row
+                    # into a successful exclusion after the inventory proof.
+                    listing_department = sale.get("department")
                     from src.source_checkpoint import restore_detail
                     if restore_detail(sale):
                         pass
@@ -102,16 +190,332 @@ def scrape_notaires_aquitaine_result(max_pages: int | None = None) -> ScrapeResu
                         sale["source_detail_status"] = "failed"
                     else:
                         sale["source_detail_status"] = "complete"
-                    if sale.get("department") in TARGET_DEPARTMENTS:
+                    source_url = str(sale.get("source_url") or "")
+                    effective_department = listing_department or sale.get("department")
+                    if effective_department in TARGET_DEPARTMENTS:
+                        if source_url:
+                            state["in_scope_urls"].add(source_url)
+                            state["in_scope_departments"][source_url] = effective_department
                         raw_sales.append(sale)
+                    elif source_url:
+                        exclusion_department = effective_department
+                        reason = (
+                            "department_out_of_scope"
+                            if exclusion_department
+                            else "department_missing"
+                        )
+                        state["department_exclusions"][source_url] = {
+                            "url": source_url,
+                            "reason": reason,
+                            "department": exclusion_department,
+                            "configured_departments": sorted(TARGET_DEPARTMENTS),
+                        }
                 if pagination.exhausted:
                     break
 
+            _finalize_inventory_partition(state, max_pages=max_pages)
+
+    raw_output_sales = unique_dicts(raw_sales, "source_url")
+    validation_error_start = len(errors)
+    validated_sales = validate_raw_sales("notaires", raw_output_sales, errors)
+    validation_errors = errors[validation_error_start:]
+    _record_validated_results(partition_states, validated_sales, validation_errors)
+    certificate = _notaires_inventory_certificate(partition_states, inventory_errors)
+    partition_metrics = [_notaires_partition_metrics(state) for state in partition_states]
     return ScrapeResult(
-        validate_raw_sales("notaires", unique_dicts(raw_sales, "source_url"), errors),
+        validated_sales,
         errors,
-        {**getattr(client, "coverage_metrics", lambda: {})(), "coverage_complete": all(item.exhausted for item in coverage), "partitions": [item.metrics() for item in coverage]},
+        {
+            **getattr(client, "coverage_metrics", lambda: {})(),
+            "coverage_complete": certificate["all_discovered_announcements_emitted"],
+            "partitions": partition_metrics,
+            "certificate": certificate,
+            "source_emitted_before_filters": sum(
+                state["source_emitted_rows"] for state in partition_states
+            ),
+            "source_unique_urls_before_filters": sum(
+                len(state["source_urls"]) for state in partition_states
+            ),
+        },
     )
+
+
+def _new_inventory_partition(
+    transaction_type: str,
+    department: str | None,
+    pagination: PaginationCoverage,
+) -> dict[str, Any]:
+    """Create the API evidence state for one (transaction, department) query."""
+    return {
+        "transaction_type": transaction_type,
+        "department": department,
+        "partition": f"{transaction_type}:{department or 'all'}",
+        "pagination": pagination,
+        "advertised_total": None,
+        "advertised_pages": None,
+        "metadata_pages_seen": 0,
+        "metadata_complete": True,
+        "json_valid": True,
+        "api_rows_seen": 0,
+        "source_emitted_rows": 0,
+        "source_urls": set(),
+        "duplicate_source_urls": set(),
+        "in_scope_urls": set(),
+        "in_scope_departments": {},
+        "department_exclusions": {},
+        "unhandled_urls": set(),
+        "unhandled_reasons": {},
+        "returned_validated_urls": set(),
+        "validation_failed_urls": set(),
+        "unparsed_rows": 0,
+        "terminal_page_seen": False,
+        "out_of_range": False,
+        "api_errors": [],
+        "reasons": [],
+    }
+
+
+def _finalize_inventory_partition(state: dict[str, Any], *, max_pages: int) -> None:
+    pagination = state["pagination"]
+    metrics = pagination.metrics()
+    if not pagination.exhausted and metrics["stop_reason"] not in state["reasons"]:
+        state["reasons"].append(metrics["stop_reason"])
+    if state["advertised_pages"] is not None and not state["terminal_page_seen"]:
+        state["reasons"].append("terminal_page_not_reached")
+    if pagination.pages_fetched >= max_pages and not pagination.exhausted:
+        state["reasons"].append("page_limit_or_count_mismatch")
+    if state["advertised_total"] is not None:
+        if state["source_emitted_rows"] != state["advertised_total"]:
+            state["reasons"].append("source_emitted_count_mismatch")
+        if len(state["source_urls"]) != state["advertised_total"]:
+            state["reasons"].append("unique_source_url_count_mismatch")
+    # Keep reasons deterministic and JSON-friendly for audit output.
+    state["reasons"] = list(dict.fromkeys(state["reasons"]))
+
+
+def _validation_error_urls(errors: list[str]) -> set[str]:
+    urls: set[str] = set()
+    for error in errors:
+        if not error.startswith("validation "):
+            continue
+        marker = error[len("validation "):]
+        url, separator, _ = marker.partition(": ")
+        if separator and url:
+            urls.add(url)
+    return urls
+
+
+def _record_validated_results(
+    partition_states: list[dict[str, Any]],
+    validated_sales: list[dict[str, Any]],
+    validation_errors: list[str],
+) -> None:
+    """Attach final returned URLs to their API partition after one validation pass."""
+    validated_urls = {
+        str(sale.get("source_url") or "")
+        for sale in validated_sales
+        if sale.get("source_url")
+    }
+    validation_failed_urls = _validation_error_urls(validation_errors)
+    for state in partition_states:
+        state["returned_validated_urls"].update(
+            state["in_scope_urls"] & validated_urls
+        )
+        state["validation_failed_urls"].update(
+            state["in_scope_urls"] & validation_failed_urls
+        )
+        for _url, exclusion in state["department_exclusions"].items():
+            # Department-filtered rows are intentionally outside the returned
+            # scope and therefore count as successful, URL-addressed exclusions.
+            exclusion.setdefault("successful", True)
+        for url in sorted(state["in_scope_urls"] - state["returned_validated_urls"]):
+            reason = (
+                "validation_failed"
+                if url in state["validation_failed_urls"]
+                else "returned_validated_missing"
+            )
+            # A validation failure is a public row that was not returned.  It
+            # is deliberately unhandled, rather than a successful exclusion:
+            # only an explicit configured-department filter can exclude a URL.
+            state["unhandled_urls"].add(url)
+            state["unhandled_reasons"][url] = reason
+
+
+def _notaires_partition_metrics(state: dict[str, Any]) -> dict[str, Any]:
+    pagination = state["pagination"]
+    metrics = pagination.metrics()
+    metrics.update(
+        {
+            "partition": state["partition"],
+            "transaction_type": state["transaction_type"],
+            "department": state["department"],
+            "api_scope": {
+                "transaction_type": state["transaction_type"],
+                "department": state["department"],
+            },
+            "returned_scope": {
+                "departments": sorted(TARGET_DEPARTMENTS),
+            },
+            "advertised_pages": state["advertised_pages"],
+            "metadata_pages_seen": state["metadata_pages_seen"],
+            "terminal_page_seen": state["terminal_page_seen"],
+            "out_of_range": state["out_of_range"],
+            "json_valid": state["json_valid"],
+            "metadata_complete": state["metadata_complete"],
+            "api_rows_seen": state["api_rows_seen"],
+            "source_emitted_rows": state["source_emitted_rows"],
+            "source_emitted_before_filters": state["source_emitted_rows"],
+            "source_unique_urls": len(state["source_urls"]),
+            "source_unique_urls_before_filters": len(state["source_urls"]),
+            "public_urls": sorted(state["source_urls"]),
+            "public_parsed_urls": sorted(state["source_urls"]),
+            "public_urls_parsed": sorted(state["source_urls"]),
+            "returned_validated_urls": sorted(state["returned_validated_urls"]),
+            "in_scope_public_urls": sorted(state["in_scope_urls"]),
+            "excluded_urls": [
+                {
+                    "url": url,
+                    "reason": state["department_exclusions"][url]["reason"],
+                }
+                for url in sorted(state["department_exclusions"])
+            ],
+            "exclusion_reasons": {
+                url: record["reason"]
+                for url, record in sorted(state["department_exclusions"].items())
+            },
+            "exclusions": [
+                state["department_exclusions"][url]
+                for url in sorted(state["department_exclusions"])
+            ],
+            "successful_excluded_urls": sorted(
+                url
+                for url, record in state["department_exclusions"].items()
+                if record.get("successful") is True
+            ),
+            "validation_failed_urls": sorted(state["validation_failed_urls"]),
+            "unhandled_urls": sorted(state["unhandled_urls"]),
+            "unhandled_reasons": dict(sorted(state["unhandled_reasons"].items())),
+            "duplicate_source_urls": sorted(state["duplicate_source_urls"]),
+            "unparsed_rows": state["unparsed_rows"],
+            "api_errors": list(state["api_errors"]),
+            "reasons": list(state["reasons"]),
+        }
+    )
+    return metrics
+
+
+def _notaires_inventory_certificate(
+    partition_states: list[dict[str, Any]],
+    inventory_errors: list[str],
+) -> dict[str, Any]:
+    partitions: list[dict[str, Any]] = []
+    for state in partition_states:
+        metrics = _notaires_partition_metrics(state)
+        public_certified = bool(
+            state["metadata_complete"]
+            and state["json_valid"]
+            and state["advertised_total"] is not None
+            and state["advertised_pages"] is not None
+            and state["terminal_page_seen"]
+            and state["pagination"].exhausted
+            and not state["api_errors"]
+            and not state["duplicate_source_urls"]
+            and state["unparsed_rows"] == 0
+            and state["source_emitted_rows"] == state["advertised_total"]
+            and len(state["source_urls"]) == state["advertised_total"]
+            and not state["reasons"]
+        )
+        returned_validated_complete = bool(
+            public_certified
+            and state["in_scope_urls"] <= state["returned_validated_urls"]
+            and not state["validation_failed_urls"]
+            and not state["unhandled_urls"]
+            and all(
+                record.get("successful") is True
+                for record in state["department_exclusions"].values()
+            )
+        )
+        metrics["public_inventory_certified"] = public_certified
+        metrics["returned_validated_complete"] = returned_validated_complete
+        metrics["all_discovered_announcements_emitted"] = returned_validated_complete
+        metrics["certified"] = public_certified
+        partitions.append(metrics)
+
+    public_certified = bool(partitions) and all(
+        partition["public_inventory_certified"] for partition in partitions
+    ) and not inventory_errors
+    all_emitted = bool(partitions) and all(
+        partition["all_discovered_announcements_emitted"] for partition in partitions
+    ) and not inventory_errors
+    public_urls = sorted({url for state in partition_states for url in state["source_urls"]})
+    returned_validated_urls = sorted(
+        {url for state in partition_states for url in state["returned_validated_urls"]}
+    )
+    exclusions = {
+        url: record["reason"]
+        for state in partition_states
+        for url, record in state["department_exclusions"].items()
+    }
+    exclusion_records = [
+        state["department_exclusions"][url]
+        for state in partition_states
+        for url in sorted(state["department_exclusions"])
+    ]
+    unhandled_urls = sorted({
+        url for state in partition_states for url in state["unhandled_urls"]
+    })
+    unhandled_reasons = {
+        url: reason
+        for state in partition_states
+        for url, reason in state["unhandled_reasons"].items()
+    }
+    validation_failed_urls = sorted({
+        url for state in partition_states for url in state["validation_failed_urls"]
+    })
+    return {
+        "scope": (
+            "Public Notaires API inventory partitioned by typeTransaction and "
+            "department; source rows are counted before output filters; database persistence is excluded."
+        ),
+        "scope_detail": (
+            "API partitions are certified independently; returned rows are the validated listings "
+            "kept for the configured department scope."
+        ),
+        "partitioning": ["transaction_type", "department"],
+        "public_inventory_certified": public_certified,
+        # Keep the catalogue-proof vocabulary available to callers that consume
+        # multiple source adapters through the same summary shape.
+        "public_inventorycertified": public_certified,
+        "public_discovery_certified": public_certified,
+        "addressable_public_inventory_certified": public_certified,
+        "all_discovered_announcements_emitted": all_emitted,
+        "database_completeness_certified": False,
+        "public_parsed_urls": public_urls,
+        "public_urls_parsed": public_urls,
+        "returned_validated_urls": returned_validated_urls,
+        "excluded_urls": [
+            {"url": url, "reason": exclusions[url]}
+            for url in sorted(exclusions)
+        ],
+        "exclusions": exclusion_records,
+        "exclusion_reasons": exclusions,
+        "unhandled_public_urls": unhandled_urls,
+        "unhandled_reasons": unhandled_reasons,
+        "validation_failed_urls": validation_failed_urls,
+        "discovered_but_not_emitted_count": len(unhandled_urls),
+        "discovered_but_not_emitted_urls": unhandled_urls,
+        "invalid_exclusion_urls": [],
+        "api_scope": {
+            "partitioning": ["transaction_type", "department"],
+            "description": "Rows advertised by each public Notaires API partition before output filters.",
+        },
+        "returned_scope": {
+            "departments": sorted(TARGET_DEPARTMENTS),
+            "description": "Validated rows retained for the configured department scope.",
+        },
+        "inventory_errors": list(inventory_errors),
+        "partitions": partitions,
+    }
 
 
 def _department_filters() -> tuple[str | None, ...]:
