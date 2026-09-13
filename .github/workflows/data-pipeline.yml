@@ -213,6 +213,7 @@ jobs:
       - name: Finalize unfinished run
         if: always() && inputs.publication_check != true
         env:
+          REQUESTED_AUTOMATIC: ${{ inputs.automatic }}
           REQUESTED_RUN_ID: ${{ inputs.run_id }}
         run: python -m src.run_finalizer
 

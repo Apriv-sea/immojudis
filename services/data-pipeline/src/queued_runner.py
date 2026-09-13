@@ -28,6 +28,7 @@ from src.pipeline_usage import PipelineBudgetExhausted, defer_budget_jobs
 from src.sale_procedure import classify_sale_procedure
 from src.source_detail_worker import run_source_detail_jobs
 from src.storage.supabase_client import (
+    claim_auction_enrichment_jobs_family_from_supabase,
     claim_auction_enrichment_jobs_from_supabase,
     fail_stale_running_runs_in_supabase,
     fetch_next_data_refresh_request_from_supabase,
@@ -47,6 +48,11 @@ from src.tribunal import fill_tribunal
 LOGGER = logging.getLogger(__name__)
 VALID_SOURCES = {"all", *SOURCE_NAMES}
 LLM_BACKFILL_SOURCE = "llm-description-backfill"
+SOURCE_DETAIL_FAMILY = "source_detail"
+ENRICHMENT_FAMILY = "enrichment"
+ENRICHMENT_FAMILY_CYCLE = (SOURCE_DETAIL_FAMILY,) * 5 + (ENRICHMENT_FAMILY,)
+ENRICHMENT_MAX_JOBS = 90
+ENRICHMENT_BUDGET_SECONDS = 1200
 
 
 def main() -> int:
@@ -217,18 +223,44 @@ def _finish_job(job: dict[str, object], **kwargs) -> None:
     finish_auction_enrichment_job_in_supabase(str(job.get("id") or ""), **kwargs)
 
 
-def run_enrichment_queue_batch(*, limit: int) -> int:
-    jobs = claim_auction_enrichment_jobs_from_supabase(limit=limit)
+def _claim_enrichment_queue_jobs(*, limit: int, family: str | None) -> list[dict[str, object]]:
+    if family is None:
+        # Keep the old call shape for manual/legacy callers and for workers
+        # deployed before the family RPC migration.
+        return claim_auction_enrichment_jobs_from_supabase(limit=limit)
+    if family not in {SOURCE_DETAIL_FAMILY, ENRICHMENT_FAMILY}:
+        raise ValueError(f"Unknown enrichment queue family: {family!r}")
+    return claim_auction_enrichment_jobs_family_from_supabase(family=family, limit=limit)
+
+
+def run_enrichment_queue_batch(
+    *,
+    limit: int,
+    family: str | None = None,
+    provider_clients: dict[str, object] | None = None,
+) -> int:
+    jobs = _claim_enrichment_queue_jobs(limit=limit, family=family)
     if not jobs:
         return 0
     settings = load_settings()
-    detail_jobs = [job for job in jobs if str(job.get("job_type") or "") == "source_detail"]
-    enrichment_jobs = [job for job in jobs if str(job.get("job_type") or "") != "source_detail"]
+    if family == SOURCE_DETAIL_FAMILY:
+        detail_jobs = [job for job in jobs if str(job.get("job_type") or "") == SOURCE_DETAIL_FAMILY]
+        enrichment_jobs: list[dict[str, object]] = []
+    elif family == ENRICHMENT_FAMILY:
+        detail_jobs = []
+        enrichment_jobs = [job for job in jobs if str(job.get("job_type") or "") != SOURCE_DETAIL_FAMILY]
+    else:
+        detail_jobs = [job for job in jobs if str(job.get("job_type") or "") == SOURCE_DETAIL_FAMILY]
+        enrichment_jobs = [job for job in jobs if str(job.get("job_type") or "") != SOURCE_DETAIL_FAMILY]
 
     # Source details are deliberately completed before grouping the remaining
     # enrichment work.  Each regular group fetches its sale again below, so a
     # PDF/LLM job never writes a stale pre-detail catalogue snapshot.
-    processed_detail_jobs = run_source_detail_jobs(detail_jobs, settings=settings)
+    processed_detail_jobs = run_source_detail_jobs(
+        detail_jobs,
+        settings=settings,
+        clients=provider_clients,
+    )
     if not enrichment_jobs:
         return processed_detail_jobs
 
@@ -300,7 +332,10 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
         except PipelineBudgetExhausted as exc:
             defer_budget_jobs(enrichment_jobs, exc)
             LOGGER.info("Enrichment deferred without consuming retry attempts: %s", exc)
-            return processed_detail_jobs
+            # A general-lane budget exhaustion is a handled queue outcome. The
+            # bounded lane worker must continue its detail slots, while the
+            # default mixed-batch API keeps its historical completion count.
+            return len(enrichment_jobs) if family == ENRICHMENT_FAMILY else processed_detail_jobs
         except Exception as exc:
             LOGGER.exception("Enrichment queue failed for %s: %s", source_url, exc)
             for job in sale_jobs:
@@ -316,18 +351,65 @@ def run_enrichment_queue_batch(*, limit: int) -> int:
     return processed_detail_jobs + len(enrichment_jobs)
 
 
+def run_enrichment_queue_worker(
+    *,
+    max_jobs: int | None = None,
+    budget_seconds: int | None = None,
+) -> int:
+    """Run one fair, bounded queue worker using one claim per lane slot.
+
+    Five source-detail slots are followed by one general enrichment slot. An
+    empty preferred lane immediately gives its slot to the other lane. A
+    deferred general job counts as handled so an exhausted AI budget cannot
+    terminate the remaining source-detail work.
+    """
+    if max_jobs is None:
+        max_jobs = min(
+            ENRICHMENT_MAX_JOBS,
+            max(1, int(os.getenv("PIPELINE_ENRICHMENT_MAX_JOBS", str(ENRICHMENT_MAX_JOBS)))),
+        )
+    else:
+        max_jobs = min(ENRICHMENT_MAX_JOBS, max(1, int(max_jobs)))
+    if budget_seconds is None:
+        budget_seconds = min(
+            ENRICHMENT_BUDGET_SECONDS,
+            max(60, int(os.getenv("PIPELINE_ENRICHMENT_BUDGET_SECONDS", str(ENRICHMENT_BUDGET_SECONDS)))),
+        )
+    else:
+        budget_seconds = max(0, min(ENRICHMENT_BUDGET_SECONDS, int(budget_seconds)))
+
+    deadline = time.monotonic() + budget_seconds
+    processed = 0
+    provider_clients: dict[str, object] = {}
+    for slot in range(max_jobs):
+        if time.monotonic() >= deadline:
+            break
+        preferred = ENRICHMENT_FAMILY_CYCLE[slot % len(ENRICHMENT_FAMILY_CYCLE)]
+        alternate = ENRICHMENT_FAMILY if preferred == SOURCE_DETAIL_FAMILY else SOURCE_DETAIL_FAMILY
+        count = run_enrichment_queue_batch(
+            limit=1,
+            family=preferred,
+            provider_clients=provider_clients,
+        )
+        if not count:
+            count = run_enrichment_queue_batch(
+                limit=1,
+                family=alternate,
+                provider_clients=provider_clients,
+            )
+        if not count:
+            # Neither family is currently claimable. Avoid spinning against
+            # paused/empty queues until the next scheduled worker.
+            break
+        processed += count
+    return processed
+
+
 if __name__ == "__main__":
     if "--enrichment-only" in sys.argv:
-        # Claim small batches so their 30-minute leases cannot expire while
-        # waiting behind other expensive documents. GitHub serializes writers.
-        deadline = time.monotonic() + min(2400, max(60, int(os.getenv('PIPELINE_ENRICHMENT_BUDGET_SECONDS', '2400'))))
-        max_jobs = min(100, max(1, int(os.getenv('PIPELINE_ENRICHMENT_MAX_JOBS', '40'))))
-        processed = 0
-        while time.monotonic() < deadline and processed < max_jobs:
-            count = run_enrichment_queue_batch(limit=1)
-            if not count:
-                break
-            processed += count
+        # Claim one job at a time so each 30-minute lease is bounded by the
+        # work immediately following its claim. GitHub serializes writers.
+        processed = run_enrichment_queue_worker()
         print(f'Enrichment worker completed {processed} jobs within its bounded budget')
         sys.exit(0)
     sys.exit(main())

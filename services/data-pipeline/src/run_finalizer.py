@@ -17,7 +17,14 @@ def register_run(run_id: str | None) -> None:
 
 
 def main() -> int:
-    run_id = os.getenv('PIPELINE_CURRENT_RUN_ID') or os.getenv('REQUESTED_RUN_ID')
+    run_id = os.getenv('PIPELINE_CURRENT_RUN_ID')
+    # An automatic workflow may have been dispatched more than once after an
+    # uncertain GitHub response.  Only the workflow which won the worker CAS
+    # writes PIPELINE_CURRENT_RUN_ID; a loser must never finalize that same
+    # requested id while another worker is running it.
+    if not run_id and os.getenv('REQUESTED_AUTOMATIC', '').lower() == 'true':
+        return 0
+    run_id = run_id or os.getenv('REQUESTED_RUN_ID')
     if not run_id:
         return 0
     run_id = str(UUID(run_id))

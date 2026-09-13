@@ -97,6 +97,19 @@ def process_source_detail_job(
         )
         return False
 
+    # A shared provider client can already carry a future Retry-After from a
+    # previous job. Releasing this claim before the adapter is called prevents
+    # a second task from consuming an attempt without issuing HTTP.
+    retry_not_before = _client_retry_not_before(source_name, detail_url, provider_clients)
+    if retry_not_before is not None and retry_not_before > datetime.now(UTC):
+        release_source_detail_job_without_attempt(
+            job,
+            reason=f"Source deferred until {retry_not_before.isoformat()}",
+            settings=active_settings,
+            retry_not_before=retry_not_before,
+        )
+        return False
+
     try:
         existing = fetch_sale_for_data_refresh(canonical_url)
     except Exception as exc:
@@ -210,6 +223,7 @@ def release_source_detail_job_without_attempt(
     *,
     reason: str,
     settings: dict[str, Any] | None = None,
+    retry_not_before: datetime | str | None = None,
 ) -> None:
     """Return a raced paused claim to the queue without consuming its attempt."""
     db_url = str((settings or load_settings()).get("supabase_db_url") or "")
@@ -221,7 +235,12 @@ def release_source_detail_job_without_attempt(
         )
         return
     attempt = job.get("attempt_count")
+    retry_deadline = _aware_timestamp(retry_not_before)
+    next_attempt_sql = ""
     params: list[Any] = [reason[:1000], str(job.get("id") or "")]
+    if retry_deadline is not None and retry_deadline > datetime.now(UTC):
+        next_attempt_sql = "next_attempt_at=greatest(next_attempt_at,%s),"
+        params.insert(0, retry_deadline)
     where = "id=%s and status='running'"
     if attempt is not None:
         where += " and attempt_count=%s"
@@ -233,7 +252,8 @@ def release_source_detail_job_without_attempt(
         with storage._postgres_connect(db_url) as db:
             db.execute(
                 f"""update public.auction_enrichment_jobs
-                       set status='queued',attempt_count=greatest(attempt_count-1,0),
+                       set status='queued',{next_attempt_sql}
+                           attempt_count=greatest(attempt_count-1,0),
                            locked_at=null,last_error=%s,updated_at=now()
                      where {where}""",
                 tuple(params),
@@ -383,6 +403,13 @@ def _client_for_job(source_name: str, detail_url: str, clients: dict[str, Any]) 
         if is_allowed_origin_url(detail_url, (IMMO_ORIGIN,)):
             return clients.get(NOTAIRES_BASE_URL)
     return None
+
+
+def _client_retry_not_before(source_name: str, detail_url: str, clients: dict[str, Any]) -> datetime | None:
+    """Return a shared client's future Retry-After deadline, if any."""
+    client = _client_for_job(source_name, detail_url, clients)
+    metrics = _client_metrics(client)
+    return _aware_timestamp(metrics.get("retry_not_before"))
 
 
 def _client_metrics(client: Any | None) -> dict[str, Any]:

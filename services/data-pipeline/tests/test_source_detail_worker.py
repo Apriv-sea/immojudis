@@ -236,6 +236,30 @@ def test_retry_after_from_polite_client_is_carried_to_queue_finish(monkeypatch, 
     assert finished[0][1]["retry_not_before"] == retry_at
 
 
+def test_shared_client_retry_after_releases_next_claim_without_http(monkeypatch):
+    retry_at = "2099-01-01T12:00:00+00:00"
+    client = SimpleNamespace(coverage_metrics=lambda: {"retry_not_before": retry_at, "access_denials": 0})
+    clients = {"https://www.licitor.com": client}
+    released = []
+    monkeypatch.setattr(worker, "source_detail_source_enabled", lambda source, settings: True)
+    monkeypatch.setattr(worker, "fetch_sale_for_data_refresh", lambda *_: (_ for _ in ()).throw(AssertionError("no DB read after Retry-After")))
+    monkeypatch.setattr(
+        worker,
+        "release_source_detail_job_without_attempt",
+        lambda job, *, reason, settings=None, retry_not_before=None: released.append(
+            (job["attempt_count"], reason, retry_not_before)
+        ),
+    )
+    monkeypatch.setattr(
+        worker,
+        "fetch_public_detail",
+        lambda *args: (_ for _ in ()).throw(AssertionError("Retry-After must prevent HTTP")),
+    )
+
+    assert worker.process_source_detail_job(_job(), settings=_settings(), clients=clients) is False
+    assert released == [(2, f"Source deferred until {retry_at}", datetime.fromisoformat(retry_at))]
+
+
 def test_access_refusals_persist_and_suspend_after_two_tasks(monkeypatch):
     from contextlib import nullcontext
 
