@@ -1,0 +1,964 @@
+{
+  "incident": "budget_exhaustion_consumed_retry_attempts",
+  "date_utc": "2026-09-13",
+  "fix_merge": "1e02c05e0593fe7cc66f06a9b5b84f3bcb82684e",
+  "guard": [
+    "id",
+    "input_hash",
+    "status",
+    "attempt_count",
+    "updated_at",
+    "last_error"
+  ],
+  "restored_jobs": 135,
+  "attempts_restored_per_job": 1,
+  "next_attempt_at": "2026-09-14T00:00:00Z",
+  "historical_attempts_not_proven": "not reset",
+  "jobs": [
+    {
+      "id": "00992ed0-d939-41d3-8cbe-f51642e173c2",
+      "input_hash": "a9120396927e744139cd06d913cf52bc",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:47:48.813+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/92/90/vente-aux-encheres/un-appartement/saint-etienne/loire/109290.html — Appartement 67 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "01131d0f-7e86-4d61-9669-a646f010f43c",
+      "input_hash": "31bb9d3eb66300ff02c49f3beedf2084",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:07.957769+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9355-un-appartement-de-type-studio-a-le-devoluy-05 — Appartement 27 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "03520e95-a40d-4f12-b020-2bf1b432f9d9",
+      "input_hash": "63b1f584f464a59e175bb69dce9625f1",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:14.691337+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/93/24/vente-aux-encheres/un-appartement/blois/loir-et-cher/109324.html — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "04177878-4b50-4e72-8606-182380727064",
+      "input_hash": "18c7887d5a865e5ba8710ed72fb7479d",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:58.184847+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9182-une-maison-dhabitation-de-plein-pied-de-type-8-avec-garage-attenant-a-le — Maison 132 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "0bd0abfa-5623-4ac8-a2a7-e34c95efe939",
+      "input_hash": "5a25f47d576f955892dc57bd19bc1ccf",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:23.305599+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9294-un-local-commercial-a-saint-julien-en-genevois-74 — Local Commercial UN LOCAL COMMERCIAL à SAINT-JULIEN-EN-GENEVOIS (74): Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "0d494b1b-be77-4854-9e90-d99395b77119",
+      "input_hash": "pipeline_v2:2bf7c316361368e8b7fecec06cf7c7bae42ce42585a4572d16db5e1764b37344",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:32:40.044627+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9216-appartement-4p-de-5899-m-au-1er-etage-a-vallauris-06 — Appartement 5 m²: Daily AI budget exhausted; pending documents retained [fact chunk 26/26]"
+    },
+    {
+      "id": "0d773f33-6f78-403a-8fa9-7d2f1fe3a186",
+      "input_hash": "08c3f90b91e57fcf29bd54bb48316d06",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:31.929115+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9239-une-maison-individuelle-dhabitation-en-cours-de-rehabilitation-de-plain- — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "0e7f2249-f478-4470-8b5c-955b172c6d77",
+      "input_hash": "4a2bb6db10708b4cfaec250429e7fe63",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:31:54.024542+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9115-2eme-lot-du-ccv-emplacement-de-stationnement-lot-109-a-cannes-06 — Parking: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "0ebb7273-006a-46bf-87b2-c8f9caf0e203",
+      "input_hash": "26dbb15b2a31d0bda084bc3c65c02f7d",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:47:56.117736+00",
+      "evidence": "LLM extraction failed [vench] https://www.vench.fr/vente-166003-une-maison-grisolles.html — Maison 132 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "10d0b11b-133a-40f8-8645-bca4a9b03991",
+      "input_hash": "d9e1bce9d393be32220086856368e44a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 00:46:09.293103+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9121-un-appartement-avec-emplacement-de-parking-a-remoulins-30 — Appartement: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "1208a2aa-c6a3-4657-b345-638a019aa637",
+      "input_hash": "f29ec08d7871cdd6aa6023c9d413a5f8",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:39.592694+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9206-une-maison-de-village-de-2-etages-a-barbentane-13 — Maison 102 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "12f5412d-cdcb-4467-a34c-e19cf927c3d9",
+      "input_hash": "8eab7661fe7f8864663b9c3214f702a2",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:46:31.526723+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9359-un-appartement-t5-avec-terrasse-garage-en-sous-sol-et-emplacement-de-sta — Appartement 5 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "1456fe52-3308-4eee-845d-08c623069db4",
+      "input_hash": "0bc532a0edef48345ee682474f9bf19e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:47.020702+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9358-une-maison-a-barry-dislemade-82 — Maison 89 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "1546f7e8-991a-44a8-82f8-48dcc3bae1f8",
+      "input_hash": "8da21f44a17bcc59a63c0361a9449ebf",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:43.373911+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9256-une-maison-a-usage-dhabitation-avec-terrasse-garage-2-caves-terrains-att — Maison 148 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "15cd0f5b-e244-4672-b214-5e0e443336e0",
+      "input_hash": "15c7cde7badac8ae7ac8f50d1de2338c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:54.683863+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9292-un-appartement-a-vendargues-34 — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "18185f01-eb20-42e4-9be1-75e36b25744d",
+      "input_hash": "6906e39f57f8d780a28d5a6e48f2060b",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:34:01.556405+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/94/62/vente-aux-encheres/une-maison-d-habitation/billy/loir-et-cher/109462.html — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "1867817c-4b73-4588-a231-523bb57d87cb",
+      "input_hash": "7ef25d0cb45da1759e91ff02061ef774",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:46:27.839432+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/des-locaux-professionnels-a-montpellier — Local commercial 125 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "1acf74dc-ff92-4de9-8c03-46f9804130df",
+      "input_hash": "36132cfa6a43b4aa38effa648e39cc81",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:34:09.116181+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9283-un-appartement-en-duplex-a-valras-plage-34 — Appartement 58 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "1b1629a4-5921-4c59-a9b5-486520753779",
+      "input_hash": "c482d56283b41e409102feb2d7a1dc99",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:34:17.085253+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9286-locaux-commerciaux-a-perols-34 — Local Commercial LOCAUX COMMERCIAUX à PEROLS (34): Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "1c2226ef-f528-4efe-aa14-719d95e1e9fd",
+      "input_hash": "d636de7b6a418db89658625c2cc15ecf",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:11.921934+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9173-splendide-propriete-comprenant-grande-villa-de-39530-m-avec-dependances- — Maison 395 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "1fd1069a-912c-4b87-85d9-70495400a584",
+      "input_hash": "pipeline_v2:a5264fc9caf494cfd9a1cf0621a84cd32ddfbea5da4ec3d1b3e53a14171e0331",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:31:19.986216+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/maison-dhabitation-avec-terrain-a-chalette-sur-loing — Maison 172 m²: Daily AI budget exhausted; pending documents retained [fact chunk 7/7]"
+    },
+    {
+      "id": "29bab097-1a0d-47ae-b497-11b7e7db5985",
+      "input_hash": "pipeline_v2:0d8150afb4cbf08a0b249167c434f1f0b656722acfa79c1af38ccc58c07ce615",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:33:00.183336+00",
+      "evidence": "LLM extraction failed [info_encheres] https://www.info-encheres.com/108241-d-vente-encheres-immobilieres-appartement-t3-avec-garage-en-sous-sol-annemasse-74-ref-6009.html — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 14/14]"
+    },
+    {
+      "id": "2aa747bb-ab5f-46e6-a4be-99a5de77bed8",
+      "input_hash": "be815766fec69ecd3c71c9d15b7d1e77",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:34:26.668419+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9372-un-appartement-t4-avec-parking-et-balcon-a-toulouse-31 — Appartement 563 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "2b72f674-7e18-4f66-b532-8e6f4c3bd339",
+      "input_hash": "b5285cdcb86752f8e6d4b02172cf8075",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:28.227441+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/appartement-de-3-pieces-environ-65-m2-avec-cave-et-parking-a-le-cannet — Appartement 65 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "2c5cea4a-75dd-46ca-8d1e-6b4c13c120ac",
+      "input_hash": "4b195ab47722de3b6ab1892fd4484b12",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:34:34.114423+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9255-un-appartement-au-1er-etage-avec-une-cave-a-valence-26 — Appartement 111 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "2c7682e0-ce8f-48d6-a381-e3fa91270b4a",
+      "input_hash": "1968f64444d35b8390718729a34e0dec",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:30:54.281806+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/94/48/vente-aux-encheres/une-maison-d-habitation/mer/loir-et-cher/109448.html — Maison 166 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "2e8fdcaa-0bad-4cc2-80a7-d107730405de",
+      "input_hash": "0f81bf80ef293e0e8ce2c2c6ce718ae8",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:48:18.274097+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9234-un-appartement-au-1er-etage-a-marseille-13 — Appartement 46 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "2fa4cab7-1f72-41e4-b262-3e05cdfb42e9",
+      "input_hash": "13d60e1fdd38e98254814073a48b7845",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:02.684583+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9203-un-appartement-t2-avec-parking-a-toulouse-31 — Appartement 45 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "2ff77a15-5fc3-4d0f-85dc-c8be3b3cc8b5",
+      "input_hash": "c3597d4b52b092d3739eded547767f3a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:22.03055+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9188-une-maison-dhabitation-et-terrain-attenant-a-balbigny-42 — Maison 117 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "34cf1696-67c4-43ec-94b4-dc37d03f8c03",
+      "input_hash": "e118834835b1aba8a77b487064a30ea4",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:20.460233+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9204-un-immeuble-a-usage-dhabitation-a-la-rouviere-30 — Immeuble 74 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "34e5e1c5-11a3-4a9b-87ac-aff947f906c5",
+      "input_hash": "caa4b9c0faed3bc98c719930d3669d5e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:09.704211+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2033902 — Terrain 7 253 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "366622ac-ef89-4f2e-8d1c-9f2e5816af89",
+      "input_hash": "7203e7c8bec962c7c9c419e681db9af2",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:18.550425+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9327-un-appartement-t4-une-place-de-stationnement-2-garages-fermes-une-cave-a — Appartement 21 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "37fc177b-6435-423e-920a-f81afb391dcf",
+      "input_hash": "516b64a9e06e36911ad99b6c28d4b7c4",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:25.860937+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/95/57/vente-aux-encheres/un-batiment-industriel/andrezieux-boutheon/loire/109557.html — Immeuble 5 344 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "382a111c-e427-4e4d-8ff0-900b281af7fb",
+      "input_hash": "71cc5e13c16bb30948024074239a3505",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:32.583873+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/93/50/vente-aux-encheres/une-maison-individuelle-a-usage-d-habitation/la-chapelle-sur-aveyron/loiret/109350.html — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "3ad0d5ed-02c9-48c9-afc6-3be203a5eb21",
+      "input_hash": "dfe0411faef252a91c340fc803749d79",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:32:01.730727+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9312-un-appartement-de-type-t3-avec-un-emplacement-de-parking-a-a-perpignan-6 — Appartement 8 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "3c1e2a3e-ac30-427c-8934-567cab9383b6",
+      "input_hash": "6bf11f23175b6d72a1b17aa63f4eca7f",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:39.481364+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2034072 — Terrain 6 423 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "3eec7058-f00d-48c9-ad43-991bc5c24595",
+      "input_hash": "474214c2f97e95b3356d8e6d2c4d06c1",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:47.716867+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9277-appartement-3p-de-8355-m-avec-balcon-denviron-15-m-et-cave-a-nice-06 — Appartement 84 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "3f73edd7-2ece-4227-a029-46464f0a92ef",
+      "input_hash": "1538259812c792ba6bf1baff3d233399",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:45:54.988513+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immo-interactif.fr/encheres-en-ligne/immeuble/lille-59/2062882 — Immeuble 100 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "40a818b4-406f-44f5-81f4-2e57cd0ef7fc",
+      "input_hash": "b88c11ebff9669eb8585639b8c0d1a6e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 03:31:56.033381+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9267-une-maison-vue-mer-avec-piscine-et-garage-a-bateaux-a-saint-raphael-83- — Maison 269 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "42efa3a8-8441-4cb0-8316-23de900243f0",
+      "input_hash": "pipeline_v2:fd339f0bbeed013662266d6a8ca2aa4521b5fa690e8935b3806d86d28d5b1015",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:31:33.681245+00",
+      "evidence": "LLM extraction failed [info_encheres] https://www.info-encheres.com/108262-d-vente-encheres-immobilieres-maison-avec-annexe-et-terrain-ambes-33-ref-6023.html — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 7/7]"
+    },
+    {
+      "id": "4393d6d7-e06e-4854-9d0c-492550240f45",
+      "input_hash": "587cd1ffaedf250e99b67eff947d3b9a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 04:31:22.23773+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9349-vente-sur-surenchere-un-appartement-de-type-3-avec-un-emplacement-de-gar — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "467655f4-0ee5-447f-9893-bf82b0da0060",
+      "input_hash": "ca326c636ad75e228c6ebd5a6a0fb7ae",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:46:24.514831+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/appartement-de-3-pieces-environ-65-m2-avec-cave-et-parking-a-le-cannet — Appartement 65 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "47b5cdea-7d97-4f9d-9ea4-f647c6986b1f",
+      "input_hash": "620d46a4b3fd54f02da8bae07572157c",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:48:25.143397+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9225-studio-de-1644-m-au-1er-etage-studio-de-1674-m-au-5e-etage-parking-et-ca — Parking: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "496443d8-19ec-409b-970c-6ad147efc876",
+      "input_hash": "97d9fd95134c3223e5daee0cc69211b9",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 04:31:30.985805+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/maison-a-saint-nizier-le-bouchoux — Maison 81 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "4c1da961-f106-46d6-8f9f-8c038f7db13f",
+      "input_hash": "936ac427668d69f578edc6932bcd60bb",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 04:31:39.295363+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9356-une-maison-dhabitation-avec-piscine-et-dependance-a-grisolles-82 — Maison 132 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "4c9335fb-f1a1-4b53-9597-d45704897013",
+      "input_hash": "c4511d91d523cdced8e027497fd642fb",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 04:31:47.666148+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9308-une-maison-individuelle-a-usage-dhabitation-avec-une-piscine-a-callian-8 — Maison 90 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "4e316544-9dbb-4167-8d5e-49cb6a5d36b8",
+      "input_hash": "23cdb41ff8519430e8e0726aa5d5f3b1",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:30.956788+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9291-une-maison-a-usage-dhabitation-a-ales-30 — Maison 116 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "53ee703b-d765-4460-8bcc-a10e8e96a394",
+      "input_hash": "1b54a5a748212080f114623189ee6d2a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 04:31:54.667069+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/95/26/vente-aux-encheres/une-maison-inachevee/pont-l-eveque/calvados/109526.html — Maison 700 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "556755b0-b51f-45db-b250-35244d2dd35d",
+      "input_hash": "25a8043a647fa08d5f46104f3c71d7e3",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:12.407356+00",
+      "evidence": "LLM extraction failed [vench] https://www.vench.fr/vente-165628-un-appartement-marseille.html — Appartement 46 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "569cb7d1-c8e7-4dad-a97a-9742957825b5",
+      "input_hash": "de6ee9d9f9a6c6b4df7f4a210addd584",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:46:52.974312+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/local-commercial-6 — Local commercial 46 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "583ec0ef-3083-4fee-931d-812c4e1a9629",
+      "input_hash": "a549a120e61072ef8b2a9d91e41e6c0c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:19.401362+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9304-un-appartement-au-4eme-etage-avec-balcon-et-cave-a-marseille-13 — Appartement 44 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "5a352f4e-1b44-4042-a78d-aab6af1a8326",
+      "input_hash": "85161e2f2bf628d8ed2fac545d839f16",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:46:10.926056+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/93/64/vente-aux-encheres/un-local-a-usage-commercial/paris-13eme/paris/109364.html — Un local à usage commercial: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "5adc407c-58f1-4230-b74a-d2b3999ad563",
+      "input_hash": "cf3e47be037f5d70b2884c65edb66b7e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:26.291115+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/95/87/vente-aux-encheres/une-maison-a-usage-d-habitation/ramous/pyrenees-atlantiques/109587.html — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "6316cefc-30cc-4fc7-95da-8478ad51ee31",
+      "input_hash": "6605ddf1d2c777736d09d09f9845e6e8",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:47:33.608632+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9284-un-appartement-a-montpellier-34 — Appartement 33 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "64443586-17ed-426c-b290-0fadc901d4a9",
+      "input_hash": "2771bdab5b21ab0e62f61f62b4f3ac35",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:35.587476+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9297-un-appartement-de-type-geneve-t2-avec-cave-a-saint-julien-en-genevois-74 — Appartement 30 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "64703bc5-732d-4f2a-88b0-717df2c8f5d1",
+      "input_hash": "c2401bf69822a7bfd702b03220fa3043",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:54.436729+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/appartement-t2-cellier-cave-et-parking-a-annemasse — Appartement 52 m²: Daily AI budget exhausted; pending documents retained [fact chunk 4/4]"
+    },
+    {
+      "id": "65b441e7-f283-47b1-a42f-4959f5ba0b85",
+      "input_hash": "f8c355955d8a404077c4e8a2b85e08e8",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:42.919878+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/92/89/vente-aux-encheres/une-maison-de-ville/niort/deux-sevres/109289.html — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "668c5dec-ffa1-4637-9f38-1827e44dcce8",
+      "input_hash": "638d40a8f70d2f2ea141d9fc40161f89",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:49.912675+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/95/95/vente-aux-encheres/un-appartement/tulle/correze/109595.html — Appartement 91 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "67350df9-7996-462e-948c-4c42041d15e2",
+      "input_hash": "c8be86d2eaeda26d51859ec0a680abcc",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:25.353106+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/appartement-et-cave-a-paris-11 — Appartement 60 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "674088a6-a902-463b-9379-eb7ce51c8ae1",
+      "input_hash": "33fffdfe6651554e546dd9979506284c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:42.399281+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/vente-beauvais-5-rue-fontaine-bellerie-appt-342 — Appartement: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "69606a4e-3a44-456a-ae0e-e12e788eed7f",
+      "input_hash": "353064f086cade893a2883c13630342d",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:02:58.22696+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9275-propriete-mas-vera-comprenant-villa-de-plain-pied-3p-de-5075-m-et-garage — Maison 51 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "69b92c6e-72f6-46c5-81d8-606cfb6ac918",
+      "input_hash": "c9f3e3d122b2adf87192101f3756f6f3",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:48:32.393131+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2034072 — Terrain 6 423 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "6c54179d-10f7-43a7-9050-7cd15a4b0371",
+      "input_hash": "39d6a64a17c9e3c521e89232620c210c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:46:12.435807+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9270-un-terrain-a-batir-sur-lequel-sont-edifiees-deux-maisons-inachevees-a-sa — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "71ac0efd-0c8b-42c1-af41-8fdbf73ed900",
+      "input_hash": "pipeline_v2:00ff1c416c861b8826ae9b82e598e92537727545cfca36ebae915b7b1002ae1a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 02:32:08.440408+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9180-un-tenement-immobilier-comprenant-un-batiment-a-usage-dhabitation-a-oull — Immeuble 124 m²: Daily AI budget exhausted; pending documents retained [fact chunk 29/29]"
+    },
+    {
+      "id": "73f799fa-f18a-47cc-bfd7-ee74a9289f2a",
+      "input_hash": "30d35149e88eb25fc9c1f2adc3620b64",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:02.93543+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/pavillon-a-hautefontaine — Maison 116 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "7437c7c3-481e-443c-a10f-2e07be2e7cee",
+      "input_hash": "6e2222123a84417c8ec048c6461ee22d",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:46:22.475621+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9293-un-batiment-a-usage-industriel-a-meze-34 — Immeuble: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "74dc6b1c-77f3-4239-9c64-753f6fc5a00b",
+      "input_hash": "e0a05bdda9a61078289ebc4de703d029",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:42.660742+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/maison-inachevee-vente-sur-surenchere — Maison 1 150 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "756aba91-f904-43e6-a92b-4dc5095a1d56",
+      "input_hash": "76feb317c8fc2101add23f0e9565a9ed",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:46:32.893673+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9295-en-2-lots-2-appartements-avec-caves-et-emplacements-de-stationnement-a-t — Appartement 38 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "7ce9ced5-90b2-4f27-b935-d4e96fe6a3d6",
+      "input_hash": "625f94c18aee9ba44b23b45dc1954caf",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:31:31.280156+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9155-une-villa-traditionnelle-de-type-belleville-a-gleize-69 — Maison: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "7d928178-4a4c-4e1e-a7f2-f16677d742ed",
+      "input_hash": "592534fbd1b4a283b31025035b6a691d",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:46:43.392701+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9301-un-appartement-de-type-4-avec-un-parking-double-a-marseille-13 — Appartement 81 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "7e735bc0-9ad4-4382-b4cf-75efde919bc7",
+      "input_hash": "a5598f914a1fc2d9d8d34ed5328d614e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:56.111396+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9218-garage-au-niveau-r-1-a-villeneuve-loubet-06 — Appartement 62 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "8a137b8b-0223-4f95-825d-f649a9450dc1",
+      "input_hash": "512e12104f75ca06b9cfe7398f262b70",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:46:52.617133+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9252-une-maison-avec-cave-piscine-local-technique-piscine-abri-de-jardinabri- — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "8a8a24d4-2d84-45ce-981e-b4298050365f",
+      "input_hash": "edc39f6764c9056a8f1038c8b2217859",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:01.792043+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9212-en-un-lot-une-maison-de-plain-pied-et-une-maison-individuelle-a-ajaccio- — Maison 111 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "8bce3f7d-4cc9-4939-8c96-633a9b63d112",
+      "input_hash": "5d81df50017347967e603471703d72d3",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:39.781746+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9214-une-maison-dhabitation-a-mirepoix-09 — Maison 93 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "8eec4872-ce00-4522-b3d0-10d409173925",
+      "input_hash": "ac597f3185b945dbeb402377cec66eea",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:46:36.997231+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/en-deux-lots-de-vente-une-maison-de-ville-et-un-parking-double-et-une-maison-de-ville-et-un-parking-exterieur-pmr-a-maurepas — Maison 91 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "8f81c084-7dab-48dc-a6a9-3b26ae03302a",
+      "input_hash": "d1cc60ee81e9a90e0e0d46fbbd87d996",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:09.500797+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/93/97/vente-aux-encheres/un-corps-de-ferme/bulat-pestivien/cotes-d-armor/109397.html — Un corps de ferme: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "9221797b-d2c2-439e-90fb-8704f5ad1c4b",
+      "input_hash": "bc45a953eb7e0f1d4ca0d43a4e79d45a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:33.872358+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/alpha-mjponzo — Maison 82 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "92fba317-c15f-469d-bdc0-bf6720963402",
+      "input_hash": "0f1f2d2fe359cbb9d8a07759c2c25b3a",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:31:23.988358+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9077-magasin-2p-au-rez-de-route-a-la-trinite-06 — MAGASIN 2P, au rez-de-route à LA TRINITÉ (06): Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "9355f1ef-d014-440d-959b-511c5648a9bc",
+      "input_hash": "779b52418b6e4a26cee93d3b727c0661",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:05.776227+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9291-une-maison-a-usage-dhabitation-a-ales-30 — Maison 116 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "93cf2cee-7ac6-4829-8845-0a7e423a2445",
+      "input_hash": "161971fc298acca64918692281cca349",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:06.68934+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/une-maison-dhabitation-a-bonne — Maison 125 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "94498c56-01a8-4378-8f36-89b3d00b3810",
+      "input_hash": "bba151ea5c6a22e9bc23c1144b930d00",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:18.71096+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9306-un-appartement-avec-cave-a-marignane-13 — Appartement 60 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "9bc8bdd7-22c4-4d86-ae56-1d6ecafb3e42",
+      "input_hash": "30e02c6dd52339678e614709dd25c447",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:27.642643+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9339-une-maison-a-usage-dhabitation-a-pont-dain-01 — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "9ed36dea-8e2e-4a2e-8f46-fae901d28eda",
+      "input_hash": "6a73342ff4726b80fbd64aca48e46f9f",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:36.544673+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9224-maison-de-village-4p-de-7574-m-et-cave-a-breil-sur-roya-06 — Maison 76 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "9eedfcec-dddf-41e3-8fa5-828063b0c86e",
+      "input_hash": "dd5ea8cc7017760dc8a73048664c6064",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:45.754865+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9235-en-un-lot-un-appartement-un-grand-garage-et-une-cave-a-marseille-13 — Appartement 74 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "9f640bbb-430f-4944-8686-c3592acaeb02",
+      "input_hash": "70175780c7a2fe6e690ff78c162ff0e3",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:35.12308+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/une-maison-principales-et-annexes-a-chavenay — Maison 99 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "9fd6487f-3ac6-4bfc-bc4b-2ab1c58772c6",
+      "input_hash": "161f63757b93a700dd4623a06d952c43",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:47:55.902807+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9330-un-tenement-foncier-constitue-de-terrains-a-cavaillon-84- — Terrain: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "a1f8bb4d-7bdb-48b7-af4e-dd014ef22d9e",
+      "input_hash": "5320203579aba168857a2ee6ea5819de",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:49.545061+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9182-une-maison-dhabitation-de-plein-pied-de-type-8-avec-garage-attenant-a-le — Maison 132 m²: Daily AI budget exhausted; pending documents retained [fact chunk 3/3]"
+    },
+    {
+      "id": "a6384015-3b8b-4147-b86c-3ddb2b1b39c3",
+      "input_hash": "0ba833afc4409485c9d59ae7b4966c0f",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:36.06746+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9256-une-maison-a-usage-dhabitation-avec-terrasse-garage-2-caves-terrains-att — Maison 148 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "a755e89d-0785-4b39-bbed-27e270f0ab7a",
+      "input_hash": "ef07ba6b35ea80e0efd82cc9e54a75e6",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:05.197351+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9238-un-local-a-usage-de-garage-comprenant-un-magasin-et-deux-arriere-boutiqu — Local Commercial UN LOCAL A USAGE DE GARAGE COMPRENANT UN MAGASIN ET DEUX ARRIÈRE-BOUTIQUES à MARSEILLE (13): Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "aa945e92-76ec-4c74-9251-ee5c57b30dd0",
+      "input_hash": "b9f83becde151bfa593b3dc8226bf5d4",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:14.205325+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9251-un-appartement-de-type-3-et-un-compartiment-de-cave-a-draguignan-83 — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "aab18d96-c965-4667-938e-df507933be38",
+      "input_hash": "9adc453735856cdf7c545ae088fdbd40",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:22.126245+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9225-studio-de-1644-m-au-1er-etage-studio-de-1674-m-au-5e-etage-parking-et-ca — Parking: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "b0a156c1-7729-49f6-a676-d37d700c9684",
+      "input_hash": "aa58bbbf14ac301b4dc3d68a685e4ffd",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:29.662464+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9248-un-appartement-de-type-4-au-4eme-etage-et-une-cave-a-marignane-13 — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "b0d2bccd-3739-49a8-b75e-73aaf2f6df53",
+      "input_hash": "dd8206edee263dc4adadd5774d14ed38",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:37.249071+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/95/76/vente-aux-encheres/un-batiment-industriel/andrezieux-boutheon-et-veauche/loire/109576.html — Immeuble 5 344 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "b2c72fa8-3d84-48f5-9415-d0b03921f8a1",
+      "input_hash": "cb3212670c7fb1421eb2db82615bb411",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:19.646684+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/vente-beauvais-5-rue-fontaine-bellerie-appt-342 — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b4d7b729-a756-4068-ad46-50b320256627",
+      "input_hash": "2e77090b73fbde202b7c54d7ba48f6fc",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:46:03.634681+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/92/11/vente-aux-encheres/un-immeuble/paris-13eme/paris/109211.html — Immeuble 71 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b512e695-0e59-42d3-aceb-805cf730e9d1",
+      "input_hash": "9c0b04f9d99a94be2fcb62151318d503",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 05:48:46.184903+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9282-une-maison-dhabitation-en-coliving-de-10-chambres-a-oullins-pierre-benit — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b59b97a1-06a1-4f77-85c8-cec91ae06f59",
+      "input_hash": "f98c56489b5e993df3b9be9819a1fa3b",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:05.725222+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9215-un-appartement-en-duplex-et-un-local-dhabitation-a-saint-laurent-sur-sao — Appartement 100 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b8130c23-638c-4fb6-a0c0-1426fbe9f894",
+      "input_hash": "bdbf7b6ba2dd9ae1c951429ae31580ea",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:02:15.697652+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/maison-15 — Maison 244 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b981f60b-5cda-4ae3-b88a-cc842de55336",
+      "input_hash": "bcd66d0056c4dd890be88dc772c7ba25",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:15.101311+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9271-une-maison-dhabitation-avec-dependance-piscine-et-terrain-attenant-a-bon — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "b9b328ea-0355-4d91-ad5d-9e1e29c540a3",
+      "input_hash": "dcadd18e853df55d56f5d7bb6204945b",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:31:39.071633+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9186-un-appartement-et-une-cave-a-marseille-13 — Appartement: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "bb83ae4e-7ae4-4f04-ab48-99cd166e1d1d",
+      "input_hash": "fc22046d6caf31fb907223276c3cb8fd",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:24.066195+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9210-en-neuf-lots-locaux-commerciaux-ou-bureaux-propriete-avec-terrain-appart — Appartement 40 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "bbf59374-ec7f-4555-a3e3-7398ed6e2ba1",
+      "input_hash": "a5dc704e266c2f4b58f567bf1d4289ed",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 01:31:46.563904+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9258-un-appartement-situe-au-3eme-etage-a-perpignan-66 — Appartement: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "c2538af7-851c-4a97-984a-a71acba449ec",
+      "input_hash": "5b55f35ea4a317cc29c2ee1794496ec6",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:33.67931+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9207-un-village-de-vacances-et-une-parcelle-de-terrain-a-port-saint-louis-du- — Terrain 1 331 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "c669550b-dc81-4aec-acd1-1b2ad8a8ffd7",
+      "input_hash": "bd6fa56688fa345e8253fa676490c616",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:42.636841+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9357-une-maison-a-letat-de-ruine-a-bioule-82 — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "cb73144b-dc41-4237-8622-696824e848e7",
+      "input_hash": "0d5f099285ba3d0282fd30154edd7922",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:31:51.981505+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9213-une-maison-individuelle-sur-2-niveaux-avec-une-dependance-et-une-piscine — Maison 437 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "cb88ff98-177a-4fb8-9788-c89fc2ffcc3d",
+      "input_hash": "aa62f59e9d245006082a4223923e5c79",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:32:00.899188+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9226-des-parcelles-non-baties-a-reignier-esery-74 — Terrain 1 995 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "cc71eb85-d217-4640-96df-8d3af32ddec1",
+      "input_hash": "49336339594a6176643fc5858b2f7133",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 06:32:09.865241+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9313--un-pavillon-et-une-parcelle-de-terrain-a-meyzieu-69 — Terrain 330 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "cdb98a88-e8e8-476c-8c2c-268a0d1a405d",
+      "input_hash": "724ec729cfb0cc13559bf5153aadd179",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:36.593495+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9359-un-appartement-t5-avec-terrasse-garage-en-sous-sol-et-emplacement-de-sta — Appartement 5 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "cfe379bd-ec8f-4637-88b1-2f7e597ef303",
+      "input_hash": "0fc71d1ccbc8b849de58a42db639f90c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:02:28.652624+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9234-un-appartement-au-1er-etage-a-marseille-13 — Appartement 46 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "d222af3e-c445-441c-a946-12b8139ea485",
+      "input_hash": "971465022a196540a5209ab7e6426cf7",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:02:37.88935+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9345-un-batiment-industriel-a-andrezieux-boutheon-veauche-et-andrezieux-bouth — Appartement 5 344 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "d5a52098-9a91-4ec0-b99b-492c778815ff",
+      "input_hash": "b247b1512df54eb012c2910193bdb6d3",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:09.265746+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9236-un-appartement-meuble-a-marseille-13 — Appartement 18 m²: Daily AI budget exhausted; pending documents retained [fact chunk 5/5]"
+    },
+    {
+      "id": "d66585f6-4a4b-46fc-8452-5fd7819e04ef",
+      "input_hash": "648258cd149f249f0d0f5ef66c3c772e",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:46:45.098059+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/locaux-commerciaux-a-perols-1 — Local commercial 78 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "de6e1f91-ec65-4167-83e8-ee00b40cb8b6",
+      "input_hash": "69fbe90c78439ffb6c7ec255e3c6e46e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:18.812159+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9312-un-appartement-de-type-t3-avec-un-emplacement-de-parking-a-a-perpignan-6 — Appartement 8 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "dec259a6-aecb-4bc5-be26-701e38236645",
+      "input_hash": "9e46e5e57316a20cfb21ef85920f2248",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:02:46.781338+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9253-une-maison-individuelle-a-usage-dhabitation-a-saint-tropez-83 — Maison: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "e0f0204d-4541-47a9-a493-fc1e34520c56",
+      "input_hash": "198dc92c9ce53108e36666a26c7dde7c",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:02:54.329443+00",
+      "evidence": "LLM extraction failed [licitor] https://www.licitor.com/annonce/10/96/02/vente-aux-encheres/divers-batiments/plumieux/cotes-d-armor/109602.html — Immeuble: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "e5331470-314f-4c9d-93ea-8912a91ebd9b",
+      "input_hash": "046d1f0dac32c28f197b708258325c83",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:03:03.315017+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9296-une-maison-a-usage-dhabitation-avec-parcelle-attenante-a-saint-nizier-le — Maison 81 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "e5904439-002e-4260-a194-dc6296f9d090",
+      "input_hash": "85e6913c641f8e01d52bfb67c05f1f47",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:03:11.123509+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9245-en-un-lot-2-locaux-commerciaux-a-usage-de-pharmacie-2-locaux-de-bureaux- — Local Commercial EN UN LOT : 2 LOCAUX COMMERCIAUX À USAGE DE PHARMACIE, 2 LOCAUX DE BUREAUX À USAGE MEDICAL ET 9 PLACES DE STATIONNEMENT à MARSEILLE (13): Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "e5be909e-15b1-4cea-97b5-6981066d7718",
+      "input_hash": "27ac3b3cf81728fe4993118b41b690f1",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:48:11.260725+00",
+      "evidence": "LLM extraction failed [vench] https://www.vench.fr/vente-166001-une-maison-d-habitation-barry-d-islemade.html — Maison 89 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "e7e4c36a-d164-4675-996b-2742f350aaac",
+      "input_hash": "e0328bb3f33b183cc7e58c57719c3e04",
+      "previous_attempt_count": 3,
+      "snapshot_updated_at": "2026-09-13 07:47:09.158366+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9289-locaux-professionnels-a-montpellier-34 — Local Commercial LOCAUX PROFESSIONNELS à MONTPELLIER (34): Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "e9f2bd49-f80e-4dd8-a83a-a89475f6f461",
+      "input_hash": "fa23048f1fb018ad7ac0278db8aaf300",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:27.923446+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/pavillon-a-hautefontaine — Maison 116 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "ec59ebe0-b032-4900-994b-4289d6cf8199",
+      "input_hash": "6eabbb3a96883048f38bbc4c0d4de10f",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:27.515985+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9281-une-maison-dhabitation-elevee-sur-sous-sol-de-rez-de-chaussee-et-un-etag — Maison 188 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "ed980e25-93ad-4526-88f1-5194d4a364dc",
+      "input_hash": "pipeline_v2:2357f9e793e980b30d97ce2f645ff61546feb70fdf0ec19bdb04d61bf294e3c5",
+      "previous_attempt_count": 1,
+      "snapshot_updated_at": "2026-09-13 07:51:02.515923+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/un-appartement-a-la-verriere — Appartement 75 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "f0a237b5-ea02-4e45-9fdd-a0f45162a800",
+      "input_hash": "9dc8294f39fbde646df3ce63f2a98ada",
+      "previous_attempt_count": 2,
+      "snapshot_updated_at": "2026-09-13 07:48:39.233332+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9304-un-appartement-au-4eme-etage-avec-balcon-et-cave-a-marseille-13 — Appartement 44 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "f0daaa50-4878-494b-8ad0-2407d8df0926",
+      "input_hash": "ce0755a4b5c88b97c66f611ebae509b0",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:04:50.75032+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9281-une-maison-dhabitation-elevee-sur-sous-sol-de-rez-de-chaussee-et-un-etag — Maison 188 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "f28340a5-d767-4d0c-9666-e5dc11b20bf5",
+      "input_hash": "b538b754b909ca06edbbf81218cdacc6",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 00:45:54.024556+00",
+      "evidence": "LLM extraction failed [encheres_publiques] https://www.encheres-publiques.com/encheres/immobilier/maisons/tourrettes-83/une-maison-type-situee-les-grandes-terrasses-tourrettes_130840 — Maison: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "f2efac2b-1014-4381-b269-1c76b94c0e97",
+      "input_hash": "ee83cb6f7ae38ad55d5f2e1c752c9d70",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:03:20.125536+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9237-un-appartement-type-f4-et-une-cave-a-marseille-13 — Appartement 68 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "f59bb3cd-ed81-4151-8772-721ebcc8d3bd",
+      "input_hash": "8bffbda069d624a6fa9ea80d9115d18f",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:03:11.210208+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/une-maison-principales-et-annexes-a-chavenay — Maison 99 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "f64a0e92-06d7-447b-9851-4b33b820e5d2",
+      "input_hash": "d26fd1254058f7edcf2dad3a14af425b",
+      "previous_attempt_count": 2,
+      "snapshot_updated_at": "2026-09-13 07:48:46.184663+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2033915 — Terrain 2 378 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "f6e2e27c-d522-42a3-8337-6344ecda7e07",
+      "input_hash": "bd51c2239dc7dc6ea3bfa34da214d961",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:03:27.891982+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2033915 — Terrain 2 378 m²: Daily AI budget exhausted; pending documents retained [fact chunk 1/1]"
+    },
+    {
+      "id": "fa34f2fd-9e60-4990-ac00-217ff8d0e0a5",
+      "input_hash": "2fa5a87ce8ba9bc0fe3e6e7079379825",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:01:58.105778+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9204-un-immeuble-a-usage-dhabitation-a-la-rouviere-30 — Immeuble 74 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "faa0a3b0-0cff-40ea-8b7d-a7815ead9072",
+      "input_hash": "57f3bdeac8b214c199bf803d2f1a3912",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:03:36.820348+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9311-un-appartement-de-type-t1-a-toulouse-31 — Appartement: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "fb0b1a23-0a51-4892-a2f0-37b2374ce92f",
+      "input_hash": "72cbfabc87ecc997f25b9e11b2eec08e",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 00:46:01.953097+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9189-ensemble-de-batiments-pour-partie-non-acheves-et-parkings-a-perreux-42 — Parking: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "fb788d4a-9778-42c2-8479-b16df77eb859",
+      "input_hash": "700930016163d565e36ffee8b45f6324",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-12 22:05:13.130467+00",
+      "evidence": "LLM extraction failed [encheres_immobilieres] https://encheresimmobilieres.fr/ventes/9173-splendide-propriete-comprenant-grande-villa-de-39530-m-avec-dependances- — Maison 395 m²: Daily AI budget exhausted; pending documents retained"
+    },
+    {
+      "id": "fe467171-a3e9-4ae3-90d0-db76f8874faf",
+      "input_hash": "57bf3fb716bfa49f8b8fcf5e7306a328",
+      "previous_attempt_count": 4,
+      "snapshot_updated_at": "2026-09-13 07:46:19.354224+00",
+      "evidence": "LLM extraction failed [avoventes] https://avoventes.fr/enchere/une-propriete-a-cannes — Bien mixte 250 m²: Daily AI budget exhausted; pending documents retained [fact chunk 2/2]"
+    },
+    {
+      "id": "feb3cee4-5d4e-49a0-8531-bb784ab9e318",
+      "input_hash": "11430b903bb695631a57b726a36f5c23",
+      "previous_attempt_count": 2,
+      "snapshot_updated_at": "2026-09-13 07:48:53.078164+00",
+      "evidence": "LLM extraction failed [notaires] https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/excenevex-74/2033902 — Terrain 7 253 m²: Daily AI budget exhausted; pending documents retained"
+    }
+  ]
+}
