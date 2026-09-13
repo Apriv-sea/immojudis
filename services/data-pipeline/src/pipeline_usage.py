@@ -58,7 +58,7 @@ def record_prediction(prediction: dict, *, reservation: str | None = None) -> No
     cost = seconds*0.000975 if seconds is not None else None
     with _postgres_connect(str(load_settings()['supabase_db_url'])) as db:
         db.execute("""update public.auction_pipeline_usage set prediction_id=coalesce(%s,prediction_id),
-          status=%s,metrics=%s,estimated_usd=case when model=%s then %s else null end,
+          status=%s,metrics=%s,estimated_usd=case when model=%s then %s::numeric else null end,
           rate_source=%s,updated_at=now() where run_id=%s and (id=%s or prediction_id=%s)""",
           (prediction.get('id'),prediction.get('status') or 'unknown',Jsonb(metrics),PINNED_MODEL,cost,
            RATE_SOURCE,run_id,reservation,prediction.get('id')))
