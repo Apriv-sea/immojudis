@@ -967,7 +967,57 @@ def upsert_observations_to_supabase(sales: list[AuctionSale]) -> int:
     if not url or not key:
         return 0
     now = datetime.now(UTC).isoformat()
-    payload = []
+
+    def _as_utc(value: object) -> datetime | None:
+        if isinstance(value, datetime):
+            parsed = value
+        elif value:
+            try:
+                parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            except (TypeError, ValueError):
+                return None
+        else:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
+
+    def _content_freshness(observation: dict[str, object], content: object, source_url: str) -> datetime | None:
+        # Ranking may use only timestamps carried by this observation. Parent
+        # catalogue mutation times are not evidence that its payload is newer.
+        candidates: list[object] = [observation.get("observed_at")]
+        if isinstance(content, dict):
+            candidates.append(content.get("_checkpoint_checked_at"))
+            checks = content.get("source_checks")
+            if isinstance(checks, dict):
+                check = checks.get(source_url)
+                if isinstance(check, dict):
+                    candidates.append(check.get("checked_at"))
+        parsed = [_as_utc(value) for value in candidates]
+        valid = [value for value in parsed if value is not None]
+        return max(valid) if valid else None
+
+    def _rank(row: dict[str, object], freshness: datetime | None) -> tuple[datetime, int, str]:
+        richness = sum(bool(row.get(field)) for field in (
+            "source_name", "external_id", "content_hash", "canonical_source_url", "raw_payload"
+        ))
+        stable = json.dumps(row, sort_keys=True, default=str, separators=(",", ":"))
+        return freshness or datetime.min.replace(tzinfo=UTC), richness, stable
+
+    def _merge(current: dict[str, object], incoming: dict[str, object]) -> dict[str, object]:
+        current_rank = current.pop("_dedupe_rank")
+        incoming_rank = incoming.pop("_dedupe_rank")
+        winner, fallback = (
+            (incoming, current) if incoming_rank > current_rank else (current, incoming)
+        )
+        merged = dict(winner)
+        for field in ("source_name", "external_id", "content_hash", "canonical_source_url", "raw_payload"):
+            if not merged.get(field) and fallback.get(field):
+                merged[field] = fallback[field]
+        merged["_dedupe_rank"] = max(current_rank, incoming_rank)
+        return merged
+
+    rows_by_source_url: dict[str, dict[str, object]] = {}
     for sale in sales:
         observations = sale.observations or [
             {
@@ -980,18 +1030,30 @@ def upsert_observations_to_supabase(sales: list[AuctionSale]) -> int:
         for observation in observations:
             if not isinstance(observation, dict) or not observation.get("source_url"):
                 continue
-            payload.append(
-                {
-                    "source_name": observation.get("source_name") or sale.source_name,
-                    "source_url": observation.get("source_url"),
-                    "external_id": observation.get("external_id"),
-                    "content_hash": sale.content_hash,
-                    "canonical_source_url": sale.source_url,
-                    "raw_payload": observation.get("raw_payload") or observation,
-                    "observed_at": now,
-                    "updated_at": now,
-                }
-            )
+            source_url = str(observation.get("source_url"))
+            content = observation.get("raw_payload") or observation
+            # Keep the column's ingest/explicit observation meaning; checkpoint
+            # evidence ranks duplicates but is not relabeled as observed_at.
+            observed_at = _as_utc(observation.get("observed_at"))
+            row = {
+                "source_name": observation.get("source_name") or sale.source_name,
+                "source_url": source_url,
+                "external_id": observation.get("external_id"),
+                "content_hash": sale.content_hash,
+                "canonical_source_url": sale.source_url,
+                "raw_payload": content,
+                "observed_at": observed_at.isoformat() if observed_at else now,
+                "updated_at": now,
+            }
+            row["_dedupe_rank"] = _rank(row, _content_freshness(observation, content, source_url))
+            previous = rows_by_source_url.get(source_url)
+            rows_by_source_url[source_url] = _merge(previous, row) if previous is not None else row
+
+    payload = []
+    for source_url in sorted(rows_by_source_url):
+        row = rows_by_source_url[source_url]
+        row.pop("_dedupe_rank", None)
+        payload.append(row)
     if not payload:
         return 0
     if db_url:
