@@ -3,10 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import time
+import uuid
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +53,9 @@ LOGGER = logging.getLogger(__name__)
 POSTGREST_TIMEOUT = httpx.Timeout(120.0, connect=30.0)
 POSTGREST_UPSERT_RETRIES = 5
 POSTGREST_RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504, 520, 522, 524}
+CLAIM_RPC_ATTEMPTS = 4
+CLAIM_RPC_RETRY_DELAYS = (1.0, 3.0, 5.0)
+CLAIM_RPC_MAX_WAIT_SECONDS = 60.0
 POSTGREST_SOURCE_URL_DELETE_BATCH_SIZE = 50
 POSTGRES_CONNECT_TIMEOUT = 15
 EXPIRED_SALE_DELETE_TABLES = (
@@ -621,6 +627,15 @@ def fetch_next_queued_run_from_supabase() -> dict[str, Any] | None:
 ENRICHMENT_QUEUE_FAMILIES = frozenset({'source_detail', 'enrichment'})
 
 
+class QueueClaimDeferred(RuntimeError):
+    """A provider requested a wait longer than this worker may block."""
+
+    def __init__(self, request_id: str, retry_not_before: datetime):
+        self.request_id = request_id
+        self.retry_not_before = retry_not_before
+        super().__init__(f"Supabase queue claim deferred until {retry_not_before.isoformat()}")
+
+
 def _claim_auction_enrichment_jobs_rpc(
     rpc_name: str,
     payload: dict[str, Any],
@@ -660,17 +675,205 @@ def claim_auction_enrichment_jobs_family_from_supabase(
     family: str,
     limit: int = 1,
 ) -> list[dict[str, Any]]:
-    """Claim one explicit queue family through the fairness RPC."""
+    """Claim one explicit queue family through the idempotent fairness RPC."""
     normalized_family = str(family or "").strip().lower()
     if normalized_family not in ENRICHMENT_QUEUE_FAMILIES:
         raise ValueError(f"Unknown enrichment queue family: {family!r}")
-    return _claim_auction_enrichment_jobs_rpc(
-        "claim_auction_enrichment_jobs_family",
-        {
-            "p_family": normalized_family,
-            "p_limit": max(1, min(100, int(limit))),
-        },
+    return _claim_auction_enrichment_jobs_request_rpc(
+        normalized_family,
+        max(1, min(100, int(limit))),
     )
+
+
+def _claim_auction_enrichment_jobs_request_rpc(
+    family: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Claim one family with a stable UUID across transient HTTP retries.
+
+    The database receipt makes a retry after a committed lease reservation
+    replay-only.  A new UUID4 is created once per logical call, never per HTTP
+    attempt, so a lost response cannot reserve another queue slot.
+    """
+    request_id = str(uuid.uuid4())
+    settings = load_settings()
+    url = settings["supabase_url"]
+    key = settings["supabase_service_role_key"]
+    if not url or not key:
+        return []
+
+    endpoint = f"{str(url).rstrip('/')}/rest/v1/rpc/claim_auction_enrichment_jobs_request"
+    payload = {
+        "p_request_id": request_id,
+        "p_family": family,
+        "p_limit": limit,
+    }
+    for attempt in range(1, CLAIM_RPC_ATTEMPTS + 1):
+        try:
+            response = httpx.post(
+                endpoint,
+                headers=_rest_headers(str(key), prefer="return=representation"),
+                json=payload,
+                timeout=30,
+            )
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError):
+            if attempt == CLAIM_RPC_ATTEMPTS:
+                raise
+            delay = CLAIM_RPC_RETRY_DELAYS[attempt - 1]
+            LOGGER.warning(
+                "Supabase queue claim transport failed on attempt %s/%s; retrying in %.1fs",
+                attempt,
+                CLAIM_RPC_ATTEMPTS,
+                delay,
+            )
+            time.sleep(delay)
+            continue
+
+        if not response.is_error:
+            rows = response.json()
+            return [row for row in rows if isinstance(row, dict)]
+
+        diagnostic = _claim_error_diagnostic(response)
+        if response.status_code not in POSTGREST_RETRYABLE_STATUS_CODES:
+            LOGGER.error(
+                "Supabase queue claim failed with HTTP %s on attempt %s/%s: %s",
+                response.status_code,
+                attempt,
+                CLAIM_RPC_ATTEMPTS,
+                diagnostic,
+            )
+            response.raise_for_status()
+
+        retry_after = _claim_retry_after_seconds(response.headers.get("Retry-After"))
+        if retry_after is not None and retry_after > CLAIM_RPC_MAX_WAIT_SECONDS:
+            retry_not_before = datetime.now(UTC) + timedelta(seconds=retry_after)
+            try:
+                persisted_not_before = _persist_queue_claim_backoff(
+                    settings,
+                    retry_not_before,
+                )
+            except Exception as exc:
+                # A long provider delay is only safe to hand to the next
+                # worker after it is durable.  Do not silently turn a failed
+                # direct write into an unpersisted new-UUID retry.
+                LOGGER.exception(
+                    "Could not persist queue claim backoff after HTTP %s; request_id=%s",
+                    response.status_code,
+                    request_id,
+                )
+                raise RuntimeError(
+                    "Cannot persist provider queue claim backoff"
+                ) from exc
+            LOGGER.warning(
+                "Supabase queue claim deferred until %s after HTTP %s Retry-After; request_id=%s",
+                persisted_not_before.isoformat(),
+                response.status_code,
+                request_id,
+            )
+            raise QueueClaimDeferred(request_id, persisted_not_before)
+        if attempt == CLAIM_RPC_ATTEMPTS:
+            LOGGER.error(
+                "Supabase queue claim failed with HTTP %s on attempt %s/%s: %s",
+                response.status_code,
+                attempt,
+                CLAIM_RPC_ATTEMPTS,
+                diagnostic,
+            )
+            response.raise_for_status()
+
+        delay = max(CLAIM_RPC_RETRY_DELAYS[attempt - 1], retry_after or 0.0)
+        LOGGER.warning(
+            "Supabase queue claim returned HTTP %s on attempt %s/%s; retrying in %.1fs: %s",
+            response.status_code,
+            attempt,
+            CLAIM_RPC_ATTEMPTS,
+            delay,
+            diagnostic,
+        )
+        time.sleep(delay)
+
+    raise RuntimeError("Supabase queue claim failed before request")
+
+
+def _persist_queue_claim_backoff(
+    settings: dict[str, Any],
+    retry_not_before: datetime,
+) -> datetime:
+    """Persist the provider-wide claim gate through the transactional DB.
+
+    The REST endpoint can be the component returning a long Retry-After, so
+    this write deliberately uses the existing direct Postgres path.  The
+    advisory lock is shared with the claim RPC: a new lease cannot be claimed
+    between the gate check and this update.  ``GREATEST`` keeps a concurrent
+    or older response from shortening either the durable gate or the next
+    scheduler tick.
+    """
+    db_url = str(settings.get("supabase_db_url") or "")
+    if not db_url:
+        raise RuntimeError("SUPABASE_DB_URL is required for queue claim backoff")
+    if psycopg is None:
+        raise RuntimeError("psycopg is required for queue claim backoff")
+    with _postgres_connect(db_url) as connection:
+        connection.execute(
+            "select pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            ("immojudis:queue-claim-backoff",),
+        )
+        row = connection.execute(
+            """
+            update public.auction_pipeline_control
+               set queue_claim_not_before = greatest(
+                     coalesce(queue_claim_not_before, %s), %s
+                   ),
+                   next_enrichment_at = greatest(next_enrichment_at, %s),
+                   updated_at = statement_timestamp()
+             where id
+         returning queue_claim_not_before
+            """,
+            (retry_not_before, retry_not_before, retry_not_before),
+        ).fetchone()
+        if not row:
+            raise RuntimeError("auction_pipeline_control singleton is missing")
+        return row[0]
+
+
+def _claim_error_diagnostic(response: httpx.Response, max_chars: int = 256) -> str:
+    """Log only bounded PostgREST code/message fields, never raw response data."""
+    try:
+        payload = response.json()
+    except Exception:  # pragma: no cover - defensive for test doubles.
+        return f"http_{response.status_code}"
+    if isinstance(payload, dict):
+        fields = [
+            str(payload[key]).replace("\x00", " ")
+            for key in ("code", "message")
+            if payload.get(key) not in (None, "")
+        ]
+        sanitized = " ".join(" ".join(fields).split())
+    else:
+        sanitized = f"http_{response.status_code}"
+    if not sanitized:
+        sanitized = f"http_{response.status_code}"
+    return sanitized[:max_chars]
+
+
+def _claim_retry_after_seconds(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=UTC)
+            seconds = (retry_at - datetime.now(UTC)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    if not math.isfinite(seconds):
+        return None
+    if seconds < 0:
+        return 0.0
+    return seconds
 
 
 def finish_auction_enrichment_job_in_supabase(
