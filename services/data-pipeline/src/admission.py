@@ -20,7 +20,12 @@ def has_price_or_surface(sale: AuctionSale) -> bool:
 
 
 def retention_deadline(sale: AuctionSale):
-    """Mirror the database retention deadline; uncertain schedules are retained."""
+    """Mirror the database retention deadline; uncertain schedules are retained.
+
+    A date-only source does not prove a sale time. Its retention window starts
+    after the Paris civil day has ended, then runs for 24 elapsed hours. A
+    midnight in ``sale_date`` alone is never treated as date-only evidence.
+    """
     import re
     from datetime import UTC, datetime, timedelta
     from zoneinfo import ZoneInfo
@@ -45,11 +50,22 @@ def retention_deadline(sale: AuctionSale):
             return None
     if sale.sale_date is None:
         return None
-    date = sale.sale_date.replace(tzinfo=UTC) if sale.sale_date.tzinfo is None else sale.sale_date
+    sale_datetime = sale.sale_date.replace(tzinfo=UTC) if sale.sale_date.tzinfo is None else sale.sale_date
     raw_date = str(sale.raw_payload.get('sale_date') or '')
-    if raw_date and not re.search(r'[0-9]{1,2}\s*([hH]|:[0-9]{2})', raw_date):
-        date = datetime.combine(date.astimezone(UTC).date(), datetime.min.time(), ZoneInfo('Europe/Paris'))
-    return date.astimezone(UTC) + timedelta(hours=24)
+    precision = (
+        str(sale.raw_payload.get('date_precision') or '').strip()
+        or str(sale.raw_payload.get('sale_date_precision') or '').strip()
+    ).lower()
+    date_only = precision in {'day', 'date', 'day_only', 'date_only', 'unknown_time', 'time_unknown'}
+    date_only = date_only or bool(raw_date and not re.search(r'[0-9]{1,2}\s*([hH]|:[0-9]{2})', raw_date))
+    if date_only:
+        next_paris_midnight = datetime.combine(
+            sale_datetime.astimezone(ZoneInfo('Europe/Paris')).date() + timedelta(days=1),
+            datetime.min.time(),
+            ZoneInfo('Europe/Paris'),
+        )
+        return next_paris_midnight.astimezone(UTC) + timedelta(hours=24)
+    return sale_datetime.astimezone(UTC) + timedelta(hours=24)
 
 
 def is_expired(sale: AuctionSale, now=None) -> bool:

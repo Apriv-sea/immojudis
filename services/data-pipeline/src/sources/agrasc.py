@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 import certifi
 from bs4 import BeautifulSoup, Tag
 
+from src.catalogue_proof import CatalogueEvidence, canonical
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text, extract_department, strip_accents
 from src.raw_models import validate_raw_sales
@@ -60,6 +61,8 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
     )
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
+    catalogue = CatalogueEvidence("agrasc")
+    exclusions: dict[str, str] = {}
     operator_clients: dict[str, PoliteHttpClient] = {}
     pages = LinkedPages(LIST_URL, "page", 0, max_pages or 100)
     seen_sales: set[str] = set()
@@ -71,8 +74,13 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
             errors.append(f"{page_url}: {exc}")
             break
         pages.observe(html, page_url)
-        for sale in parse_agrasc_html(html, page_url=page_url):
-            url = str(sale.get("source_url"))
+        page_sales = parse_agrasc_html(html, page_url=page_url)
+        # Keep the public-card proof independent from the department filter.
+        # Cards without a public URL remain counted by CatalogueEvidence; only
+        # explicitly sold/unlinked cards can receive an addressable-only result.
+        catalogue.observe(html, page_url, page_sales)
+        for sale in page_sales:
+            url = canonical(str(sale.get("source_url") or ""))
             if url in seen_sales:
                 continue
             seen_sales.add(url)
@@ -81,12 +89,25 @@ def scrape_agrasc_aquitaine_result(max_pages: int | None = None) -> ScrapeResult
                 if not restore_detail(sale):
                     enrich_agrasc_operator(sale, operator_clients, settings, errors)
                 raw_sales.append(sale)
+            elif url:
+                exclusions[url] = "department_filter"
+
+    pagination_metrics = pages.metrics()
+    validated_sales = validate_raw_sales("agrasc", unique_dicts(raw_sales, "source_url"), errors)
+    catalogue_metrics = catalogue.metrics(
+        validated_sales,
+        errors,
+        coverage=pagination_metrics,
+        exclusions=exclusions,
+        scope={"public": "national", "configured": "target_departments"},
+    )
 
     return ScrapeResult(
-        validate_raw_sales("agrasc", unique_dicts(raw_sales, "source_url"), errors),
+        validated_sales,
         errors,
         {**getattr(client, "coverage_metrics", lambda: {})(),
-         **pages.metrics(),
+         **pagination_metrics,
+         **catalogue_metrics,
          "operator_details": {status: sum(s.get("operator_detail_status") == status for s in raw_sales)
                               for status in ("complete", "partial", "failed", "unsupported")}},
     )

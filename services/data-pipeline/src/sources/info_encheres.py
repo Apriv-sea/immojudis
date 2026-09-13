@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+from src.catalogue_proof import CatalogueEvidence, canonical
 from src.config import TARGET_DEPARTMENTS, load_settings
 from src.normalize import (
     LATIN_LETTERS_PATTERN,
@@ -65,6 +66,8 @@ def scrape_info_encheres_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
+    catalogue = CatalogueEvidence("info_encheres")
+    exclusions: dict[str, str] = {}
     pagination = LinkedPages(LIST_URL, "snr", 0, max_pages,
                              ("/vente-encheres-immobilieres-annonces.html", "/recherche.php"))
     for page_url in pagination:
@@ -76,16 +79,33 @@ def scrape_info_encheres_aquitaine_result(
             break
         pagination.observe(html, page_url)
         page_sales = parse_info_encheres_list_html(html, page_url=page_url)
+        # Observe the complete public table before the configured department
+        # filter. A filtered row count cannot certify the source catalogue.
+        catalogue.observe(html, page_url, page_sales)
         for sale in page_sales:
             if sale.get("department") not in TARGET_DEPARTMENTS:
+                source_url = sale.get("source_url")
+                if source_url:
+                    exclusions[canonical(str(source_url))] = "department_filter"
                 continue
             if should_fetch_detail(sale, known):
                 _enrich_sale_from_detail(client, sale, errors)
             raw_sales.append(sale)
-    return ScrapeResult(
-        validate_raw_sales("info_encheres", unique_dicts(raw_sales, "source_url"), errors),
+    pagination_metrics = pagination.metrics()
+    validated_sales = validate_raw_sales("info_encheres", unique_dicts(raw_sales, "source_url"), errors)
+    catalogue_metrics = catalogue.metrics(
+        validated_sales,
         errors,
-        {**getattr(client, "coverage_metrics", lambda: {})(), **pagination.metrics()},
+        coverage=pagination_metrics,
+        exclusions=exclusions,
+        scope={"public": "national", "configured": "target_departments"},
+    )
+    return ScrapeResult(
+        validated_sales,
+        errors,
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+         **pagination_metrics,
+         **catalogue_metrics},
     )
 
 

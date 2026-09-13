@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 import certifi
 from bs4 import BeautifulSoup, Tag
 
+from src.catalogue_proof import CatalogueEvidence, canonical
 from src.config import FRENCH_POSTAL_CODE_PATTERN, TARGET_DEPARTMENTS, load_settings
 from src.normalize import clean_text
 from src.raw_models import validate_raw_sales
@@ -65,7 +66,10 @@ def scrape_cessions_etat_aquitaine_result(
 
     errors: list[str] = []
     raw_sales: list[dict[str, Any]] = CheckpointSales()
+    catalogue = CatalogueEvidence("cessions_etat")
+    exclusions: dict[str, str] = {}
     pagination = PaginationCoverage()
+    advertised_last_page: int | None = None
     seen_sales: set[str] = set()
     for page_url in _list_urls(max_pages):
         try:
@@ -75,30 +79,53 @@ def scrape_cessions_etat_aquitaine_result(
             errors.append(f"{page_url}: {exc}")
             break
         page_sales = parse_cessions_etat_html(html, page_url=page_url)
-        if not pagination.accept(page_sales):
+        # The source publishes a last-page link on the listing. Use it as the
+        # terminal assertion; reaching a repeated page remains a hard failure.
+        proof = catalogue.observe(html, page_url, page_sales)
+        if proof["advertised_last_pages"]:
+            page_last = max(proof["advertised_last_pages"])
+            advertised_last_page = max(advertised_last_page or page_last, page_last)
+        page_is_terminal = advertised_last_page is not None and proof["page_index"] >= advertised_last_page
+        if not pagination.accept(page_sales, terminal=page_is_terminal):
             break
         for sale in page_sales:
             if sale.get("department") not in TARGET_DEPARTMENTS:
+                source_url = sale.get("source_url")
+                if source_url:
+                    exclusions[canonical(str(source_url))] = "department_filter"
                 continue
-            url = str(sale.get("source_url"))
+            url = canonical(str(sale.get("source_url") or ""))
             if url in seen_sales:
                 continue
             seen_sales.add(url)
             if should_fetch_detail(sale, known):
                 _enrich_sale_from_detail(client, sale, errors)
             raw_sales.append(sale)
+        if pagination.exhausted:
+            break
 
-    return ScrapeResult(
-        validate_raw_sales("cessions_etat", unique_dicts(raw_sales, "source_url"), errors),
+    pagination_metrics = pagination.metrics()
+    validated_sales = validate_raw_sales("cessions_etat", unique_dicts(raw_sales, "source_url"), errors)
+    catalogue_metrics = catalogue.metrics(
+        validated_sales,
         errors,
-        {**getattr(client, "coverage_metrics", lambda: {})(), **pagination.metrics()},
+        coverage=pagination_metrics,
+        exclusions=exclusions,
+        scope={"public": "national", "configured": "target_departments"},
+    )
+    return ScrapeResult(
+        validated_sales,
+        errors,
+        {**getattr(client, "coverage_metrics", lambda: {})(),
+         **pagination_metrics,
+         **catalogue_metrics},
     )
 
 
 def parse_cessions_etat_html(html: str, page_url: str = LIST_URL) -> list[dict[str, Any]]:
     soup = BeautifulSoup(html, "html.parser")
     sales: list[dict[str, Any]] = []
-    for card in soup.select("div[id^='bien-'][data-url]"):
+    for card in soup.select("div[id^='bien-']"):
         sale = _parse_card(card, page_url)
         if sale:
             sales.append(sale)
@@ -156,9 +183,13 @@ def parse_cessions_etat_detail_html(html: str, source_url: str) -> dict[str, Any
 
 
 def _parse_card(card: Tag, page_url: str) -> dict[str, Any] | None:
-    source_url = urljoin(page_url, str(card.get("data-url") or ""))
-    if not source_url:
+    href = card.get("data-url")
+    if not href:
+        link = card.find("a", href=True)
+        href = link.get("href") if link is not None else None
+    if not href:
         return None
+    source_url = urljoin(page_url, str(href))
     raw_text = "\n".join(
         line for line in (clean_text(part) for part in card.get_text("\n", strip=True).splitlines()) if line
     )

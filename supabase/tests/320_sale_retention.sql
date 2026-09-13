@@ -1,8 +1,12 @@
 begin;
-select plan(23);
+select plan(27);
 select is(app_private.sale_retention_deadline('2000-01-01 12:00Z','upcoming','{}','{}'),'2000-01-02 12:00Z'::timestamptz,'exactly 24 hours');
-select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"sale_date":"10/09/2026"}'),'2026-09-10 22:00Z'::timestamptz,'date-only Paris midnight plus 24 hours');
-select is(app_private.sale_retention_deadline('2026-03-29 00:00Z','upcoming','{}','{"sale_date":"2026-03-29"}'),'2026-03-29 23:00Z'::timestamptz,'DST uses 24 elapsed hours');
+select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"sale_date":"10/09/2026"}'),'2026-09-11 22:00Z'::timestamptz,'date-only retains through Paris civil day plus 24 elapsed hours');
+select is(app_private.sale_retention_deadline('2026-03-29 00:00Z','upcoming','{}','{"sale_date":"2026-03-29"}'),'2026-03-30 22:00Z'::timestamptz,'spring DST still uses 24 elapsed hours');
+select is(app_private.sale_retention_deadline('2026-10-25 00:00Z','upcoming','{}','{"sale_date":"2026-10-25"}'),'2026-10-26 23:00Z'::timestamptz,'autumn DST still uses 24 elapsed hours');
+select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"sale_date":"2026-09-10T00:00:00Z","date_precision":"  ","sale_date_precision":" day "}'),'2026-09-11 22:00Z'::timestamptz,'trimmed date precision fallback protects legacy midnight normalization');
+select is(app_private.sale_retention_deadline('2026-10-25 00:00:00+02:00','upcoming','{}','{"sale_date":"2026-10-25T00:00:00+02:00","date_precision":"day"}'),'2026-10-26 23:00Z'::timestamptz,'aware Paris midnight uses its civil date');
+select is(app_private.sale_retention_deadline('2026-09-10 00:00Z','upcoming','{}','{"source_date":"2026-09-10"}'),'2026-09-11 00:00Z'::timestamptz,'source date alone does not infer date-only precision');
 select is(app_private.sale_retention_deadline(null,'upcoming','{}','{}'),null::timestamptz,'unknown date retained');
 select is(app_private.sale_retention_deadline('2000-01-01','postponed','{}','{}'),null::timestamptz,'postponed sale retained');
 select is(app_private.sale_retention_deadline('2000-01-01','upcoming','{"sale_window":{"opens_at":"2000-01-01T12:00:00Z","closes_at":"2000-01-05T12:00:00Z"}}','{}'),'2000-01-06 12:00Z'::timestamptz,'online closing date takes precedence');
