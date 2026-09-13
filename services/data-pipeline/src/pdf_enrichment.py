@@ -16,7 +16,7 @@ import tempfile
 import unicodedata
 import zipfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import quote, unquote, urljoin, urlparse, urlsplit, urlunsplit
@@ -70,6 +70,25 @@ class PdfEnrichmentStats:
     document_cache_hits: int = 0
     document_cache_misses: int = 0
     documents_processed: int = 0
+
+
+class PdfExtractionDeferred(ValueError):
+    """A bounded OCR pass stopped after checkpointing and should continue later."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        checkpointed_pages: int,
+        total_pages: int,
+        new_progress_pages: int,
+    ) -> None:
+        super().__init__(message)
+        self.checkpointed_pages = checkpointed_pages
+        self.total_pages = total_pages
+        self.new_progress_pages = new_progress_pages
+        self.progress_made = new_progress_pages > 0
+        self.next_attempt_at = datetime.now(UTC) + timedelta(minutes=30)
 
 
 @dataclass(frozen=True)
@@ -164,6 +183,8 @@ def enrich_sale_from_pdfs(sale: AuctionSale) -> PdfEnrichmentStats:
                 continue
             stats.document_cache_misses += 1
             payload = extract_attached_document(file_path, document=document)
+        except PdfExtractionDeferred:
+            raise
         except Exception as exc:
             LOGGER.warning("PDF text extraction failed for %s: %s", file_path, exc)
             stats.errors += 1
@@ -181,6 +202,14 @@ def enrich_sale_from_pdfs(sale: AuctionSale) -> PdfEnrichmentStats:
                 "file_path": str(file_path),
             }
         )
+        if payload.get("complete") is False or str(payload.get("extraction_status") or "").lower() in {
+            "incomplete",
+            "failed",
+        }:
+            # Keep the partial payload and its successful-page provenance for
+            # the next pass, while making the run visibly incomplete to queue
+            # and quality callers.
+            stats.errors += 1
         _write_document_text_cache(document, file_path, payload)
         stats.documents_processed += 1
         pdf_texts.append(payload)
@@ -674,7 +703,23 @@ def extract_pdf_document(file: str | Path, document: dict[str, str] | None = Non
             extraction_method = "docling_auto"
 
     sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
-    page_confidences = [float(page.get("confidence") or 0) for page in pages if page.get("text")]
+    failed_pages = [
+        int(page["page"])
+        for page in pages
+        if _page_requires_retry(page, ocr_enabled=bool(settings["pdf_ocr_enabled"]))
+    ]
+    blank_pages = [
+        int(page["page"])
+        for page in pages
+        if str(page.get("status") or page.get("extraction_status") or "")
+        in {"blank_excluded", "blank_page_excluded"}
+    ]
+    page_confidences = [
+        float(page.get("confidence") or 0)
+        for page in pages
+        if page.get("text")
+        and not _page_requires_retry(page, ocr_enabled=bool(settings["pdf_ocr_enabled"]))
+    ]
     confidence = round(sum(page_confidences) / len(page_confidences), 3) if page_confidences else 0.0
     return {
         "cache_version": PDF_TEXT_CACHE_VERSION,
@@ -686,6 +731,10 @@ def extract_pdf_document(file: str | Path, document: dict[str, str] | None = Non
         "page_text_chars": len(page_text),
         "ocr_pages": sum(1 for page in pages if str(page.get("method") or "").startswith("ocr_")),
         "empty_pages": sum(1 for page in pages if not clean_text(page.get("text"))),
+        "blank_pages": blank_pages,
+        "failed_pages": failed_pages,
+        "complete": not failed_pages,
+        "extraction_status": "extracted" if not failed_pages else "incomplete",
         "extraction_method": extraction_method,
         "confidence": confidence,
     }
@@ -836,29 +885,69 @@ def extract_pdf_pages(file: str | Path) -> list[dict[str, object]]:
         cache_key = hashlib.sha256(Path(file).read_bytes() + str((settings["pdf_ocr_enabled"], settings["pdf_ocr_language"], PDF_TEXT_CACHE_VERSION)).encode()).hexdigest()
         cache_dir = PDF_DOCUMENT_TEXTS_DIR / "pages" / cache_key
         ocr_attempts = 0
+        new_progress_pages = 0
         for index, page in enumerate(document, start=1):
             cache_path = cache_dir / f"{index}.json"
             if cache_path.exists():
                 try:
                     cached = json.loads(cache_path.read_text(encoding="utf-8"))
-                    if cached.get("page") == index and isinstance(cached.get("text"), str):
+                    if (
+                        cached.get("page") == index
+                        and isinstance(cached.get("text"), str)
+                        and not _page_requires_retry(cached, ocr_enabled=bool(settings["pdf_ocr_enabled"]))
+                    ):
                         pages.append(cached)
                         continue
                 except (OSError, ValueError, AttributeError):
                     pass
             raw_text = page.get_text("text") or ""
+            if _is_objectively_blank_page(page, raw_text):
+                pages.append(
+                    {
+                        "page": index,
+                        "text": "",
+                        "chars": 0,
+                        "raw_text_chars": 0,
+                        "method": "blank_page",
+                        "confidence": 1.0,
+                        "status": "blank_excluded",
+                        "retryable": False,
+                    }
+                )
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                temporary = cache_path.with_suffix(".tmp")
+                temporary.write_text(json.dumps(pages[-1], ensure_ascii=False), encoding="utf-8")
+                temporary.replace(cache_path)
+                new_progress_pages += 1
+                continue
             method = "pymupdf_text"
             confidence = _page_text_confidence(raw_text, method=method)
             text = raw_text
+            status = "extracted" if clean_text(raw_text) else "failed"
+            failure_reason = "empty_page_not_proven_blank" if not clean_text(raw_text) else None
             if _should_try_ocr(raw_text):
                 if ocr_attempts >= max_pages:
-                    raise ValueError(f"OCR pass budget reached; {index - 1}/{document.page_count} pages checkpointed; retry resumes")
+                    raise PdfExtractionDeferred(
+                        f"OCR pass budget reached; {index - 1}/{document.page_count} pages checkpointed; retry resumes",
+                        checkpointed_pages=index - 1,
+                        total_pages=document.page_count,
+                        new_progress_pages=new_progress_pages,
+                    )
                 ocr_attempts += 1
                 result = _extract_page_text_with_ocr_result(page, fallback=raw_text)
                 text = str(result["text"])
                 method = str(result["method"])
                 confidence = float(result["confidence"])
             cleaned = clean_text(text) or ""
+            if method == "fallback_text":
+                status = "failed"
+                failure_reason = "ocr_failed"
+            elif cleaned:
+                status = "extracted"
+                failure_reason = None
+            else:
+                status = "failed"
+                failure_reason = failure_reason or "empty_page_not_proven_blank"
             pages.append(
                 {
                     "page": index,
@@ -867,13 +956,49 @@ def extract_pdf_pages(file: str | Path) -> list[dict[str, object]]:
                     "raw_text_chars": len(clean_text(raw_text) or ""),
                     "method": method,
                     "confidence": confidence,
+                    "status": status,
+                    "retryable": status == "failed",
+                    **({"failure_reason": failure_reason} if failure_reason else {}),
                 }
             )
             cache_dir.mkdir(parents=True, exist_ok=True)
             temporary = cache_path.with_suffix(".tmp")
             temporary.write_text(json.dumps(pages[-1], ensure_ascii=False), encoding="utf-8")
             temporary.replace(cache_path)
+            if status == "extracted":
+                new_progress_pages += 1
     return pages
+
+
+def _is_objectively_blank_page(page: fitz.Page, raw_text: str) -> bool:
+    """Return true only when a page has no text, image, or vector drawing."""
+    if clean_text(raw_text):
+        return False
+    try:
+        if page.get_images(full=True):
+            return False
+        if page.get_drawings():
+            return False
+    except Exception:
+        # An inspection failure must leave the page eligible for OCR. An empty
+        # page cannot be called objectively blank without all three checks.
+        return False
+    return True
+
+
+def _page_requires_retry(page: object, *, ocr_enabled: bool) -> bool:
+    if not isinstance(page, dict):
+        return True
+    status = str(page.get("status") or page.get("extraction_status") or "").strip().lower()
+    if status in {"failed", "incomplete", "ocr_failed", "empty"} or page.get("retryable") is True:
+        return True
+    if status in {"blank_excluded", "blank_page_excluded"}:
+        return False
+    if not clean_text(page.get("text")):
+        return True
+    # Older caches represented a failed OCR pass as fallback_text. Once OCR is
+    # enabled, that text is evidence to retain, never a successful page hit.
+    return ocr_enabled and str(page.get("method") or "") == "fallback_text"
 
 
 def _should_try_ocr(text: str) -> bool:
@@ -902,6 +1027,8 @@ def _extract_page_text_with_ocr_result(page: fitz.Page, fallback: str) -> dict[s
                 "text": text,
                 "method": "ocr_pymupdf",
                 "confidence": _page_text_confidence(text, method="ocr_pymupdf"),
+                "status": "extracted",
+                "retryable": False,
             }
     except Exception as exc:
         LOGGER.debug("PDF OCR unavailable or failed: %s", exc)
@@ -926,6 +1053,8 @@ def _extract_page_text_with_ocr_result(page: fitz.Page, fallback: str) -> dict[s
                     "text": result.stdout,
                     "method": "ocr_tesseract",
                     "confidence": _page_text_confidence(result.stdout, method="ocr_tesseract"),
+                    "status": "extracted",
+                    "retryable": False,
                 }
             LOGGER.debug("Tesseract OCR returned %s: %s", result.returncode, result.stderr)
     except Exception as exc:
@@ -934,6 +1063,9 @@ def _extract_page_text_with_ocr_result(page: fitz.Page, fallback: str) -> dict[s
         "text": fallback,
         "method": "fallback_text",
         "confidence": _page_text_confidence(fallback, method="fallback_text"),
+        "status": "failed",
+        "retryable": True,
+        "failure_reason": "ocr_failed",
     }
 
 
@@ -1091,7 +1223,7 @@ def _document_text_cache_path(document: dict[str, str], file_path: Path) -> Path
     return PDF_DOCUMENT_TEXTS_DIR / f"{digest}.json"
 
 
-def _read_document_text_cache(document: dict[str, str], file_path: Path) -> dict[str, str] | None:
+def _read_document_text_cache(document: dict[str, str], file_path: Path) -> dict[str, object] | None:
     try:
         path = _document_text_cache_path(document, file_path)
         if not path.exists():
@@ -1105,6 +1237,13 @@ def _read_document_text_cache(document: dict[str, str], file_path: Path) -> dict
         return None
     pages = payload.get("pages")
     if not isinstance(pages, list) or not pages:
+        return None
+    if str(payload.get("extraction_status") or "").strip().lower() in {"incomplete", "failed"}:
+        return None
+    if any(
+        _page_requires_retry(page, ocr_enabled=bool(load_settings()["pdf_ocr_enabled"]))
+        for page in pages
+    ):
         return None
     return payload
 
@@ -1123,6 +1262,8 @@ def _write_document_text_cache(document: dict[str, str], file_path: Path, payloa
                 "raw_text_chars": len(text),
                 "method": "legacy_text",
                 "confidence": _page_text_confidence(text, method="fallback_text"),
+                "status": "extracted",
+                "retryable": False,
             }
         ]
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -1,0 +1,182 @@
+{
+  "date": "2026-09-13",
+  "snapshot": {
+    "repo": "/private/tmp/immojudis-reliability-20260912",
+    "commit": "e997725",
+    "code_changed": false,
+    "benchmark_dir": "/private/tmp/immojudis-ocr-fact-bench-20260913",
+    "environment": {
+      "python": "3.11.16",
+      "pymupdf": "1.28.0",
+      "tesseract": "5.5.2",
+      "omp_thread_limit": 1
+    },
+    "method": "direct fitz Page.get_textpage_ocr(full=True, dpi, language), no production cache/budget/worker"
+  },
+  "normalization": "NFKD lowercase, accents and punctuation removed, whitespace collapsed; French decimal separators and m2 variants accepted; context regex must match",
+  "corpus": [
+    {
+      "id": "cannet_pv_p30",
+      "pdf": "/private/tmp/immojudis-critical-pdfs-20260913/cannet_pv.pdf",
+      "sha256": "17ee24cad1e9c788dfa345963920fd809b506d828a1dd0bef7991c941a15b2d6",
+      "page": 30,
+      "page_count": 31,
+      "native_chars": 0,
+      "image_count": 5,
+      "annotation_source": "cannet_ocr/pv.txt lines 420-431",
+      "annotation_confidence": "sidecar_text",
+      "facts": [
+        {"id": "occupancy_occupied", "expected": "appartement meublé et occupé"},
+        {"id": "occupancy_owner", "expected": "appartement occupé par son propriétaire"},
+        {"id": "approx_surface_65_m2", "expected": "surface approximative du logement 65 m2"}
+      ]
+    },
+    {
+      "id": "cannet_ccv_p11",
+      "pdf": "/private/tmp/immojudis-critical-pdfs-20260913/cannet_ccv.pdf",
+      "sha256": "4f2b397c24e6d0681980dc6cdc2de986f4edd5fde93c3896ba264075bcfc23ef",
+      "page": 11,
+      "page_count": 22,
+      "native_chars": 0,
+      "image_count": 10,
+      "annotation_source": "cannet_ocr/ccv.txt lines 376-381",
+      "annotation_confidence": "sidecar_text",
+      "facts": [
+        {"id": "starting_price_15000_eur", "expected": "mise à prix 15 000 euros"}
+      ]
+    },
+    {
+      "id": "gaillard_pv_p9",
+      "pdf": "/private/tmp/immojudis-critical-pdfs-20260913/gaillard_pv.pdf",
+      "sha256": "1bdc58f48ff1fe023e26491f15386593ff36f13b8c23b45f85cc7fc4513d08b1",
+      "page": 9,
+      "page_count": 39,
+      "native_chars": 0,
+      "image_count": 3,
+      "annotation_source": "ocr/gaillard_pv.txt lines 313-319",
+      "annotation_confidence": "sidecar_text",
+      "facts": [
+        {"id": "carrez_91_76_m2", "expected": "surface Loi Carrez 91,76 m2"},
+        {"id": "floor_area_109_10_m2", "expected": "surface au sol 109,10 m2"},
+        {"id": "dpe_class_e", "expected": "diagnostic de performance énergétique note E"}
+      ]
+    },
+    {
+      "id": "gaillard_ccv_p1",
+      "pdf": "/private/tmp/immojudis-critical-pdfs-20260913/gaillard_ccv.pdf",
+      "sha256": "18c7154b988108efcb07292e3d7764250f57f8a65fe9cbc91597015ab3693be7",
+      "page": 1,
+      "page_count": 18,
+      "native_chars": 0,
+      "image_count": 3,
+      "annotation_source": "ocr/gaillard_ccv.txt lines 1-17",
+      "annotation_confidence": "sidecar_text",
+      "facts": [
+        {"id": "starting_price_150000_eur", "expected": "mise à prix 150 000 euros"},
+        {"id": "orientation_date_2025_09_19", "expected": "audience du vendredi 19 septembre 2025"}
+      ]
+    },
+    {
+      "id": "noisy_pvd_p1",
+      "pdf": "/private/tmp/immojudis-critical-pdfs-20260913/noisy_pvd.pdf",
+      "sha256": "72e944d1945594be1ea6954d548967d34046faac18a36cc44b75d76eb637dede",
+      "page": 1,
+      "page_count": 80,
+      "native_chars": 0,
+      "image_count": 2,
+      "annotation_source": "PDF page 1 visual; rendered locally at /private/tmp/immojudis-ocr-fact-bench-20260913/noisy/pvd-01.png",
+      "annotation_confidence": "visual_document_page; no usable sidecar",
+      "facts": [
+        {"id": "address_90_boulevard_republique", "expected": "90 boulevard de la République"},
+        {"id": "city_noisy_le_sec", "expected": "Noisy-le-Sec"},
+        {"id": "lot17_pavillon", "expected": "lot n°17 un pavillon"},
+        {"id": "lot27_jardin", "expected": "lot n°27 un jardin"},
+        {"id": "lot13_cave", "expected": "lot n°13 une cave"},
+        {"id": "lot12_second_cave", "expected": "lot n°12 une seconde cave"}
+      ]
+    }
+  ],
+  "aggregate": [
+    {"language": "fra", "dpi": 72, "facts_found": 9, "facts_total": 15, "fact_recall": 0.6, "complete_pages": 4, "pages": 5, "seconds_total": 0.986},
+    {"language": "fra+eng", "dpi": 72, "facts_found": 9, "facts_total": 15, "fact_recall": 0.6, "complete_pages": 4, "pages": 5, "seconds_total": 1.495},
+    {"language": "fra", "dpi": 150, "facts_found": 15, "facts_total": 15, "fact_recall": 1.0, "complete_pages": 5, "pages": 5, "seconds_total": 1.91},
+    {"language": "fra+eng", "dpi": 150, "facts_found": 15, "facts_total": 15, "fact_recall": 1.0, "complete_pages": 5, "pages": 5, "seconds_total": 2.447},
+    {"language": "fra", "dpi": 200, "facts_found": 15, "facts_total": 15, "fact_recall": 1.0, "complete_pages": 5, "pages": 5, "seconds_total": 2.218},
+    {"language": "fra+eng", "dpi": 200, "facts_found": 15, "facts_total": 15, "fact_recall": 1.0, "complete_pages": 5, "pages": 5, "seconds_total": 2.934}
+  ],
+  "per_page": [
+    {
+      "id": "cannet_pv_p30",
+      "facts_total": 3,
+      "runs": [
+        {"language":"fra","dpi":72,"seconds":0.24,"ocr_chars":763,"facts_found":3},
+        {"language":"fra+eng","dpi":72,"seconds":0.323,"ocr_chars":763,"facts_found":3},
+        {"language":"fra","dpi":150,"seconds":0.336,"ocr_chars":774,"facts_found":3},
+        {"language":"fra+eng","dpi":150,"seconds":0.372,"ocr_chars":773,"facts_found":3},
+        {"language":"fra","dpi":200,"seconds":0.404,"ocr_chars":775,"facts_found":3},
+        {"language":"fra+eng","dpi":200,"seconds":0.558,"ocr_chars":775,"facts_found":3}
+      ]
+    },
+    {
+      "id": "cannet_ccv_p11",
+      "facts_total": 1,
+      "runs": [
+        {"language":"fra","dpi":72,"seconds":0.245,"ocr_chars":842,"facts_found":1},
+        {"language":"fra+eng","dpi":72,"seconds":0.408,"ocr_chars":872,"facts_found":1},
+        {"language":"fra","dpi":150,"seconds":0.408,"ocr_chars":1015,"facts_found":1},
+        {"language":"fra+eng","dpi":150,"seconds":0.518,"ocr_chars":1014,"facts_found":1},
+        {"language":"fra","dpi":200,"seconds":0.463,"ocr_chars":1002,"facts_found":1},
+        {"language":"fra+eng","dpi":200,"seconds":0.674,"ocr_chars":1002,"facts_found":1}
+      ]
+    },
+    {
+      "id": "gaillard_pv_p9",
+      "facts_total": 3,
+      "runs": [
+        {"language":"fra","dpi":72,"seconds":0.271,"ocr_chars":1194,"facts_found":3},
+        {"language":"fra+eng","dpi":72,"seconds":0.475,"ocr_chars":1196,"facts_found":3},
+        {"language":"fra","dpi":150,"seconds":0.495,"ocr_chars":1360,"facts_found":3},
+        {"language":"fra+eng","dpi":150,"seconds":0.6,"ocr_chars":1360,"facts_found":3},
+        {"language":"fra","dpi":200,"seconds":0.553,"ocr_chars":1374,"facts_found":3},
+        {"language":"fra+eng","dpi":200,"seconds":0.708,"ocr_chars":1371,"facts_found":3}
+      ]
+    },
+    {
+      "id": "gaillard_ccv_p1",
+      "facts_total": 2,
+      "runs": [
+        {"language":"fra","dpi":72,"seconds":0.128,"ocr_chars":235,"facts_found":2},
+        {"language":"fra+eng","dpi":72,"seconds":0.151,"ocr_chars":237,"facts_found":2},
+        {"language":"fra","dpi":150,"seconds":0.174,"ocr_chars":288,"facts_found":2},
+        {"language":"fra+eng","dpi":150,"seconds":0.208,"ocr_chars":287,"facts_found":2},
+        {"language":"fra","dpi":200,"seconds":0.209,"ocr_chars":289,"facts_found":2},
+        {"language":"fra+eng","dpi":200,"seconds":0.252,"ocr_chars":288,"facts_found":2}
+      ]
+    },
+    {
+      "id": "noisy_pvd_p1",
+      "facts_total": 6,
+      "runs": [
+        {"language":"fra","dpi":72,"seconds":0.102,"ocr_chars":106,"facts_found":0,"missing_fact_ids":["address_90_boulevard_republique","city_noisy_le_sec","lot17_pavillon","lot27_jardin","lot13_cave","lot12_second_cave"]},
+        {"language":"fra+eng","dpi":72,"seconds":0.138,"ocr_chars":102,"facts_found":0,"missing_fact_ids":["address_90_boulevard_republique","city_noisy_le_sec","lot17_pavillon","lot27_jardin","lot13_cave","lot12_second_cave"]},
+        {"language":"fra","dpi":150,"seconds":0.497,"ocr_chars":1244,"facts_found":6},
+        {"language":"fra+eng","dpi":150,"seconds":0.749,"ocr_chars":1243,"facts_found":6},
+        {"language":"fra","dpi":200,"seconds":0.589,"ocr_chars":1240,"facts_found":6},
+        {"language":"fra+eng","dpi":200,"seconds":0.742,"ocr_chars":1239,"facts_found":6}
+      ]
+    }
+  ],
+  "interpretation": {
+    "local_candidate": "fra at 150 DPI: 15/15 facts, 1.910 seconds across five pages",
+    "language_result": "fra+eng added no exact fact recall on this corpus and took longer",
+    "dpi_result": "72 missed all six Noisy facts; 150 recovered all; 200 added no facts",
+    "decision": "test 150 DPI fra first, with targeted 200 DPI retry; do not change production on five pages alone"
+  },
+  "limits": [
+    "five pages are not representative of all scans, columns, tables, rotations or languages",
+    "sidecars are local OCR references; Noisy page 1 is visual annotation and has no usable sidecar",
+    "fact recall does not measure false positives, full-page transcription or punctuation",
+    "direct page calls exclude download, cache, threshold, 75-page budget, memory and autonomous worker behavior",
+    "local Tesseract 5.5.2 differs from production Tesseract 5.3.4"
+  ]
+}

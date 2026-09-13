@@ -1,0 +1,149 @@
+{
+  "queried_at": "2026-09-13 10:17:22 UTC",
+  "rows": [
+    {
+      "id": "0c2f373d-0fdf-4eea-9688-fd16ed1f19bd",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/andernos-les-bains-33/2008315",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:50:49.638447+00",
+      "bridge_id": "948b0404-7d14-43e2-9a9a-aedc713f308d",
+      "source_key": "auction_sales:v1:sha256:ca7768e65eed736944a0adda076bbcf4f24f828a7726d136b97f629a7124070f",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "0e4f71a1-afb0-4009-b6f3-73d8cc525986",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/cormeilles-27/2055324",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:51:49.250531+00",
+      "bridge_id": "f0d87826-2b2a-437d-abd1-45273d5a543e",
+      "source_key": "auction_sales:v1:sha256:768fe66e40d6fa8e17492470a57f806f1f574c59b8341660872aaa40518704b4",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "0fd97cfa-d541-4040-8abf-563029b7c80e",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/bois-grenier-59/2020880",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:48:22.855086+00",
+      "bridge_id": "6b97144a-e0f4-4a17-a0a5-df4544d47674",
+      "source_key": "auction_sales:v1:sha256:df807eab830479c9de2797f09092065b33b4e2e667ef4b191be19562d9ec9994",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "19fa4bcb-14ed-4669-b46b-9d11f39c8e2b",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/bagneaux-sur-loing-77/2008271",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 23:32:07.044657+00",
+      "bridge_id": "ed5deae1-f1a3-4931-b4c0-6c71cf7d2650",
+      "source_key": "auction_sales:v1:sha256:1f2f5ef5e6dc0c18e075dab82838769fbe92fd68b316805000dfeec952466b64",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "1f9f5a53-a8da-4bae-a913-940d806a0cd4",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/cazeres-31/2048450",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:49:29.929976+00",
+      "bridge_id": "9f802e93-cd85-48bd-8450-65b70acf7456",
+      "source_key": "auction_sales:v1:sha256:eb1dea173089e465638bf4872ccb0571672a319f10e453e99dc5af29a27490ab",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "25798b88-7c0f-40a6-995c-ffa21ea81330",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/la-garde-83/2031071",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 21:35:26.317375+00",
+      "bridge_id": "08bd3caa-0b8c-42d7-9013-168023b5ac39",
+      "source_key": "auction_sales:v1:sha256:97d62e26ce71f86cce3d9d103d4e8401b00a43c47569fed3e9c935eaacd40eeb",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "30feed41-3236-425d-8edb-74b13136b6be",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/peypin-13/2019751",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:51:14.599397+00",
+      "bridge_id": "8c974812-163b-497a-9b2a-a832513fb7f2",
+      "source_key": "auction_sales:v1:sha256:6e0236fc4215741085642967b931a3ad9561535dedb57d79a3823306e615b2f5",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "50819741-f6db-4d46-bd44-dd585c629e68",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/st-martin-boulogne-62/2045837",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 21:35:54.335843+00",
+      "bridge_id": "e4f34841-bce6-461c-b89d-8a853b650313",
+      "source_key": "auction_sales:v1:sha256:439f9ddd5043b90fd0ec3b836bf18b6b34f75d60b9246ab64de0403427be6be9",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "6af596ea-5c3e-495e-9084-70e2c7979975",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/immeuble/le-havre-76/2049304",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:51:06.292352+00",
+      "bridge_id": "1cde5125-4fba-495f-9879-0da39957a00d",
+      "source_key": "auction_sales:v1:sha256:6bd9158746c0fa0f4a7b545acdeb7a0a007f0b6674dba99a682baf01408341af",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "e6f75d76-1c4a-4fed-9523-6552ce01accf",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/grimaud-83/2019830",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:49:04.2771+00",
+      "bridge_id": "56fa8fb8-01ee-4899-bbb9-2abc3d91c8e7",
+      "source_key": "auction_sales:v1:sha256:452ce94bf976f90988befd6e390f2a7bef3d57f5007dae4e8af7bae5697f65ab",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "eaa604f9-57b6-4f31-a465-2675e2c84ac5",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/maison/apt-84/1977816",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:06:46.705212+00",
+      "bridge_id": "2a8a27e5-98f6-4425-af40-87b036fb0d49",
+      "source_key": "auction_sales:v1:sha256:5f679396bc0018c9788230251d18bca58255e597166b44c0515c5126fc3e9efc",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    },
+    {
+      "id": "f3be66c5-d269-4819-a37e-2588f1cb1aae",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/le-havre-76/2049365",
+      "status": "upcoming",
+      "adjudication_price_eur": null,
+      "updated_at": "2026-09-12 22:50:22.879308+00",
+      "bridge_id": "c944d987-eca7-4a1e-9f04-f3dcf1f09b4a",
+      "source_key": "auction_sales:v1:sha256:6bac3d4228e1ad47a42d069235fa35dc38f8ff80cb8403acc14938e1700ef82a",
+      "catalogue_status": "announced",
+      "outcome_status": "unknown",
+      "training_eligible": false
+    }
+  ]
+}

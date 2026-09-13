@@ -28,6 +28,7 @@ from src.pdf_enrichment import (
     enrich_sale_from_pdf_text,
     extract_attached_document,
     extract_pdf_document,
+    extract_pdf_pages,
 )
 
 
@@ -1262,6 +1263,166 @@ def test_extract_pdf_document_preserves_page_level_text(tmp_path, monkeypatch) -
     assert [page["page"] for page in payload["pages"]] == [1, 2]
     assert "Surface habitable" in payload["text"]
     assert "bail en cours" in payload["text"]
+
+
+def test_failed_ocr_page_is_retried_without_reocring_successful_cached_pages(tmp_path, monkeypatch) -> None:
+    import fitz
+
+    monkeypatch.setattr("src.pdf_enrichment.PDF_DOCUMENT_TEXTS_DIR", tmp_path / "cache")
+    monkeypatch.setenv("PDF_EXTRACTOR", "pymupdf")
+    monkeypatch.setenv("PDF_OCR_ENABLED", "true")
+    path = tmp_path / "recoverable.pdf"
+    with fitz.open() as document:
+        first = document.new_page()
+        first.insert_text((72, 72), "Texte numérique suffisamment long pour ne pas déclencher l'OCR. " * 3)
+        second = document.new_page()
+        second.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(path)
+
+    calls: list[int] = []
+    recover = False
+
+    def ocr_result(page, **kwargs):
+        nonlocal recover
+        calls.append(page.number)
+        if not recover:
+            return {"text": "", "method": "fallback_text", "confidence": 0.0}
+        return {"text": "Texte OCR récupéré", "method": "ocr_test", "confidence": 0.8}
+
+    monkeypatch.setattr("src.pdf_enrichment._extract_page_text_with_ocr_result", ocr_result)
+    first_pass = extract_pdf_pages(path)
+    assert calls == [1]
+    assert first_pass[0]["status"] == "extracted"
+    assert first_pass[1]["status"] == "failed"
+
+    document = {"url": "https://example.test/recoverable.pdf", "label": "PV"}
+    failed_payload = extract_pdf_document(path, document=document)
+    assert failed_payload["complete"] is False
+    _write_document_text_cache(document, path, failed_payload)
+    assert _read_document_text_cache(document, path) is None
+
+    calls.clear()
+    recover = True
+    second_pass = extract_pdf_pages(path)
+    assert calls == [1]
+    assert second_pass[0]["text"] == first_pass[0]["text"]
+    assert second_pass[1]["status"] == "extracted"
+
+    recovered_payload = extract_pdf_document(path, document=document)
+    assert recovered_payload["complete"] is True
+    _write_document_text_cache(document, path, recovered_payload)
+    assert _read_document_text_cache(document, path)["complete"] is True
+
+
+def test_mixed_pdf_with_failed_page_remains_incomplete_in_document_profile(tmp_path, monkeypatch) -> None:
+    import fitz
+
+    monkeypatch.setenv("PDF_EXTRACTOR", "pymupdf")
+    monkeypatch.setenv("PDF_OCR_ENABLED", "true")
+    path = tmp_path / "mixed.pdf"
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_text((72, 72), "Surface habitable : 50 m2. " * 4)
+        page = document.new_page()
+        page.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(path)
+
+    monkeypatch.setattr(
+        "src.pdf_enrichment._extract_page_text_with_ocr_result",
+        lambda page, **kwargs: {"text": "", "method": "fallback_text", "confidence": 0.0},
+    )
+    payload = extract_pdf_document(path, document={"label": "PV", "document_type": "pv_huissier"})
+
+    assert payload["text"]
+    assert payload["complete"] is False
+    assert payload["extraction_status"] == "incomplete"
+    assert payload["failed_pages"] == [2]
+
+    sale = normalize_sale(
+        {
+            "source_name": "avoventes",
+            "source_url": "https://example.test/mixed.pdf",
+            "documents": [{"label": "PV", "url": "https://example.test/mixed.pdf"}],
+        }
+    )
+    payload.update({"label": "PV", "url": "https://example.test/mixed.pdf", "document_type": "pv_huissier"})
+    _store_document_analysis_status(
+        sale,
+        [{"label": "PV", "url": "https://example.test/mixed.pdf", "document_type": "pv_huissier"}],
+        [payload],
+    )
+    analysis = sale.raw_payload["document_analysis"]
+    assert analysis["documents_extracted"] == 0
+    assert analysis["failed_documents"] == 1
+    assert analysis["profiles"][0]["extraction_status"] == "incomplete"
+
+
+def test_objectively_blank_page_is_excluded_but_empty_scan_stays_retryable(tmp_path, monkeypatch) -> None:
+    import fitz
+
+    monkeypatch.setattr("src.pdf_enrichment.PDF_DOCUMENT_TEXTS_DIR", tmp_path / "cache")
+    monkeypatch.setenv("PDF_EXTRACTOR", "pymupdf")
+    monkeypatch.setenv("PDF_OCR_ENABLED", "true")
+    path = tmp_path / "blank-and-scan.pdf"
+    with fitz.open() as document:
+        document.new_page()
+        scan = document.new_page()
+        scan.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(path)
+
+    calls: list[int] = []
+
+    def failed_ocr(page, **kwargs):
+        calls.append(page.number)
+        return {"text": "", "method": "fallback_text", "confidence": 0.0}
+
+    monkeypatch.setattr("src.pdf_enrichment._extract_page_text_with_ocr_result", failed_ocr)
+    payload = extract_pdf_document(path)
+
+    assert calls == [1]
+    assert payload["blank_pages"] == [1]
+    assert payload["failed_pages"] == [2]
+    assert payload["complete"] is False
+    assert payload["pages"][0]["status"] == "blank_excluded"
+    assert payload["pages"][1]["failure_reason"] == "ocr_failed"
+
+
+def test_legacy_fallback_page_cache_is_not_a_hit_when_ocr_is_enabled(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("src.pdf_enrichment.PDF_DOCUMENT_TEXTS_DIR", tmp_path / "cache")
+    file_path = tmp_path / "legacy.pdf"
+    file_path.write_bytes(b"pdf bytes")
+    document = {"url": "https://example.test/legacy.pdf", "label": "PV"}
+    payload = {
+        "text": "Texte conservé comme preuve",
+        "pages": [{"page": 1, "text": "Texte conservé comme preuve", "method": "fallback_text"}],
+    }
+    _write_document_text_cache(document, file_path, payload)
+
+    monkeypatch.setenv("PDF_OCR_ENABLED", "true")
+    assert _read_document_text_cache(document, file_path) is None
+    monkeypatch.setenv("PDF_OCR_ENABLED", "false")
+    assert _read_document_text_cache(document, file_path)["text"] == "Texte conservé comme preuve"
+
+
+def test_original_ocr_subprocess_failure_is_isolated_as_retryable_page_failure(monkeypatch) -> None:
+    from src.pdf_enrichment import _extract_page_text_with_ocr_result
+
+    monkeypatch.setenv("PDF_OCR_ENABLED", "true")
+    page = SimpleNamespace(
+        get_textpage_ocr=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("OCR backend unavailable")),
+        get_pixmap=lambda **kwargs: SimpleNamespace(save=lambda path: None),
+    )
+    monkeypatch.setattr(
+        "src.pdf_enrichment.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="tesseract failed"),
+    )
+
+    result = _extract_page_text_with_ocr_result(page, fallback="PDF text retained for evidence")
+
+    assert result["method"] == "fallback_text"
+    assert result["text"] == "PDF text retained for evidence"
+    assert result["status"] == "failed"
+    assert result["retryable"] is True
 
 
 def test_extract_pdf_document_then_enriches_document_only_surface(tmp_path, monkeypatch) -> None:

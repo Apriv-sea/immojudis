@@ -1,0 +1,167 @@
+{
+  "audit_id": "agde-corrections-applied-20260913",
+  "audited_at": "2026-09-13T11:19:54Z",
+  "read_only": true,
+  "production_mutations": false,
+  "repo_mutations": false,
+  "repo_audit_artifact_created": true,
+  "project_ref": "sgpakxtyvenlpeihuucm",
+  "purpose": "Vérification en lecture seule de l'application production des corrections Agde et de la persistance des preuves associées.",
+  "provenance": {
+    "sql_file": "/tmp/immojudis-agde-final-correction.sql",
+    "sql_sha256": "7cfc56b5c20d5a77086a793a2b5bbbdcb7934d1759c47428a7ac970cc7e20791",
+    "plan_file": "/tmp/immojudis-agde-final-correction-plan.json",
+    "plan_sha256": "ac5a254d75d3984c971d405c0d96acf5631d4e66a19a423f48652ebd768f35cb",
+    "execution_note": "Le parent /root a appliqué ce texte SQL dans une transaction Supabase puis a effectué COMMIT; cette étape d'audit n'a exécuté aucun DML.",
+    "header_context": {
+      "header": "PROPOSED ONLY. This file was not executed against Supabase.",
+      "interpretation": "Ce commentaire est l'en-tête historique de l'artefact proposé. Il ne décrit pas l'exécution production effectuée par /root; la preuve actuelle ci-dessous provient de lectures SQL read-only post-commit."
+    }
+  },
+  "application_observed": {
+    "parents": {
+      "expected": 4,
+      "found": 4,
+      "raw_column_mirrors_ok": 4,
+      "review_history_with_before_snapshots": 4,
+      "source_checks_object": 4,
+      "qualification_result_date_conflict_present": 4,
+      "rows": [
+        {
+          "id": "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+          "property_key": "MT301",
+          "role": "canonical",
+          "status": "upcoming",
+          "raw_status": "upcoming",
+          "surface_m2": 1178,
+          "habitable_surface_m2": null,
+          "land_surface_m2": 1178,
+          "app_surface_m2": 1178,
+          "app_surface_kind": "land",
+          "surface_scope": "land",
+          "raw_property_type": "land",
+          "quality_flags": [
+            "missing_gps",
+            "source_page_only"
+          ],
+          "review_history_count": 1
+        },
+        {
+          "id": "c200ec4b-056a-40a2-8489-53396b4beaec",
+          "property_key": "MT301",
+          "role": "alias",
+          "status": "quarantined",
+          "raw_status": "quarantined",
+          "surface_m2": 1178,
+          "habitable_surface_m2": null,
+          "land_surface_m2": 1178,
+          "app_surface_m2": 1178,
+          "app_surface_kind": "land",
+          "surface_scope": "land",
+          "raw_property_type": "land",
+          "quality_flags": [
+            "unverified_source_coordinates"
+          ],
+          "review_history_count": 1
+        },
+        {
+          "id": "8003229b-98e1-4c2a-a8c4-a1e07b8fe372",
+          "property_key": "MN222",
+          "role": "canonical",
+          "status": "upcoming",
+          "raw_status": "upcoming",
+          "surface_m2": 2152,
+          "habitable_surface_m2": null,
+          "land_surface_m2": 2152,
+          "app_surface_m2": 2152,
+          "app_surface_kind": "land",
+          "surface_scope": "land",
+          "raw_property_type": "land",
+          "quality_flags": [
+            "missing_gps",
+            "source_page_only"
+          ],
+          "review_history_count": 1
+        },
+        {
+          "id": "e8de7de4-223c-4131-8350-e9026fe41e30",
+          "property_key": "MN222",
+          "role": "alias",
+          "status": "quarantined",
+          "raw_status": "quarantined",
+          "surface_m2": 2152,
+          "habitable_surface_m2": null,
+          "land_surface_m2": 2152,
+          "app_surface_kind": "land",
+          "app_surface_m2": 2152,
+          "surface_scope": "land",
+          "raw_property_type": "land",
+          "quality_flags": [
+            "unverified_source_coordinates"
+          ],
+          "review_history_count": 1
+        }
+      ]
+    },
+    "alias_registry": {
+      "expected": 2,
+      "exact": 2,
+      "rows": [
+        {
+          "alias_sale_id": "c200ec4b-056a-40a2-8489-53396b4beaec",
+          "canonical_sale_id": "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+          "review_key": "agde:MT301:cessions-notaires:v1",
+          "reviewed_by": "agde-identity-review-20260913",
+          "reviewed_at": "2026-09-13T11:12:56.199806+00:00"
+        },
+        {
+          "alias_sale_id": "e8de7de4-223c-4131-8350-e9026fe41e30",
+          "canonical_sale_id": "8003229b-98e1-4c2a-a8c4-a1e07b8fe372",
+          "review_key": "agde:MN222:cessions-notaires:v1",
+          "reviewed_by": "agde-identity-review-20260913",
+          "reviewed_at": "2026-09-13T11:12:56.199806+00:00"
+        }
+      ]
+    },
+    "cadastre": {
+      "stale_shared_point_rows": 0,
+      "manual_exact_rows": 2
+    },
+    "source_projections": {
+      "auction_sales_rows": 4,
+      "properties_rows": 4,
+      "properties_mirror_ok": 4,
+      "judicial_sales_rows": 4,
+      "judicial_sales_mirror_ok": 4,
+      "auction_surfaces_rows": 4,
+      "auction_surfaces_mirror_ok": 4,
+      "auction_observations_rows": 4,
+      "auction_observations_canonical_target_rows": 4
+    },
+    "source_checks": {
+      "object_rows": 4,
+      "qualification_result_date_conflict_rows": 4
+    },
+    "bridges": {
+      "scoped_rows": 0,
+      "alias_rows": 0,
+      "non_unknown_or_training_rows": 0,
+      "scope": "Les lignes hors Agde ne sont pas incluses dans la comparaison; les quatre parents et leurs deux alias ne portent aucun bridge actif dans le périmètre vérifié."
+    }
+  },
+  "verification_conclusion": {
+    "complete": true,
+    "raw_and_column_mirrors_verified": true,
+    "history_snapshots_verified": true,
+    "aliases_verified": true,
+    "cadastre_verified": true,
+    "source_checks_verified": true,
+    "bridges_scope_verified": true,
+    "no_production_dml_performed_by_auditor": true,
+    "notes": [
+      "Les valeurs numériques de surface sont vérifiées comme 1178 et 2152 m²; aucune surface habitable n'est inventée.",
+      "La base observée conserve les statuts canoniques upcoming et les statuts alias quarantined avec leurs miroirs raw correspondants.",
+      "L'ancien en-tête PROPOSED ONLY est conservé dans le fichier SQL source pour provenance; il est contextualisé ici et ne constitue pas une preuve d'absence d'application."
+    ]
+  }
+}

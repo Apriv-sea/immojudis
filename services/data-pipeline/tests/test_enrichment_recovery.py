@@ -86,7 +86,11 @@ def test_long_digital_pdf_and_resumable_ocr(tmp_path, monkeypatch):
     path = tmp_path / 'large.pdf'
     with fitz.open() as document:
         for _ in range(5):
-            document.new_page()
+            page = document.new_page()
+            # Keep these pages scan-like rather than objectively blank: the
+            # test exercises resumable OCR checkpoints and not blank-page
+            # exclusion.
+            page.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
         document.save(path)
     processed = []
     monkeypatch.setattr(pdf_enrichment, '_extract_page_text_with_ocr_result', lambda page, **kw: processed.append(page.number) or {'text': 'Texte OCR', 'method': 'ocr_test', 'confidence': .8})
@@ -98,6 +102,71 @@ def test_long_digital_pdf_and_resumable_ocr(tmp_path, monkeypatch):
     assert processed == list(range(5))
     monkeypatch.setenv('PDF_OCR_ENABLED', 'false')
     assert len(pdf_enrichment.extract_pdf_pages(path)) == 5
+
+
+def test_ocr_budget_checkpoint_is_distinct_and_continues_from_page_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(pdf_enrichment, 'PDF_DOCUMENT_TEXTS_DIR', tmp_path / 'cache')
+    monkeypatch.setenv('PDF_MAX_EXTRACT_PAGES', '1')
+    monkeypatch.setenv('PDF_OCR_ENABLED', 'true')
+    path = tmp_path / 'checkpointed.pdf'
+    with fitz.open() as document:
+        for _ in range(3):
+            page = document.new_page()
+            page.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(path)
+
+    calls = []
+    monkeypatch.setattr(
+        pdf_enrichment,
+        '_extract_page_text_with_ocr_result',
+        lambda page, **kwargs: calls.append(page.number) or {
+            'text': f'OCR page {page.number + 1}',
+            'method': 'ocr_test',
+            'confidence': .8,
+        },
+    )
+
+    with pytest.raises(pdf_enrichment.PdfExtractionDeferred) as first_error:
+        pdf_enrichment.extract_pdf_pages(path)
+    assert first_error.value.progress_made is True
+    assert first_error.value.checkpointed_pages == 1
+    assert first_error.value.total_pages == 3
+    assert calls == [0]
+
+    with pytest.raises(pdf_enrichment.PdfExtractionDeferred) as second_error:
+        pdf_enrichment.extract_pdf_pages(path)
+    assert second_error.value.progress_made is True
+    assert second_error.value.checkpointed_pages == 2
+    assert calls == [0, 1]
+
+    pages = pdf_enrichment.extract_pdf_pages(path)
+    assert calls == [0, 1, 2]
+    assert len(pages) == 3
+    assert all(page['status'] == 'extracted' for page in pages)
+
+
+def test_ocr_budget_without_new_page_progress_is_bounded(tmp_path, monkeypatch):
+    monkeypatch.setattr(pdf_enrichment, 'PDF_DOCUMENT_TEXTS_DIR', tmp_path / 'cache')
+    monkeypatch.setenv('PDF_MAX_EXTRACT_PAGES', '1')
+    monkeypatch.setenv('PDF_OCR_ENABLED', 'true')
+    path = tmp_path / 'stalled-checkpoint.pdf'
+    with fitz.open() as document:
+        for _ in range(2):
+            page = document.new_page()
+            page.draw_rect(fitz.Rect(72, 72, 200, 200), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(path)
+
+    monkeypatch.setattr(
+        pdf_enrichment,
+        '_extract_page_text_with_ocr_result',
+        lambda page, **kwargs: {'text': '', 'method': 'fallback_text', 'confidence': 0.0},
+    )
+
+    with pytest.raises(pdf_enrichment.PdfExtractionDeferred) as error:
+        pdf_enrichment.extract_pdf_pages(path)
+    assert error.value.progress_made is False
+    assert error.value.new_progress_pages == 0
+    assert error.value.checkpointed_pages == 1
 
 
 def test_health_fails_for_old_queue_stalled_runs_and_stale_sources():

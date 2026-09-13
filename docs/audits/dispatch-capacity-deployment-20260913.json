@@ -45,6 +45,26 @@
     "state": "accepted",
     "github_run_id": 34750715142,
     "github_created_at": "2026-09-13T10:00:13Z",
-    "worker_completion_verified": false
+    "worker_completion_verified": true,
+    "worker_result": {
+      "status": "failed",
+      "reason": "Two isolated document jobs failed; other work committed and automatic retry retained",
+      "started_at": "2026-09-13T10:00:58.469946Z",
+      "finished_at": "2026-09-13T10:22:17.242828Z",
+      "execution_seconds": 1278.555884,
+      "hard_budget_seconds": 1500,
+      "handled_jobs": 54,
+      "completed_jobs": 52,
+      "failed_jobs": 2,
+      "source_details_completed": 45,
+      "source_detail_queue_before": 648,
+      "source_detail_queue_after": 603,
+      "errors": [
+        "SurfaceCandidate rejected Decimal 0.00 in Saint-Nizier PDF",
+        "Alata OCR per-pass budget; 75 of 120 pages checkpointed"
+      ],
+      "log_artifact": "/private/tmp/immojudis-automatic-retry-worker-34750715142.log",
+      "full_capacity_validated": false
+    }
   }
 }

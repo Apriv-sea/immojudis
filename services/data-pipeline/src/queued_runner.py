@@ -23,7 +23,7 @@ from src.main import (
     run_llm_description_backfill,
     run_pipeline,
 )
-from src.pdf_enrichment import enrich_sale_from_pdfs
+from src.pdf_enrichment import PdfExtractionDeferred, enrich_sale_from_pdfs
 from src.pipeline_usage import PipelineBudgetExhausted, defer_budget_jobs
 from src.sale_procedure import classify_sale_procedure
 from src.source_detail_worker import run_source_detail_jobs
@@ -329,6 +329,29 @@ def run_enrichment_queue_batch(
             classify_sale_procedure(sale)
             normalize_asset_features(sale)
             upsert_sales_to_supabase([sale], refresh_last_seen=False)
+        except PdfExtractionDeferred as exc:
+            if exc.progress_made:
+                # OCR page checkpoints are real work, but they are not a
+                # completed document. Requeue without consuming this job's
+                # retry budget so the next worker continues from the page
+                # cache. Only this sale's jobs are deferred.
+                defer_budget_jobs(sale_jobs, exc)
+                LOGGER.info(
+                    "PDF extraction deferred after %s/%s pages for %s; %s new pages checkpointed",
+                    exc.checkpointed_pages,
+                    exc.total_pages,
+                    source_url,
+                    exc.new_progress_pages,
+                )
+            else:
+                # A budget stop with no newly successful or explicitly blank
+                # page must consume a normal bounded retry; otherwise a
+                # permanently unreadable first page would loop forever.
+                message = f"{exc}; no new page progress, retry budget consumed"
+                LOGGER.warning("PDF extraction made no progress for %s", source_url)
+                for job in sale_jobs:
+                    _finish_job(job, succeeded=False, error_message=message)
+            continue
         except PipelineBudgetExhausted as exc:
             defer_budget_jobs(enrichment_jobs, exc)
             LOGGER.info("Enrichment deferred without consuming retry attempts: %s", exc)
