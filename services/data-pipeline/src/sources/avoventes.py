@@ -263,14 +263,7 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
     if len(soup.select('select option')) > 100 and not soup.select_one('#lightSliderDetails') and not _property_description(soup):
         raise ValueError('Requested detail returned the catalogue/search page; property identity unverified')
-    # Exclude comparables and neighbourhood amenities from the lot's facts.
-    for heading in list(soup.find_all(["h2", "h3", "h4"])):
-        text = heading.get_text(" ", strip=True).lower()
-        if "proximité" in text or "valeurs foncières" in text:
-            sibling = heading.find_next_sibling()
-            if sibling and sibling.name in {"div", "table"}:
-                sibling.decompose()
-            heading.decompose()
+    _remove_non_listing_detail_sections(soup)
     raw_text = soup.get_text("\n", strip=True)
     documents = _extract_documents(soup.find_all("a", href=True), page_url)
     images = _extract_images(soup, page_url)
@@ -320,6 +313,36 @@ def parse_avoventes_detail_html(html: str, page_url: str) -> dict[str, Any]:
             if value
         },
     }
+
+
+def _remove_non_listing_detail_sections(soup: BeautifulSoup) -> None:
+    """Remove nearby facts without dropping the detail page's own metadata.
+
+    Avoventes appends a heading followed by one or more ``data-link`` cards
+    for nearby auctions.  Only the ``Autres biens à proximité`` boundary is
+    exhaustive: removing only its first sibling leaves later cards in
+    ``get_text()`` and lets their address, price, or sale status contaminate the
+    listing being enriched.  The existing one-sibling treatment is retained
+    for the plain ``À proximité`` map and ``Valeurs foncières`` table so that
+    the listing's complementary facts remain available.
+    """
+    for heading in list(soup.find_all(["h2", "h3", "h4"])):
+        if heading.parent is None:
+            continue
+        text = clean_text(heading.get_text(" ", strip=True)) or ""
+        lowered = text.lower()
+        is_other_listing_section = bool(re.search(r"\bautres\s+biens?\s+à\s+proximité\b", lowered))
+        is_legacy_excluded_section = "proximité" in lowered or "valeurs foncières" in lowered
+        if not (is_other_listing_section or is_legacy_excluded_section):
+            continue
+        if is_other_listing_section:
+            for sibling in list(heading.next_siblings):
+                sibling.extract()
+        else:
+            sibling = heading.find_next_sibling()
+            if sibling and sibling.name in {"div", "table"}:
+                sibling.decompose()
+        heading.decompose()
 
 
 def _property_location_codes(description: str | None) -> dict[str, str | None]:

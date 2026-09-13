@@ -192,3 +192,17 @@ Préparation locale du contrôle récurrent : extraction du lecteur de fiche de 
 PR130 intégrée après tous les contrôles réussis : `969ac51ca287363f968198e029c9e7076f5e3535` à 20:03:55 UTC. Vérifier le déploiement et réexaminer les trois quarantaine restantes, y compris leur identité commune entre sources avant publication.
 
 Branche courante `feat/pipeline-recurring-source-details`. Le lecteur partagé ajoute `prepare_source_revision` : préservation de l’identité et de la version catalogue, invalidation de l’analyse après modification, conservation des qualifications antérieures, quarantaine sur changement de lot/adresse. Six tests passent (accès, fraîcheur, identité et changement de contenu). Il reste à câbler la sélection récurrente dans la file existante et la persistance sous verrou avec contrôle de version/lease, y compris le cas expiré sans recréation. Aucun déploiement de ce traitement incomplet.
+
+## 13 septembre, intégration des contrôles périodiques à 08:59 UTC
+
+PR133 intégrée au SHA exact testé `bedc77b7195ada090e2e0d3229ffd15ee813350b`. Tous les contrôles de PR passent, suite Python avec PostgreSQL : 1293 réussites, 18 ignorés. Les API de fusion GitHub retournaient 500/502 ; intégration Git par avance rapide sans force ni réécriture, PR reconnue MERGED. Production `dpl_69TbGjeCpZ4FHRdMAq122AG6qnV6` READY/PROMOTED sur ce SHA, cinq routes publiques réussies à 08:59:48 UTC.
+
+Le dispatch du workflow de migration échouait aussi HTTP500. Migration auditée appliquée via le connecteur Supabase. Celui-ci a créé la version horodatée `20260913085913` ; son entrée exacte (nom et empreinte des statements contrôlés) a été alignée sur la version du dépôt `20260913081411`, sans réexécution du DDL. Colonnes et fonction vérifiées, zéro tâche créée tant que le drapeau est désactivé. Aucun run actif au contrôle. `source_details_enabled=true` à 08:59:55.483391 UTC, avec garde empêchant l'activation pendant un ancien worker d'enrichissement. Seules Licitor/Vench restent activées. Attendre les exécutions automatiques et mesurer le débit ; activation ne vaut pas capacité démontrée.
+
+Vench automatique `54fb0078-0a68-499b-b841-8ca9b54e3651` terminé avec succès à 08:47:15 UTC, publication complète à 08:47:17.521060, 669 URL découvertes/certifiées, aucune erreur HTTP ni appel PDF/IA. La période de sept jours reste non démarrée.
+
+Prochaine branche `fix/source-detail-evidence-qualification` : nettoyage des cartes voisines Avoventes et réserve explicite de fiche source non vérifiable. Revue a détecté puis fait corriger la suppression excessive des informations complémentaires après les valeurs foncières ; 97 tests source réussis et contre-revue indépendante de la régression réussie. Audits Agde et huit cas difficiles terminés, corrections production encore à appliquer avec gardes de version et preuves.
+
+## Changement de périmètre utilisateur — 13 septembre 2026
+
+L'utilisateur annule explicitement les **sept jours d'observation**. Ce critère de durée est retiré : aucune attente équivalente n'est requise avant clôture. Toutes les autres exigences restent actives (diagnostic et réconciliation, qualification, autonomie, fraîcheur pilote >=95 %, reprise sans doublon, capacité et alertes effectivement reçues). Le suivi automatique a été ajusté en conséquence. Les mentions historiques ci-dessus de période non démarrée restent des constats datés, et ne constituent plus un blocage.

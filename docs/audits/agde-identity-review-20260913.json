@@ -1,0 +1,473 @@
+{
+  "audit_version": "agde_identity_review_v1",
+  "reviewed_at": "2026-09-13T08:33:51Z",
+  "scope": {
+    "mode": "read_only",
+    "repository": "/private/tmp/immojudis-reliability-20260912",
+    "branch": "feat/pipeline-recurring-source-details",
+    "head": "912339fea0ac67ef1f7bf85b56adc08390f031a4",
+    "pr130_commit": "969ac51ca287363f968198e029c9e7076f5e3535",
+    "production_writes": false,
+    "code_writes": false,
+    "audit_file_is_the_only_file_created_by_this_review": true,
+    "working_tree_note": "Des modifications locales préexistantes portent sur le worker de détails récurrents; elles n'ont pas été touchées."
+  },
+  "inputs": {
+    "future_results_review": {
+      "path": "/private/tmp/immojudis-future-results-review.json",
+      "sha256": "774a547a7eac20b48f749ce96bb9fb73835bccc31f72786ba53d88a544f61618"
+    },
+    "future_results_recomputed": {
+      "path": "/private/tmp/immojudis-future-results-recomputed.json",
+      "sha256": "3eb1fce7238cf14ffcf1c6018477c44d30c3f17c23f959b1297581bfd9ebb9dd"
+    },
+    "result_restoration_review": {
+      "path": "/private/tmp/immojudis-result-restoration-review.json",
+      "sha256": "6d6d606fc2ec5153435cdb4daa1ad673a67ec0c978eafbafce7fd610de776cde"
+    },
+    "runbook": {
+      "path": "docs/runbooks/pipeline-autonomy-progress.md",
+      "sha256": "234185c898fbb631f0349e147a5f0be80b45f66ff9d6514c6b8545b1bf9bd99e"
+    }
+  },
+  "runbook_basis": [
+    {
+      "source": "docs/runbooks/pipeline-autonomy-progress.md:70-72",
+      "quote": "La résolution transactionnelle conserve l'identité canonique et refuse les anciennes révisions. ... Les rapprochements par simple commune/date/prix et entre URL distinctes du même éditeur sont désormais refusés."
+    },
+    {
+      "source": "docs/runbooks/pipeline-autonomy-progress.md:166",
+      "quote": "Les trois conflits résiduels (c200ec4b, e8de7de4, 28b03ba9) sont liés au classement État/notaire en familles exclusives, alors que le corpus désigne une vente domaniale à la Chambre des notaires."
+    },
+    {
+      "source": "docs/runbooks/pipeline-autonomy-progress.md:192",
+      "quote": "Vérifier le déploiement et réexaminer les trois quarantaine restantes, y compris leur identité commune entre sources avant publication."
+    }
+  ],
+  "records": [
+    {
+      "id": "c200ec4b-056a-40a2-8489-53396b4beaec",
+      "quarantine_state": "quarantined",
+      "source_name": "cessions_etat",
+      "external_id": "39499",
+      "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/terrain-constructible-de-1-178-m2-agde",
+      "source_reference": "220340003",
+      "raw_identity": {
+        "city": "Agde",
+        "department": "34",
+        "property_type": "Fonciers",
+        "surface_m2": "1178",
+        "address_field": null,
+        "postal_code": null,
+        "sale_date_source": "05/11/2026 à 14h30",
+        "starting_price_eur": "252000"
+      },
+      "evidence": [
+        {
+          "field": "description",
+          "source": "/private/tmp/immojudis-future-results-review.json#/1/raw_payload/description",
+          "quote": "L’État, Pôle régional de l’Immobilier de l’État d’Occitanie, met à la vente par adjudication une parcelle de terrain libre de toute construction cadastrée MT 301 d'une superficie de 1 178 m² sans dénivelé notable. La parcelle se situe chemin des Dunes à Agde"
+        },
+        {
+          "field": "procedure_and_price",
+          "source": "/private/tmp/immojudis-future-results-review.json#/1/raw_payload/source_blocks/page_text",
+          "page_text_lines": [92, 93, 94],
+          "quote": "Date d'adjudication : 05/11/2026 | Commentaire : Procédure d'adjudication notariale : le jeudi 5 novembre 2026 à 14h30 à la chambre des notaires de l'Hérault, 565 Avenue des Apothicaires de l'Hérault,à Montpellier. | Mise à prix : 252 000 euros."
+        },
+        {
+          "field": "parcel",
+          "source": "/private/tmp/immojudis-future-results-review.json#/1/raw_payload/source_blocks/page_text",
+          "page_text_lines": [96, 118],
+          "quote": "Référence cadastrale MT 301 ... Références cadastrales ... 1178"
+        }
+      ],
+      "old_result_quarantine": {
+        "source": "/private/tmp/immojudis-future-results-recomputed.json#/1/previous",
+        "previous_status": "adjudicated",
+        "previous_adjudication_price_eur": 5,
+        "reason": "Résultat associé à une audience future ; extraction calendaire ou montant non qualifié à vérifier"
+      },
+      "recomposed_with_current_code": {
+        "property_type": "land",
+        "surface_m2": 1178,
+        "land_surface_m2": 1178,
+        "app_surface_m2": 1178,
+        "app_surface_kind": "land",
+        "surface_scope": "land",
+        "habitable_surface_m2": null,
+        "starting_price_eur": 252000,
+        "sale_date_utc": "2026-11-05T13:30:00+00:00",
+        "status": "upcoming",
+        "adjudication_price_eur": null,
+        "sale_venue_type": "notary",
+        "sale_legal_framework": "state_sale",
+        "sale_verification_status": "verified",
+        "quality_flags": []
+      }
+    },
+    {
+      "id": "e8de7de4-223c-4131-8350-e9026fe41e30",
+      "quarantine_state": "quarantined",
+      "source_name": "cessions_etat",
+      "external_id": "39497",
+      "source_url": "https://cessions.immobilier-etat.gouv.fr/biens/cession-dun-terrain-constructible-agde",
+      "source_reference": "260340001",
+      "raw_identity": {
+        "city": "Agde",
+        "department": "34",
+        "property_type": "Fonciers",
+        "surface_m2": "2152",
+        "address_field": null,
+        "postal_code": null,
+        "sale_date_source": "05/11/2026 à 15h30",
+        "starting_price_eur": null
+      },
+      "evidence": [
+        {
+          "field": "description",
+          "source": "/private/tmp/immojudis-future-results-review.json#/2/raw_payload/description",
+          "quote": "L'Etat, via le Pôle régional de l'immobilier de l'Etat d'Occitanie vend un terrain à bâtir situé sur la commune d'Agde, cadastré MN 222. Le bien est situé dans un quartier résidentiel, à quelques minutes de la plage."
+        },
+        {
+          "field": "procedure",
+          "source": "/private/tmp/immojudis-future-results-review.json#/2/raw_payload/source_blocks/page_text",
+          "page_text_lines": [88, 89, 90],
+          "quote": "par Adjudication | Date d'adjudication : 05/11/2026 | Commentaire : La procédure d'adjudication se déroulera à la chambre des notaires de l'Hérault, 565 Avenue des Apothicaires, le jeudi 05 novembre 2026 à 15h30"
+        },
+        {
+          "field": "parcel_and_surface",
+          "source": "/private/tmp/immojudis-future-results-review.json#/2/raw_payload/source_blocks/page_text",
+          "page_text_lines": [92, 114],
+          "quote": "Référence cadastrale MN 222 ... Références cadastrales ... 2152"
+        }
+      ],
+      "old_result_quarantine": {
+        "source": "/private/tmp/immojudis-future-results-recomputed.json#/2/previous",
+        "previous_status": "adjudicated",
+        "previous_adjudication_price_eur": 5,
+        "reason": "Résultat associé à une audience future ; extraction calendaire ou montant non qualifié à vérifier"
+      },
+      "recomposed_with_current_code": {
+        "property_type": "land",
+        "surface_m2": 2152,
+        "land_surface_m2": null,
+        "app_surface_m2": null,
+        "surface_scope": null,
+        "habitable_surface_m2": null,
+        "starting_price_eur": null,
+        "sale_date_utc": "2026-11-05T14:30:00+00:00",
+        "status": "upcoming",
+        "adjudication_price_eur": null,
+        "sale_venue_type": "notary",
+        "sale_legal_framework": "state_sale",
+        "sale_verification_status": "verified",
+        "quality_flags": ["ambiguous_surface"],
+        "interpretation": "Le prix 450000 EUR et la surface foncière sont apportés par la fiche Notaires appariée; leur absence dans ce payload Cessions n'est pas une contradiction d'identité."
+      }
+    },
+    {
+      "id": "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+      "quarantine_state": "quarantined",
+      "source_name": "notaires",
+      "external_id": "2069112",
+      "source_url": "https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/agde-34/2069112",
+      "source_reference": "AGDE MT301",
+      "raw_identity": {
+        "city": "Agde",
+        "department": "34",
+        "property_type": "terrain",
+        "surface_m2": 1178,
+        "address": "chemin des Dunes, 34300 Agde",
+        "postal_code": "34300",
+        "sale_date_source": "2026-11-05T13:30:00Z",
+        "starting_price_eur": 252000
+      },
+      "evidence": [
+        {
+          "field": "parcel_surface_address",
+          "source": "/private/tmp/immojudis-future-results-review.json#/7/raw_payload/description",
+          "quote": "Terrain constructible de 1 178 m2 – Agde ... parcelle de terrain libre de toute construction cadastrée MT 301 d'une superficie de 1 178 m² ... La parcelle se situe chemin des Dunes à Agde"
+        },
+        {
+          "field": "source_link_and_procedure",
+          "source": "/private/tmp/immojudis-future-results-review.json#/7/raw_payload/description",
+          "quote": "uniquement disponibles sur le site des cessions immobilières de l'Etat https://cessions.immobilier-etat.gouv.fr/biens/terrain-constructible-de-1-178-m2-agde ... 5 novembre 2026 - 14h30 - Chambre des notaires de l’Hérault à Montpellier – Parc Euromédecine, 565 rue des Apothicaires"
+        },
+        {
+          "field": "procedure_metadata",
+          "source": "/private/tmp/immojudis-future-results-review.json#/7/raw_payload/source_blocks",
+          "quote": "reference=AGDE MT301; mode_vente=CHRONOMETRE; consignation=25200; type_transaction=VAE; type_adjudication=VOLONTAIRE; origine_judiciaire=ADJUDICATION"
+        }
+      ],
+      "old_result_quarantine": {
+        "source": "/private/tmp/immojudis-future-results-recomputed.json#/7/previous",
+        "previous_status": "adjudicated",
+        "previous_adjudication_price_eur": 25200565,
+        "reason": "Résultat associé à une audience future ; extraction calendaire ou montant non qualifié à vérifier"
+      },
+      "historical_surface_error": {
+        "source": "/private/tmp/immojudis-sample-current-1858.json#/47",
+        "old_stored_habitable_surface_m2": 1178,
+        "old_stored_land_surface_m2": 1178,
+        "evidence_against_habitable": "Le corpus décrit uniquement un terrain/parcelle cadastrée MT 301; aucune mention de surface habitable n'est présente."
+      },
+      "recomposed_with_current_code": {
+        "property_type": "land",
+        "surface_m2": 1178,
+        "land_surface_m2": 1178,
+        "app_surface_m2": 1178,
+        "app_surface_kind": "land",
+        "surface_scope": "land",
+        "surface_source": "notaires.description.cadastre",
+        "habitable_surface_m2": null,
+        "starting_price_eur": 252000,
+        "sale_date_utc": "2026-11-05T13:30:00+00:00",
+        "status": "upcoming",
+        "adjudication_price_eur": null,
+        "sale_venue_type": "notary",
+        "sale_legal_framework": "state_sale",
+        "sale_verification_status": "cross_checked",
+        "quality_flags": ["missing_gps", "source_page_only"]
+      }
+    },
+    {
+      "id": "8003229b-98e1-4c2a-a8c4-a1e07b8fe372",
+      "quarantine_state": "already_restored_in_review_artifact",
+      "source_name": "notaires",
+      "external_id": "2069086",
+      "source_url": "https://www.immobilier.notaires.fr/fr/annonce-immo/adjudication/terrain/agde-34/2069086",
+      "source_reference": "AGDE MN 222",
+      "raw_identity": {
+        "city": "Agde",
+        "department": "34",
+        "property_type": "terrain",
+        "surface_m2": 2152,
+        "address": "chemin des Dunes, 34300 Agde",
+        "postal_code": "34300",
+        "sale_date_source": "2026-11-05T14:30:00Z",
+        "starting_price_eur": 450000
+      },
+      "evidence": [
+        {
+          "field": "parcel_surface_address",
+          "source": "/private/tmp/immojudis-future-results-review.json#/11/raw_payload/description",
+          "quote": "L'Etat, via le Pôle régional de l'immobilier de l'Etat d'Occitanie vend un terrain à bâtir situé sur la commune d'Agde, cadastré MN 222. La parcelle est d'une surface de 2152m2 ... https://cessions.immobilier-etat.gouv.fr/biens/cession-dun-terrain-constructible-agde"
+        },
+        {
+          "field": "address_and_procedure_fields",
+          "source": "/private/tmp/immojudis-future-results-review.json#/11/raw_payload",
+          "quote": "address=chemin des Dunes, 34300 Agde; auction_location=565 avenue des Apothicaires - Parc Eromédecine, 34000 MONTPELLIER; type_transaction=VAE; type_adjudication=VOLONTAIRE; origine_judiciaire=ADJUDICATION; consignation=45000"
+        }
+      ],
+      "restoration_state": {
+        "source": "/private/tmp/immojudis-result-restoration-review.json#/11",
+        "admissible": true,
+        "sale_verification_status": "cross_checked",
+        "retained_issue": null
+      },
+      "old_result_quarantine": {
+        "source": "/private/tmp/immojudis-future-results-recomputed.json#/11/previous",
+        "previous_status": "adjudicated",
+        "previous_adjudication_price_eur": 45000565,
+        "reason": "Résultat associé à une audience future ; extraction calendaire ou montant non qualifié à vérifier"
+      },
+      "recomposed_with_current_code": {
+        "property_type": "land",
+        "surface_m2": 2152,
+        "land_surface_m2": 2152,
+        "app_surface_m2": 2152,
+        "app_surface_kind": "land",
+        "surface_scope": "land",
+        "habitable_surface_m2": null,
+        "starting_price_eur": 450000,
+        "sale_date_utc": "2026-11-05T14:30:00+00:00",
+        "status": "upcoming",
+        "adjudication_price_eur": null,
+        "sale_venue_type": "notary",
+        "sale_legal_framework": "unknown",
+        "sale_verification_status": "cross_checked",
+        "quality_flags": ["missing_gps", "source_page_only"]
+      }
+    }
+  ],
+  "identity_decisions": [
+    {
+      "property_key": "cadastral:MT301",
+      "decision": "same_property_pair",
+      "members": [
+        "c200ec4b-056a-40a2-8489-53396b4beaec",
+        "28b03ba9-9407-4ebe-81c4-08eb29db6f75"
+      ],
+      "confidence": "high",
+      "positive_signals": [
+        "Exact cadastral parcel MT 301 in both descriptions/reference fields.",
+        "Exact area 1178 m² in both source records.",
+        "Same Agde / department 34 and same sale session after timezone normalization: 2026-11-05T13:30:00Z.",
+        "Same starting price 252000 EUR.",
+        "Cessions description gives chemin des Dunes; Notaires gives chemin des Dunes, 34300 Agde.",
+        "Notaires description links directly to the Cessions MT301 URL.",
+        "Both current procedure recompositions identify a notarial venue with state ownership/framework and no venue conflict."
+      ],
+      "lot_interpretation": "MT 301 is a cadastral parcel identity, not a copropriété lot_number/lot_id; no distinct lot number is present in the payloads.",
+      "not_same_as": {
+        "property_key": "cadastral:MN222",
+        "signals": ["Different cadastral parcel", "different area 2152 m²", "different session 14:30Z", "different starting price 450000 EUR"]
+      }
+    },
+    {
+      "property_key": "cadastral:MN222",
+      "decision": "same_property_pair",
+      "members": [
+        "e8de7de4-223c-4131-8350-e9026fe41e30",
+        "8003229b-98e1-4c2a-a8c4-a1e07b8fe372"
+      ],
+      "confidence": "high",
+      "positive_signals": [
+        "Exact cadastral parcel MN 222 in both descriptions/reference fields.",
+        "Exact area 2152 m² in both source records.",
+        "Same Agde / department 34 and same sale session after timezone normalization: 2026-11-05T14:30:00Z.",
+        "Notaires gives chemin des Dunes, 34300 Agde and links directly to the Cessions MN222 URL.",
+        "Cessions page independently states the chamber des notaires venue, date and MN222 parcel.",
+        "Notaires row 8003229b is already admissible/restored in the supplied restoration review."
+      ],
+      "address_limit": "The Cessions MN222 description says only quartier résidentiel/proche de la plage; the street address is supplied by the linked Notaires record, so address corroboration is asymmetric but the exact parcel and URL link are decisive.",
+      "lot_interpretation": "MN 222 is a cadastral parcel identity, not a copropriété lot_number/lot_id; no distinct lot number is present in the payloads.",
+      "not_same_as": {
+        "property_key": "cadastral:MT301",
+        "signals": ["Different cadastral parcel", "different area 1178 m²", "different session 13:30Z", "different starting price 252000 EUR"]
+      }
+    }
+  ],
+  "procedure_reclassification": {
+    "result": "PR130 resolves the State/notary false conflict for these source texts.",
+    "rule": "A state-owned sale can have a notarial venue; the competent-court mapping for INSEE 34003 (TJ Béziers) is not evidence that the auction took place at a tribunal.",
+    "evidence": [
+      "Cessions MT301: 'Procédure d'adjudication notariale' and 'chambre des notaires de l'Hérault'.",
+      "Cessions MN222: 'La procédure d'adjudication se déroulera à la chambre des notaires de l'Hérault'.",
+      "Notaires MT301: 'Chambre des notaires de l’Hérault à Montpellier'.",
+      "Notaires MN222: official Notaires source plus VAE/VOLONTAIRE metadata and the same Cessions URL."
+    ],
+    "current_code_output": {
+      "c200ec4b": ["sale_venue_type=notary", "sale_legal_framework=state_sale", "sale_verification_status=verified"],
+      "e8de7de4": ["sale_venue_type=notary", "sale_legal_framework=state_sale", "sale_verification_status=verified"],
+      "28b03ba9": ["sale_venue_type=notary", "sale_legal_framework=state_sale", "sale_verification_status=cross_checked"],
+      "8003229b": ["sale_venue_type=notary", "sale_legal_framework=unknown", "sale_verification_status=cross_checked"]
+    },
+    "remaining_procedure_unknowns": [
+      "No positive adjudication result exists before the 2026-11-05 audience.",
+      "Do not invent guarantee, payment deadline or overbid rules for the State/Notary rows without case evidence; keep those fields unknown/pending as the current classifier does."
+    ]
+  },
+  "resolver_replay": {
+    "code": {
+      "resolver": "services/data-pipeline/src/publication_identity.py:109-135",
+      "dedupe": "services/data-pipeline/src/dedupe.py:235-278,306-327",
+      "classifier": "services/data-pipeline/src/sale_procedure.py:48-80,151-184"
+    },
+    "as_is_replay": {
+      "address_dedupe_keys": {
+        "c200ec4b": [],
+        "e8de7de4": [],
+        "28b03ba9": [],
+        "8003229b": []
+      },
+      "merge_duplicate_sales_survivors": [
+        "c200ec4b-056a-40a2-8489-53396b4beaec",
+        "e8de7de4-223c-4131-8350-e9026fe41e30",
+        "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+        "8003229b-98e1-4c2a-a8c4-a1e07b8fe372"
+      ],
+      "interpretation": "Le code actuel ne fusionne aucun des quatre payloads bruts. Cessions n'a ni adresse/postal_code persisté; 'chemin des Dunes' n'a pas de numéro et est donc volontairement rejeté par _address_dedupe_keys. Le resolver ne possède pas de clé cadastrale positive."
+    },
+    "safety_conclusion": "Une fusion automatique par commune/date/prix, par rue seule ou par source_url distincte serait contraire aux garde-fous actuels et doit rester refusée."
+  },
+  "recommended_operation": {
+    "status": "proposed_only",
+    "do_not_restore_now": "Ne pas republier les trois lignes sur la seule recomposition; résoudre d'abord l'identité persistée et les bridges.",
+    "canonical_selection": [
+      {
+        "property_key": "cadastral:MT301",
+        "preferred_id_if_precondition_holds": "28b03ba9-9407-4ebe-81c4-08eb29db6f75",
+        "selection_rule": "Conserver l'ID déjà attaché au bridge Outcome Graph s'il existe; à défaut, le row Notaires est le candidat le plus riche (adresse, prix, procédure et URL Cessions). Si les bridges sont absents ou concurrents, laisser les deux quarantaine et demander une revue opérateur."
+      },
+      {
+        "property_key": "cadastral:MN222",
+        "canonical_id": "8003229b-98e1-4c2a-a8c4-a1e07b8fe372",
+        "selection_rule": "Le row Notaires 2069086 est déjà restauré/admissible; conserver son stable ID et ajouter Cessions 39497 comme alias prouvé après contrôle du bridge."
+      }
+    ],
+    "guarded_steps": [
+      "Sous le verrou de publication existant, lire les quatre auction_sales et tous les auction_sale_outcome_bridges par auction_sale_id/source_url; vérifier qu'il n'existe qu'une cible bridgée par propriété et aucun bridge déjà attaché à un autre candidat.",
+      "Construire une table d'alias explicite et bornée: MT301 = c200ec4b ↔ 28b03ba9; MN222 = e8de7de4 ↔ 8003229b. La clé d'identité est la parcelle cadastrale exacte, jamais la ville/date/prix seuls.",
+      "Passer la révision prouvée par le resolver/publication writer existant, avec la source_url canonique inchangée, l'union des source_urls/observations et le stable ID de la cible. Si resolve_publication_identities retourne ambiguous_persisted_identity, annuler et conserver la quarantaine.",
+      "Recomposer chaque ligne avec normalize_sale, normalize_asset_features et classify_sale_procedure; pour 28b03ba9, supprimer la valeur opérationnelle habitable 1178 et conserver l'ancienne valeur uniquement dans la preuve historique.",
+      "Après succès de l'identité et de la version catalogue, retirer uniquement publication_quarantine=result_conflicts_with_future_sale_date/conflicting_sale_procedure, conserver la preuve qualification_result_date_conflict, publier status=upcoming et adjudication_price_eur=null. Ne pas transformer la mise à prix en résultat.",
+      "Vérifier après transaction: une seule ligne catalogue présentable par cadastral:MT301 et cadastral:MN222, IDs inchangés, source_urls d'alias présentes, résultats Outcome Graph toujours unknown/training_eligible=false et aucune synthèse ancienne encore valide."
+    ],
+    "bridge_constraint": "Les bridges ont une source_key et une identité de mapping immutables. Ne pas supprimer une ligne secondaire ni réassigner son bridge à une autre source_key dans cette opération; si un bridge secondaire existe, le préserver et traiter son détachement/réconciliation avec le mécanisme bridge-safe prévu, après preuve de la cible.",
+    "explicit_non_actions": [
+      "Ne pas fusionner MT301 et MN222: ce sont deux parcelles distinctes, deux surfaces, deux horaires et deux prix.",
+      "Ne pas appeler une réconciliation globale de doublons sans filtre par ces deux clés cadastrales.",
+      "Ne pas choisir le row canonique uniquement par ordre source, prix ou date.",
+      "Ne pas rétablir l'ancien adjudication_price_eur, ni 25200565/45000565, ni les candidats 5 EUR."
+    ]
+  },
+  "bridge_observation": {
+    "status": "not_observed_in_supplied_artifacts",
+    "reason": "Les trois rapports fournis ne contiennent pas les IDs/états des lignes auction_sale_outcome_bridges; aucune connexion service-role/DB n'a été utilisée en lecture.",
+    "required_preflight_query_scope": [
+      "auction_sale_outcome_bridges par auction_sale_id et source_url_snapshot",
+      "auction_lots/auction_rounds/auction_outcomes liés, avec outcome_status et training_eligible",
+      "source_url/source_urls des quatre auction_sales"
+    ],
+    "do_not_infer": "L'absence d'un bridge dans ces JSON ne prouve pas son absence en production."
+  },
+  "risks": [
+    {
+      "severity": "critical",
+      "risk": "Deux lignes persistées d'un même bien peuvent rendre le resolver ambigu; il met alors les candidats en quarantaine au lieu de choisir.",
+      "mitigation": "Prélecture des deux rows et bridges, paire cadastrale explicite, cible unique, échec fermé si plus d'une cible."
+    },
+    {
+      "severity": "critical",
+      "risk": "Supprimer un doublon peut détacher son bridge Outcome Graph; une simple fusion source_urls ne réécrit pas une source_key immutable.",
+      "mitigation": "Ne pas supprimer/réassigner le secondaire dans la même opération; préserver les bridges et vérifier les contraintes avant toute rétention."
+    },
+    {
+      "severity": "high",
+      "risk": "Les deux biens partagent Agde et chemin des Dunes; une fusion par adresse de rue seule serait dangereuse.",
+      "mitigation": "Exiger MT301 ou MN222, surface et session correspondantes; refuser toute clé cadastrale manquante ou multiple."
+    },
+    {
+      "severity": "medium",
+      "risk": "Le payload Cessions MN222 ne porte pas de prix ni d'adresse de rue structurés et la recomposition signale ambiguous_surface.",
+      "mitigation": "Utiliser la fiche Notaires 2069086 liée par URL pour le prix/adresse; garder la provenance Cessions et ne pas fabriquer une surface foncière nouvelle."
+    },
+    {
+      "severity": "medium",
+      "risk": "La fiche Notaires MT301 avait habitable_surface_m2=1178 dans l'instantané catalogue, ce qui pouvait contaminer le scoring.",
+      "mitigation": "Publier terrain/land_scope avec habitable null; conserver l'ancienne valeur et la contradiction dans la preuve historique."
+    },
+    {
+      "severity": "low",
+      "risk": "Les adresses de la chambre des notaires varient légèrement ('565 rue/avenue des Apothicaires', Eromédecine/Euromédecine).",
+      "mitigation": "Traiter ce champ comme lieu de séance notarial commun, sans l'utiliser comme identité foncière."
+    }
+  ],
+  "validation": {
+    "recomposition_command": "PYTHONPATH=services/data-pipeline .../services/data-pipeline/.venv/bin/python - <<'PY' ... normalize_sale + normalize_asset_features + classify_sale_procedure sur les quatre raw_payload ... PY",
+    "recomposition_result": "Les quatre dates et résultats ont été recomposés; les trois quarantaines donnent upcoming/null et PR130 ne produit plus de conflit venue.",
+    "tests_command": "PYTHONPATH=services/data-pipeline /Users/aprivileggio/Documents/Immojudis main/immojudis/services/data-pipeline/.venv/bin/python -m pytest -q -p no:cacheprovider services/data-pipeline/tests/test_publication_identity.py services/data-pipeline/tests/test_sale_procedure.py services/data-pipeline/tests/test_normalize.py",
+    "tests_result": {
+      "passed": 73,
+      "skipped": 2,
+      "failed": 0
+    },
+    "production_read": "Aucune écriture ni connexion service-role/DB effectuée; l'état exact des bridges reste une précondition à lire avant toute opération."
+  },
+  "conclusion": {
+    "identity": "Deux paires de doublons inter-sources sont établies avec confiance élevée: MT301 = c200ec4b + 28b03ba9; MN222 = e8de7de4 + 8003229b.",
+    "catalogue_action": "Préparer une fusion alias bornée conservant l'ID déjà bridgé (8003229b pour MN222; 28b03ba9 seulement si le préflight bridge le confirme), puis restaurer uniquement les faits upcoming sans adjudication.",
+    "current_blocker": "Le resolver actuel ne sait pas déduire positivement une identité à partir d'une parcelle cadastrale et les bridges n'ont pas été inspectés dans les artefacts fournis; aucune restauration n'est donc exécutée dans cet audit."
+  }
+}

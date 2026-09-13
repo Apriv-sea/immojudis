@@ -1,0 +1,725 @@
+{
+  "audit_id": "remaining-sample-review-20260913",
+  "checked_at": "2026-09-13T08:30:49Z",
+  "scope": "Qualification en lecture seule des huit cas critiques restants du gel de l'échantillon100.",
+  "read_only": true,
+  "production_mutations": [],
+  "inputs": [
+    {
+      "path": "/private/tmp/immojudis-quality-consolidated-100.json",
+      "sha256": "1bfbdcc78216993066a8affee0817df714fe494b5b2fa6b8950efe43c8bae761",
+      "role": "preuves de contrôle du 12 septembre, textes source et empreintes de réponses"
+    },
+    {
+      "path": "/private/tmp/immojudis-sample-current-1858.json",
+      "sha256": "34f5bc2d734cbcced95e8e10527d51f9918cc3221ef573f315e9d4f45fbb45c7",
+      "role": "état catalogue comparé, aucune valeur modifiée"
+    },
+    {
+      "path": "docs/runbooks/pipeline-autonomy-progress.md",
+      "sha256": "234185c898fbb631f0349e147a5f0be80b45f66ff9d6514c6b8545b1bf9bd99e",
+      "role": "règles de fraîcheur, de clôture VNI, de provenance et de non-déduction"
+    }
+  ],
+  "method": {
+    "public_fetch": "GET autorisés vers les pages/API et PDF déjà référencés par les fiches; aucun accès privé ni écriture production.",
+    "pdf_review": "PDF lus avec rendu Poppler, OCR local et inspection visuelle des pages citées.",
+    "surface_rule": "Une mention générique, une surface au sol, une surface habitable et une surface Loi Carrez restent des faits distincts; aucune conversion n'est inférée.",
+    "date_rule": "Pour une VNI, la clôture explicite est la date de référence; une clôture passée ne prouve pas une adjudication ni un prix réalisé.",
+    "absence_rule": "Une réponse 400, une page indisponible ou une page de recherche ne prouve pas l'absence du bien ni l'erreur de chaque champ conservé."
+  },
+  "summary": {
+    "cases": 8,
+    "correction_proposed": 5,
+    "document_correction_with_catalogue_reserve": 1,
+    "unverified_without_correction": 2,
+    "adjudication_inferred": false
+  },
+  "cases": [
+    {
+      "id": "f22746d6-fd29-4399-a990-2a3831b88644",
+      "city": "Corbeil-Essonnes",
+      "source": "notaires",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/corbeil-essonnes-91/2003688",
+      "decision": "correction_proposed",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": "2026-09-29 18:00:00+00",
+        "habitable_surface_m2": "70.13",
+        "carrez_surface_m2": "70.0",
+        "app_surface_m2": "70.0",
+        "app_surface_kind": "carrez"
+      },
+      "local_quality_evidence": {
+        "checked_at": "2026-09-12T15:57:55.181158+00:00",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/2003688",
+        "response_sha256": "969abefb52ada2daa86697c367561524776c294004af64f36a848ce7d57bc1bd",
+        "source_text_quote": "cet appartement offre une surface de 70,13m²",
+        "source_text_type": "surface générique non typée"
+      },
+      "public_api_evidence": {
+        "retrieved_at": "2026-09-13T08:27:00Z",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/2003688",
+        "response_sha256": "96428413d414710e94955d638edd84750ee2ce419534e347932312c1d075107c",
+        "json_paths": {
+          "typeTransaction": ".typeTransaction",
+          "surfaceHabitable": ".bien.appartement.surfaceHabitable",
+          "surfaceCarrez": ".bien.appartement.surfaceCarrez",
+          "dateDebutEncheres": ".vni.dateDebutEncheres",
+          "dateFinEncheres": ".vni.dateFinEncheres",
+          "bienVendu": ".vni.bienVendu"
+        },
+        "typeTransaction": "VNI",
+        "surfaceHabitable": 70.0,
+        "surfaceCarrez": 70.0,
+        "dateDebutEncheres": "2026-09-29T18:00:00Z",
+        "dateFinEncheres": "2026-09-30T18:00:00Z",
+        "bienVendu": "INCONNU"
+      },
+      "proposed_correction": [
+        {
+          "field": "habitable_surface_m2",
+          "action": "set",
+          "value": 70.0,
+          "reason": "70,13 m² est seulement générique dans le texte; la valeur typée surfaceHabitable de l'API est 70,0.",
+          "provenance": ["public_api_evidence", "local_quality_evidence"]
+        },
+        {
+          "field": "surface_m2",
+          "action": "preserve_as_generic",
+          "value": 70.13,
+          "reason": "Conserver la mention textuelle sans la présenter comme habitable ou Carrez.",
+          "provenance": ["local_quality_evidence"]
+        },
+        {
+          "field": "carrez_surface_m2",
+          "action": "keep",
+          "value": 70.0,
+          "provenance": ["public_api_evidence", "current_snapshot"]
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "keep",
+          "value": 70.0,
+          "provenance": ["public_api_evidence"]
+        },
+        {
+          "field": "sale_date",
+          "action": "set_to_vni_closing",
+          "value": "2026-09-30T18:00:00Z",
+          "reason": "Le snapshot conserve l'ouverture; la clôture VNI explicite est le 30 septembre.",
+          "provenance": ["public_api_evidence"]
+        }
+      ],
+      "keep_unresolved": [
+        "Le résultat de vente reste INCONNU; aucune adjudication n'est déduite.",
+        "Le conflit d'occupation déjà présent n'est pas arbitré par la seule valeur API LIBRE."
+      ]
+    },
+    {
+      "id": "676cb2f2-6d93-4553-8164-908ac7bc18c1",
+      "city": "Paris 9e Arrondissement",
+      "source": "notaires",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/paris-09-75009/2059508",
+      "decision": "correction_proposed",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": "2026-09-28 11:00:00+00",
+        "habitable_surface_m2": "66.88",
+        "carrez_surface_m2": "58.83",
+        "app_surface_m2": "58.83",
+        "app_surface_kind": "carrez"
+      },
+      "local_quality_evidence": {
+        "checked_at": "2026-09-12T15:57:51.638437+00:00",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/2059508",
+        "response_sha256": "da5c66865e47303ce803c0e9abf2d6fada60e467f6a7d2f6f3959b0c3ff70154",
+        "source_text_quote": "surface privative de 58,83 m² Loi Carrez, complétée de 7,62 m² de surface au sol sous 1,80 m",
+        "source_text_does_not_attest": "surface habitable de 66,88 m²"
+      },
+      "public_api_evidence": {
+        "retrieved_at": "2026-09-13T08:27:00Z",
+        "response_sha256": "d7b763485cc65435ce205e9cf932fef95623f11190b4ce19a2015a3321a1f583",
+        "typeTransaction": "VNI",
+        "surfaceHabitable": 66.88,
+        "surfaceCarrez": 58.83,
+        "dateDebutEncheres": "2026-09-28T11:00:00Z",
+        "dateFinEncheres": "2026-09-29T11:00:00Z",
+        "bienVendu": "INCONNU"
+      },
+      "proposed_correction": [
+        {
+          "field": "habitable_surface_m2",
+          "action": "clear_and_reserve",
+          "value": null,
+          "reason": "La description documente Carrez et surface au sol sous 1,80 m, pas une surface habitable. 66,88 m² reste une valeur API contradictoire non qualifiée par le texte.",
+          "alternative_source_value": 66.88,
+          "provenance": ["local_quality_evidence", "public_api_evidence"]
+        },
+        {
+          "field": "carrez_surface_m2",
+          "action": "keep",
+          "value": 58.83,
+          "provenance": ["local_quality_evidence", "public_api_evidence"]
+        },
+        {
+          "field": "surface_m2",
+          "action": "do_not_derive",
+          "value": null,
+          "reason": "Ne pas fabriquer 66,45 m² par addition de 58,83 et 7,62; la portée exacte de la surface au sol sous 1,80 m reste distincte."
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "keep",
+          "value": 58.83,
+          "provenance": ["local_quality_evidence", "public_api_evidence"]
+        },
+        {
+          "field": "sale_date",
+          "action": "set_to_vni_closing",
+          "value": "2026-09-29T11:00:00Z",
+          "reason": "La date actuelle est l'ouverture; la clôture VNI explicite doit être conservée comme date de référence.",
+          "provenance": ["public_api_evidence"]
+        }
+      ],
+      "keep_unresolved": [
+        "Le résultat de vente est INCONNU.",
+        "La mesure de 7,62 m² est au sol sous 1,80 m et ne doit pas être publiée comme habitable."
+      ]
+    },
+    {
+      "id": "546082c3-8edc-42e4-92c1-7992952286dc",
+      "city": "Saint-Étienne",
+      "source": "notaires",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/st-etienne-42/2022963",
+      "decision": "correction_proposed",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": null,
+        "habitable_surface_m2": "98.0",
+        "carrez_surface_m2": "97.77",
+        "app_surface_m2": "97.8",
+        "app_surface_kind": "carrez"
+      },
+      "local_quality_evidence": {
+        "checked_at": "2026-09-12T15:58:01.089017+00:00",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/2022963",
+        "response_sha256": "1b4fcbfee93146d6fe94798ec008ffe2cdfcb33234933b8a999378cf3425cc38",
+        "source_text_quote": "Début des offres ... le 09/09/2026 à partir de 12h; Fin des offres : jeudi 10/09/2026 à 12h00",
+        "surface_text_quote": "surface de 97,77 m2 (Loi Carrez); Total 97,8 m²"
+      },
+      "public_api_evidence": {
+        "retrieved_at": "2026-09-13T08:27:00Z",
+        "response_sha256": "08d2d058c8b455e2a6f19b7bdd6bcd520f11be29c4b53ff66d8c86b4e1398d01",
+        "typeTransaction": "VNI",
+        "surfaceHabitable": 98.0,
+        "surfaceCarrez": 97.77,
+        "dateDebutEncheres": "2026-09-09T10:30:00Z",
+        "dateFinEncheres": "2026-09-10T10:30:00Z",
+        "bienVendu": "INCONNU"
+      },
+      "proposed_correction": [
+        {
+          "field": "sale_date",
+          "action": "set_to_vni_closing",
+          "value": "2026-09-10T10:30:00Z",
+          "reason": "La clôture structurée VNI est explicite et passée; elle explique la date nulle du snapshot sans déduire une vente réalisée.",
+          "provenance": ["public_api_evidence", "local_quality_evidence"]
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "set_exact_typed_value",
+          "value": 97.77,
+          "reason": "97,8 m² est le total arrondi des pièces; la surface applicative de l'appartement doit rester la Carrez exacte.",
+          "provenance": ["local_quality_evidence", "public_api_evidence"]
+        }
+      ],
+      "expected_temporal_state": {
+        "status": "past",
+        "meaning": "fenêtre VNI passée uniquement",
+        "outcome_status": "unknown",
+        "bienVendu": "INCONNU"
+      },
+      "keep_unresolved": [
+        "L'heure textuelle locale mentionne 12h et un report possible; la valeur retenue pour l'instant est la clôture UTC structurée 10:30Z.",
+        "Aucun prix d'adjudication ni fait de vente n'est établi."
+      ]
+    },
+    {
+      "id": "7b6990fe-429b-421a-b649-10d8a65fde47",
+      "city": "Gaillard",
+      "source": "avoventes",
+      "source_url": "https://avoventes.fr/enchere/appartement-cave-a-gaillard",
+      "decision": "correction_proposed",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": "2026-10-16 13:00:00+00",
+        "starting_price_eur": "150000.0",
+        "habitable_surface_m2": "91.76",
+        "carrez_surface_m2": "109.1",
+        "app_surface_m2": "109.1",
+        "app_surface_kind": "carrez",
+        "occupancy_status": "vacant",
+        "procedure_issue": "lieu de vente non confirmé par la page"
+      },
+      "pdf_evidence": [
+        {
+          "label": "VAE GAILLARD 16.10.2026 MAP 150 000 €.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/159/documents/6a84196cba539ttt.pdf",
+          "sha256": "3ad37b0f421e42efec15d0f14003287c54ac2324268d17bdbc2d0cd9b49c2d30",
+          "pages": [1],
+          "quote": "superficie privative de 91,76 m² de surface Loi Carrez totale, 109,10 m² de surface au sol totale; Les biens sont vides et inoccupés; 97 rue de Genève; Tribunal Judiciaire de Thonon-les-Bains"
+        },
+        {
+          "label": "CCV GAILLARD.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/159/documents/6a84196d03d10ttt.pdf",
+          "sha256": "18c7154b988108efcb07292e3d7764250f57f8a65fe9cbc91597015ab3693be7",
+          "pages": [7, 8],
+          "quote": "certificat de mesurage du 07.05.2025: surface privative 91,76 m² Loi Carrez totale, 109,10 m² au sol; biens vides et inoccupés"
+        },
+        {
+          "label": "PV DESCRIPTION .pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/159/documents/6a84196d4b055ttt.pdf",
+          "sha256": "1bdc58f48ff1fe023e26491f15386593ff36f13b8c23b45f85cc7fc4513d08b1",
+          "pages": [9],
+          "quote": "Le certificat de mesurage dans le cadre de la Loi Carrez ... superficie totale de 91,76 m² et surface au sol totale de 109,10 m²"
+        },
+        {
+          "label": "ANNEXES 20250052.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/159/documents/6a847bc0f23fettt.pdf",
+          "sha256": "635edebd265aef46ace1989a3965feb5fb2e1a646db4113e165cdbc9b9428f95",
+          "pages": [1, 2, 6, 17, 20, 22, 30, 31, 41, 46, 51, 59],
+          "quote": "Mesurage/diagnostics concordants: LE CASTELET, 97 Rue de Genève, 74240 Gaillard; section A parcelle 4104; BAT C lot 242, cave lot 654; surface Loi Carrez 91,76 m² et surface au sol 109,10 m²."
+        }
+      ],
+      "proposed_correction": [
+        {
+          "field": "habitable_surface_m2",
+          "action": "clear",
+          "value": null,
+          "reason": "91,76 m² est explicitement Carrez, pas habitable.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "carrez_surface_m2",
+          "action": "set",
+          "value": 91.76,
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "surface_m2",
+          "action": "set_as_generic_floor_area",
+          "value": 109.1,
+          "reason": "109,10 m² est la surface au sol totale; elle ne doit pas être mise dans Carrez ou habitable.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "set",
+          "value": 91.76,
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_kind",
+          "action": "set",
+          "value": "carrez",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "address",
+          "action": "set_confirmed",
+          "value": "97 rue de Genève, 74240 Gaillard",
+          "reason": "Les quatre documents du bien cible concordent sur 97 rue de Genève. La mention 102 rue apparaît uniquement dans la section HTML 'Autres biens à proximité' et appartient à deux fiches distinctes.",
+          "provenance": ["pdf_evidence", "page_identity_addendum"]
+        },
+        {
+          "field": "sale_procedure",
+          "action": "confirm_from_document",
+          "value": "Tribunal Judiciaire de Thonon-les-Bains, audience du 16 octobre 2026 à 15:00 Europe/Paris",
+          "provenance": ["pdf_evidence"]
+        }
+      ],
+      "keep_unresolved": [
+        "Aucune surface habitable distincte n'est attestée par les documents; 109,10 m² reste au sol.",
+        "Le texte brut concaténé du catalogue contient 102 rue de Genève, mais cette valeur est résolue comme contamination des cartes 'Autres biens à proximité' et ne doit pas être rattachée au bien cible."
+      ]
+    },
+    {
+      "id": "38f7e9ec-34a3-4ec2-9046-6b759f580ccf",
+      "city": "Noisy-le-Sec",
+      "source": "avoventes",
+      "source_url": "https://avoventes.fr/enchere/un-pavillon-et-deux-caves-a-noisy-le-sec",
+      "decision": "correction_proposed",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": "2026-10-20 12:00:00+00",
+        "starting_price_eur": "30000.0",
+        "habitable_surface_m2": "79.56",
+        "carrez_surface_m2": "50.52",
+        "land_surface_m2": "893.0",
+        "app_surface_m2": "79.56",
+        "app_surface_kind": "habitable",
+        "occupancy_status": "occupied",
+        "procedure_issue": "lieu de vente non confirmé par la page"
+      },
+      "pdf_evidence": [
+        {
+          "label": "48411 -avis .pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/158/documents/6aa2eb06f3a22ttt.pdf",
+          "sha256": "29033a6c3bdea17a975a6580f9c7c05ef1d80226f242d2379a15a4e4107164ee",
+          "pages": [1],
+          "quote": "Superficie (Loi Carrez - hors surfaces < à 1,80 m): 50,52 m² - Surface au sol totale: 79,56 m²; Les lieux étaient occupés à la date du PVD; Tribunal Judiciaire de Bobigny"
+        },
+        {
+          "label": "PVD.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/158/documents/6aa2eb076c0e3ttt.pdf",
+          "sha256": "72e944d1945594be1ea6954d548967d34046faac18a36cc44b75d76eb637dede",
+          "pages": [3],
+          "quote": "Le pavillon est occupé par les propriétaires, à savoir, un couple avec leurs trois enfants"
+        }
+      ],
+      "proposed_correction": [
+        {
+          "field": "habitable_surface_m2",
+          "action": "clear",
+          "value": null,
+          "reason": "79,56 m² est explicitement une surface au sol totale, pas une surface habitable.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "carrez_surface_m2",
+          "action": "keep",
+          "value": 50.52,
+          "provenance": ["pdf_evidence", "current_snapshot"]
+        },
+        {
+          "field": "surface_m2",
+          "action": "set_as_generic_floor_area",
+          "value": 79.56,
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "set",
+          "value": 79.56,
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_kind",
+          "action": "set",
+          "value": "built",
+          "reason": "La base applicative peut conserver la surface au sol générique, avec réserve de nature; elle ne doit pas l'étiqueter habitable.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "procedure",
+          "action": "confirm_from_document",
+          "value": "Tribunal Judiciaire de Bobigny, audience du 20 octobre 2026 à 14:00 Europe/Paris",
+          "provenance": ["pdf_evidence"]
+        }
+      ],
+      "keep": [
+        "land_surface_m2=893.0 m² est la contenance cadastrale indiquée dans l'avis; elle reste distincte des surfaces du pavillon.",
+        "occupancy_status=occupied est corroboré par l'avis et le PVD."
+      ],
+      "keep_unresolved": [
+        "Aucune surface habitable indépendante n'est attestée dans les pièces citées.",
+        "Aucun résultat de vente n'est déduit de la date future."
+      ]
+    },
+    {
+      "id": "8f3015d4-3381-4fe7-9b1e-4132e238fff0",
+      "city": "Saint-Père",
+      "source": "notaires",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/local-activites/st-pere-marc-en-poulet-35/1992717",
+      "decision": "unverified_without_correction",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": null,
+        "habitable_surface_m2": null,
+        "carrez_surface_m2": "103.65",
+        "land_surface_m2": "7151.0",
+        "app_surface_m2": "7151.0",
+        "app_surface_kind": "built"
+      },
+      "local_quality_evidence": {
+        "checked_at": "2026-09-12T15:57:54.027402+00:00",
+        "status": "unverified",
+        "reason": "Client error 400 pour l'API Notaires avec l'identifiant canonique 1992717",
+        "source_text": null,
+        "response_sha256": null
+      },
+      "public_api_recheck": {
+        "retrieved_at": "2026-09-13T08:29:00Z",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/1992717",
+        "http_status": 400,
+        "body": "{}",
+        "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+      },
+      "proposed_correction": [],
+      "keep_unresolved": [
+        "Surface Carrez, terrain, nature bâtie, date et résultat ne sont pas vérifiables par la preuve source actuelle.",
+        "La page publique redirige vers une fiche indisponible; cela ne prouve ni suppression historique ni erreur de chaque valeur.",
+        "Conserver l'état existant et le motif d'indisponibilité; ne pas nuller ni recalculer automatiquement."
+      ]
+    },
+    {
+      "id": "f642b9d0-89d6-44ba-8ab7-a050ee73ff6b",
+      "city": "Mâcon",
+      "source": "notaires",
+      "source_url": "https://www.immo-interactif.fr/encheres-en-ligne/appartement/macon-71/1946226",
+      "decision": "unverified_without_correction",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": null,
+        "habitable_surface_m2": "154.0",
+        "carrez_surface_m2": "154.21",
+        "app_surface_m2": "154.21",
+        "app_surface_kind": "carrez"
+      },
+      "local_quality_evidence": {
+        "checked_at": "2026-09-12T15:57:58.747245+00:00",
+        "status": "unverified",
+        "reason": "Client error 400 pour l'API Notaires avec l'identifiant canonique 1946226",
+        "source_text": null,
+        "response_sha256": null
+      },
+      "public_api_recheck": {
+        "retrieved_at": "2026-09-13T08:29:00Z",
+        "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/1946226",
+        "http_status": 400,
+        "body": "{}",
+        "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+      },
+      "proposed_correction": [],
+      "keep_unresolved": [
+        "Les surfaces existantes ne sont pas requalifiables sans le détail source; aucune surface habitable ou Carrez n'est confirmée.",
+        "La page publique redirige vers une fiche indisponible; cela ne prouve pas une disparition ni un motif de vente.",
+        "Conserver l'état existant et le motif d'indisponibilité; ne pas nuller ni inventer une date."
+      ]
+    },
+    {
+      "id": "5d988d56-a7f5-4df8-a42b-c00a969e5cab",
+      "city": "Le Cannet",
+      "source": "avoventes",
+      "source_url": "https://avoventes.fr/enchere/appartement-de-3-pieces-environ-65-m2-avec-cave-et-parking-a-le-cannet",
+      "decision": "document_correction_with_catalogue_reserve",
+      "current_snapshot": {
+        "status": "upcoming",
+        "sale_date": null,
+        "starting_price_eur": null,
+        "habitable_surface_m2": null,
+        "carrez_surface_m2": "65",
+        "app_surface_m2": "65",
+        "app_surface_kind": "carrez",
+        "occupancy_status": "unknown"
+      },
+      "catalogue_evidence": {
+        "runbook_finding": "La réponse obtenue est une page de recherche Avoventes, pas une fiche; le parser doit conserver les faits connus sans avancer la fraîcheur.",
+        "local_quality_checked_at": "2026-09-12T15:57:47.576095+00:00",
+        "local_response_sha256": "7fffa6829e044db9d2e8079316eab423b12eb1a731699bdb9ba4d9377144a868",
+        "fresh_page_sha256": "e1738df40eb8dc39ad37027e443eac9850f50193d96da4f6cfbb7d9666daed43",
+        "fresh_page_state": "page de recherche, pas de fiche liée"
+      },
+      "pdf_evidence": [
+        {
+          "label": "Affiche.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/2/documents/6a82eb470f919ttt.pdf",
+          "sha256": "0749702fd9b9c7738fbfcf3855a30536ffe26ea69e2978dd56e3b63e929f7726",
+          "pages": [1],
+          "quote": "APPARTEMENT DE 3 PIECES (environ 65 m²) ... 105 avenue Franklin Roosevelt; ADJUDICATION jeudi 10 septembre 2026 à 9h au Tribunal Judiciaire de Grasse; OCCUPATION: LIBRE"
+        },
+        {
+          "label": "Procès verbal de description.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/2/documents/6a608ed9e501bttt.pdf",
+          "sha256": "17ee24cad1e9c788dfa345963920fd809b506d828a1dd0bef7991c941a15b2d6",
+          "pages": [30],
+          "quote": "L'appartement est meublé et occupé ... par son propriétaire; surface approximative du logement: 65 m², sous réserve de mesurage précis"
+        },
+        {
+          "label": "Cahier des conditions de vente.pdf",
+          "url": "https://avoventes.fr/public/uploads/cabinet/2/documents/6a608ee135753ttt.pdf",
+          "sha256": "4f2b397c24e6d0681980dc6cdc2de986f4edd5fde93c3896ba264075bcfc23ef",
+          "pages": [5],
+          "quote": "Une attestation de surface Loi CARREZ est annoncée dans les annexes, mais aucune valeur Carrez n'est extraite sur cette page."
+        }
+      ],
+      "proposed_correction": [
+        {
+          "field": "carrez_surface_m2",
+          "action": "clear_and_reserve",
+          "value": null,
+          "reason": "65 m² est seulement approximatif dans le PVD et environ dans l'affiche; l'attestation Carrez est annoncée mais sa valeur n'est pas vérifiable dans les pièces extraites.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "surface_m2",
+          "action": "set_as_approximate_generic",
+          "value": 65.0,
+          "reason": "Conserver la surface générique approximative avec réserve de mesurage.",
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_m2",
+          "action": "set_with_reserve",
+          "value": 65.0,
+          "provenance": ["pdf_evidence"]
+        },
+        {
+          "field": "app_surface_kind",
+          "action": "set",
+          "value": "built",
+          "reason": "La nature Carrez n'est pas prouvée; la valeur est générique/approximative.",
+          "provenance": ["pdf_evidence"]
+        }
+      ],
+      "document_only_candidates_not_promoted": [
+        {
+          "field": "starting_price_eur",
+          "candidate_value": 15000,
+          "reason": "Mise à prix imprimée dans l'affiche, mais la page catalogue actuelle n'est pas une fiche."
+        },
+        {
+          "field": "sale_date",
+          "candidate_value": "2026-09-10T07:00:00Z",
+          "reason": "09:00 Europe/Paris dans l'affiche; ne pas avancer la fraîcheur ni le statut sans rebinding de la fiche."
+        },
+        {
+          "field": "occupancy_status",
+          "candidate_value": "unknown",
+          "reason": "L'affiche dit libre, le PVD dit occupé par le propriétaire; le conflit doit rester visible."
+        }
+      ],
+      "keep_unresolved": [
+        "Identité et fraîcheur de la fiche Avoventes non rétablies: réponse catalogue/recherche.",
+        "Valeur Carrez exacte non extraite malgré l'existence annoncée d'une attestation.",
+        "Statut actuel, résultat d'adjudication et éventuelle surenchère non vérifiables; ne pas classer vendu."
+      ]
+    }
+  ],
+  "addenda": [
+    {
+      "id": "gaillard-address-identity-review-20260913",
+      "added_at": "2026-09-13T08:43:23Z",
+      "case_id": "7b6990fe-429b-421a-b649-10d8a65fde47",
+      "decision": "identity_confirmed_target_97_rue_no_quarantine",
+      "question": "Déterminer si 102 rue de Genève est l'adresse secondaire du bien cible ou une autre entrée contaminant l'extraction.",
+      "target_page": {
+        "url": "https://avoventes.fr/enchere/appartement-cave-a-gaillard",
+        "retrieved_at": "2026-09-13T08:43:23Z",
+        "response_sha256": "ebf0111c6b41b197476a6c789dc3b3c7309a6c64bb24548c0c4bc15f0354a406",
+        "main_listing_markers": [
+          "canonical/title: Appartement T4 91m² Gaillard - Vente enchères - 150 000 euros",
+          "map popup: 97 Rue de Genève, 74240 Gaillard",
+          "main designation: Le Castelet, section A n° 4104, bâtiment C",
+          "main lots: lot n°242 appartement type 4 au 1er étage; lot n°654 cave n°5",
+          "main surface: 91,76 m² Loi Carrez et 109,10 m² au sol"
+        ],
+        "related_section_marker": "Autres biens à proximité",
+        "related_cards": [
+          {
+            "url": "https://avoventes.fr/enchere/un-appartement-a-gaillard-74",
+            "response_sha256": "5e1c6edac20d4c62616c0e849a5d626332b3983cb8848a381a95abf7d5432294",
+            "cabinet_marker": "cabinet/522",
+            "title": "UN APPARTEMENT à GAILLARD (74) - 35 000 euros",
+            "identity": "Résidence 102 rue de Genève; sections A4452, A5515, A5517; volume 1; appartement n°208 au 2e étage du bâtiment A; lot de copropriété n°1117; liquidation judiciaire"
+          },
+          {
+            "url": "https://avoventes.fr/enchere/un-appartement-a-gaillard-74-1",
+            "response_sha256": "67f5f262449c565e7034c6c8dbd078e7eb27f9b900ad15d5ed1b7078a2dab6bb",
+            "cabinet_marker": "cabinet/522",
+            "title": "UN APPARTEMENT à GAILLARD (74) - 37 000 euros",
+            "identity": "Résidence 102 rue de Genève; sections A4452, A5515, A5517; volume 1; appartement n°215 au 2e étage du bâtiment A; lot de copropriété n°1124; liquidation judiciaire"
+          }
+        ],
+        "interpretation": "La mention 102 rue de Genève provient de deux cartes distinctes dans la section 'Autres biens à proximité'. Elle n'est ni l'adresse du bien principal, ni une coordonnée de l'avocat. Le HTML mélange ces cartes dans le texte brut, ce qui explique l'erreur de parsing."
+      },
+      "pdf_identity_matrix": [
+        {
+          "label": "VAE GAILLARD 16.10.2026 MAP 150 000 €.pdf",
+          "sha256": "3ad37b0f421e42efec15d0f14003287c54ac2324268d17bdbc2d0cd9b49c2d30",
+          "pages": [1],
+          "document_date_or_event": "vente vendredi 16 octobre 2026 à 15h; RG 25/00043",
+          "address": "97 rue de Genève, 74240 Gaillard",
+          "parcel": "section A n°4104",
+          "building": "bâtiment C",
+          "lots": ["242: appartement T4 au 1er étage", "654: cave n°5 au sous-sol"],
+          "surface_carrez_m2": 91.76,
+          "surface_floor_m2": 109.1
+        },
+        {
+          "label": "CCV GAILLARD.pdf",
+          "sha256": "18c7154b988108efcb07292e3d7764250f57f8a65fe9cbc91597015ab3693be7",
+          "pages": [1, 2, 5, 7],
+          "document_date_or_event": "audience d'orientation vendredi 19 septembre 2025 à 13h30; certificat de mesurage du 07/05/2025",
+          "address": "97 route de Genève, 74240 Gaillard",
+          "parcel": "section A n°4104",
+          "building": "bâtiment C",
+          "lots": ["242: appartement T4 au premier étage", "654: cave n°5 au sous-sol"],
+          "surface_carrez_m2": 91.76,
+          "surface_floor_m2": 109.1
+        },
+        {
+          "label": "PV DESCRIPTION .pdf",
+          "sha256": "1bdc58f48ff1fe023e26491f15386593ff36f13b8c23b45f85cc7fc4513d08b1",
+          "pages": [1, 2, 3, 9],
+          "document_date_or_event": "procès-verbal établi le 07/05/2025; constat terminé à Gaillard le 07/05/2025 à 16h10",
+          "address": "97 rue de Genève, 74240 Gaillard",
+          "parcel": "A4104",
+          "building": "bâtiment C",
+          "lots": ["242: appartement", "654: cave n°5"],
+          "surface_carrez_m2": 91.76,
+          "surface_floor_m2": 109.1
+        },
+        {
+          "label": "ANNEXES 20250052.pdf",
+          "sha256": "635edebd265aef46ace1989a3965feb5fb2e1a646db4113e165cdbc9b9428f95",
+          "pages": [1, 2, 6, 17, 20, 22, 30, 31, 41, 46, 51, 59],
+          "document_date_or_event": "dossier de mesurage/diagnostics établi le 07/05/2025",
+          "address": "97 rue de Genève, 74240 Gaillard",
+          "parcel": "section A, parcelle 4104",
+          "building": "BAT C",
+          "lots": ["242: appartement T4", "654: cave"],
+          "surface_carrez_m2": 91.76,
+          "surface_floor_m2": 109.1
+        }
+      ],
+      "identity_basis": [
+        "Les quatre PDF convergent sur l'adresse 97, Le Castelet, parcelle A4104, bâtiment C, lots 242/654 et surfaces 91,76/109,10.",
+        "La fiche principale porte le même ensemble de désignation et la même surface 91,76 m²; ses cartes 102 rue sont explicitement sous 'Autres biens à proximité'.",
+        "Les deux fiches 102 ont des parcelles, appartements, lots, bâtiment, procédure et cabinet distincts; elles ne portent pas la surface 91,76 m² du bien cible."
+      ],
+      "correction_override": {
+        "field": "address",
+        "action": "set_confirmed",
+        "value": "97 rue de Genève, 74240 Gaillard",
+        "quarantine": false,
+        "reason": "102 rue de Genève est une autre entrée Avoventes contaminant le texte concaténé; l'identité du bien cible est confirmée par les quatre documents et la fiche principale."
+      }
+    },
+    {
+      "id": "corbeil-api-key-confirmation-20260913",
+      "added_at": "2026-09-13T08:43:23Z",
+      "case_id": "f22746d6-fd29-4399-a990-2a3831b88644",
+      "endpoint": "https://www.immobilier.notaires.fr/pub-services/inotr-www-annonces/v1/annonces/2003688",
+      "response_sha256": "96428413d414710e94955d638edd84750ee2ce419534e347932312c1d075107c",
+      "exact_json_paths": {
+        "typeTransaction": ".typeTransaction",
+        "surfaceHabitable": ".bien.appartement.surfaceHabitable",
+        "surfaceCarrez": ".bien.appartement.surfaceCarrez",
+        "dateDebutEncheres": ".vni.dateDebutEncheres",
+        "dateFinEncheres": ".vni.dateFinEncheres",
+        "bienVendu": ".vni.bienVendu"
+      },
+      "values": {
+        "typeTransaction": "VNI",
+        "surfaceHabitable": 70.0,
+        "surfaceCarrez": 70.0,
+        "dateDebutEncheres": "2026-09-29T18:00:00Z",
+        "dateFinEncheres": "2026-09-30T18:00:00Z",
+        "bienVendu": "INCONNU"
+      },
+      "interpretation": "La phrase source 70,13 m² reste générique; les champs API typés sont bien 70,00 habitable et 70,00 Carrez. La clôture VNI est dateFinEncheres; bienVendu ne permet aucune adjudication."
+    }
+  ]
+}

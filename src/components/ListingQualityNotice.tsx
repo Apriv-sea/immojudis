@@ -50,6 +50,9 @@ export function ListingQualityNotice({ sale }: { sale: AuctionSale }) {
       {sale.status === "postponed" ? (
         <p>Vente reportée. Confirmez la nouvelle date auprès de la source.</p>
       ) : null}
+      {flags.includes("source_detail_unverified") ? (
+        <p>La dernière fiche source n’a pas pu être vérifiée. Les informations sont à confirmer.</p>
+      ) : null}
       {pending ? (
         <p>Analyse en cours. Les informations de la source sont déjà disponibles.</p>
       ) : null}

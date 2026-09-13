@@ -60,3 +60,33 @@ it("exposes legacy critical reservations even without structured conflicts", () 
   expect(screen.getByText(/Occupation à confirmer/)).toBeTruthy();
   expect(screen.getByText(/Tribunal à confirmer/)).toBeTruthy();
 });
+it("shows the source detail verification reservation when flagged", () => {
+  render(
+    <ListingQualityNotice
+      sale={
+        {
+          documents: [],
+          quality_flags: ["source_detail_unverified"],
+        } as unknown as AuctionSale
+      }
+    />,
+  );
+  expect(
+    screen.getByText(
+      "La dernière fiche source n’a pas pu être vérifiée. Les informations sont à confirmer.",
+    ),
+  ).toBeTruthy();
+});
+it("does not show the source detail verification reservation without its flag", () => {
+  render(
+    <ListingQualityNotice
+      sale={
+        {
+          documents: [],
+          quality_flags: [],
+        } as unknown as AuctionSale
+      }
+    />,
+  );
+  expect(screen.queryByText(/dernière fiche source n’a pas pu être vérifiée/)).toBeNull();
+});
