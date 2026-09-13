@@ -483,3 +483,55 @@ def test_general_budget_deferral_is_a_handled_lane_outcome(monkeypatch) -> None:
     assert len(deferred) == 1
     assert deferred[0][0] == [job]
     assert isinstance(deferred[0][1], PipelineBudgetExhausted)
+
+
+@pytest.mark.parametrize('progress_made,should_defer', [(True, True), (False, False)])
+def test_pdf_checkpoint_deferral_does_not_complete_or_loop_without_progress(
+    monkeypatch,
+    progress_made,
+    should_defer,
+) -> None:
+    from src.pdf_enrichment import PdfExtractionDeferred
+
+    sale = normalize_sale(
+        {
+            'source_name': 'avoventes',
+            'source_url': 'https://example.test/pdf-checkpoint',
+            'description': 'Maison',
+            'documents': [{'label': 'PV', 'url': 'https://example.test/pv.pdf'}],
+        }
+    )
+    job = {
+        'id': 'job-pdf-checkpoint',
+        'source_url': sale.source_url,
+        'job_type': 'pdf',
+        'attempt_count': 2,
+        'locked_at': '2026-09-13T08:00:00+00:00',
+    }
+    deferred = []
+    finished = []
+    error = PdfExtractionDeferred(
+        'OCR pass budget reached; 75/100 pages checkpointed; retry resumes',
+        checkpointed_pages=75,
+        total_pages=100,
+        new_progress_pages=1 if progress_made else 0,
+    )
+
+    monkeypatch.setattr(
+        queued_runner,
+        'claim_auction_enrichment_jobs_family_from_supabase',
+        lambda *, family, limit: [job],
+    )
+    monkeypatch.setattr(queued_runner, 'load_settings', lambda: {'llm_prompt_version': 'test'})
+    monkeypatch.setattr(queued_runner, 'fetch_sale_for_data_refresh', lambda _: sale)
+    monkeypatch.setattr(queued_runner, 'enrich_sale_from_pdfs', lambda *_args, **_kwargs: (_ for _ in ()).throw(error))
+    monkeypatch.setattr(queued_runner, 'defer_budget_jobs', lambda jobs, exc: deferred.append((jobs, exc)))
+    monkeypatch.setattr(
+        queued_runner,
+        'finish_auction_enrichment_job_in_supabase',
+        lambda job_id, **kwargs: finished.append((job_id, kwargs)),
+    )
+
+    assert queued_runner.run_enrichment_queue_batch(limit=1, family=queued_runner.ENRICHMENT_FAMILY) == 1
+    assert bool(deferred) is should_defer
+    assert finished == [] if should_defer else finished[0][1]['succeeded'] is False

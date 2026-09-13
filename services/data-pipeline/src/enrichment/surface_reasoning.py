@@ -74,7 +74,7 @@ class SurfaceMeasurement(BaseModel):
     @classmethod
     def normalize_decimal(cls, value: Any) -> Decimal:
         parsed = _decimal(value)
-        if parsed is None or parsed <= 0 or parsed > Decimal("10000"):
+        if not _is_valid_positive_decimal(parsed, Decimal("10000")):
             raise ValueError("invalid surface measurement")
         return parsed.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -109,7 +109,7 @@ class SurfaceCandidate(BaseModel):
     @classmethod
     def normalize_decimal(cls, value: Any) -> Decimal:
         parsed = _decimal(value)
-        if parsed is None or parsed <= 0 or parsed > Decimal("1000000"):
+        if not _is_valid_positive_decimal(parsed, Decimal("1000000")):
             raise ValueError("invalid surface candidate")
         return parsed.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -305,7 +305,9 @@ def extract_surface_facts_from_text(
     for kind, pattern in _EXPLICIT_SURFACE_PATTERNS:
         for match in pattern.finditer(raw_text):
             value = _match_value(match)
-            if value is None or _energy_false_positive(raw_text, match.start(), match.end()):
+            if not _is_valid_positive_decimal(value, Decimal("1000000")) or _energy_false_positive(
+                raw_text, match.start(), match.end()
+            ):
                 continue
             unit = _match_unit(match)
             quote = _quote(raw_text, match.start(), match.end(), radius=85)
@@ -885,6 +887,10 @@ def _decimal(value: Any) -> Decimal | None:
         return Decimal(text)
     except (InvalidOperation, ValueError):
         return None
+
+
+def _is_valid_positive_decimal(value: Decimal | None, maximum: Decimal) -> bool:
+    return value is not None and value.is_finite() and Decimal("0") < value <= maximum
 
 
 def _energy_false_positive(text: str, start: int, end: int) -> bool:

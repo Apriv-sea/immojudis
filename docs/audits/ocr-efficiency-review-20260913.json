@@ -1,0 +1,54 @@
+{
+  "date": "2026-09-13",
+  "snapshot": {
+    "repo": "/private/tmp/immojudis-reliability-20260912",
+    "branch": "fix/qualification-and-document-recovery",
+    "commit": "e997725",
+    "scope": "HEAD; no source-code mutation by this audit"
+  },
+  "production": {
+    "log": "/private/tmp/immojudis-automatic-retry-worker-34750715142.log",
+    "worker_jobs": 54,
+    "worker_wall_seconds_estimate": 1279,
+    "source_detail_jobs_reported": 45,
+    "general_jobs_inferred_from_5_to_1_cycle": 9,
+    "inline_pipeline_pdf_workers": 2,
+    "inline_pipeline_pdf_max_targets": 10,
+    "autonomous_worker_claim_limit_per_slot": 1,
+    "autonomous_worker_pdf_concurrency": 1,
+    "alata_pages": 120,
+    "alata_ocr_pages_checkpointed": 75,
+    "pdf_max_extract_pages_default": 75,
+    "pdf_max_total_pages_workflow": 300,
+    "queue_max_attempts_default": 4,
+    "final_pdf_queued": 359,
+    "final_pdf_failed": 3,
+    "interpretation": "OCR pass budget is handled as ordinary job failure; only PipelineBudgetExhausted is deferred without consuming an attempt"
+  },
+  "local_benchmarks": [
+    {"sample": "cannet_pv_first10", "pages": 10, "dpi": 72, "seconds": 3.34, "chars": 5113, "pages_under_80_chars": 4},
+    {"sample": "cannet_pv_first10", "pages": 10, "dpi": 150, "seconds": 5.43, "chars": 6828, "pages_under_80_chars": 1},
+    {"sample": "noisy_pvd_first20", "pages": 20, "dpi": 72, "seconds": 2.56, "chars": 2047, "pages_under_80_chars": 15},
+    {"sample": "noisy_pvd_first20", "pages": 20, "dpi": 150, "seconds": 5.91, "chars": 5554, "pages_under_80_chars": 2},
+    {"sample": "noisy_pvd_full", "pages": 80, "path": "pymupdf_current", "seconds": 10.29, "nonempty_pages": 80, "ocr_pymupdf_pages": 76, "ocr_tesseract_pages": 4, "method": "direct per-page _extract_page_text_with_ocr_result; bypassed extract_pdf_pages 75-page pass budget"},
+    {"sample": "noisy_pvd_full", "pages": 80, "path": "forced_tesseract", "seconds": 45.77, "nonempty_pages": 78, "ocr_tesseract_pages": 78, "empty_or_fallback_pages": 2, "method": "direct per-page fallback comparison; bypassed extract_pdf_pages 75-page pass budget"},
+    {"sample": "same_page_cache_repeat", "pages": 10, "seconds_range": [0.002, 0.003], "note": "local warm-cache estimate"}
+  ],
+  "proven_issues": [
+    {"id": "negative_page_cache", "priority": "P0", "evidence": "empty fallback_text page is reused and OCR is not called on second pass on HEAD"},
+    {"id": "mixed_page_80_char_gate", "priority": "P1", "evidence": "synthetic page with 111 native header chars skips OCR although forced OCR returns 281 chars"},
+    {"id": "implicit_72_dpi", "priority": "P1", "evidence": "PyMuPDF API default is 72 DPI; code does not pass dpi"},
+    {"id": "continuation_consumes_retry", "priority": "P0", "evidence": "OCR pass budget raises ValueError and generic queue handler marks job failed"}
+  ],
+  "estimates": [
+    {"id": "warm_cache_time", "value": ">99% local elapsed reduction", "basis": "0.002-0.003s warm page cache versus 0.14-4.63s first pass samples"},
+    {"id": "forced_tesseract_cost", "value": "4.4x", "basis": "45.77s versus 10.29s on noisy_pvd 80 pages"},
+    {"id": "dpi_cost", "value": "+63% to +131% at 150 DPI versus 72 DPI", "basis": "cannet_pv 10 pages and noisy_pvd 20 pages"}
+  ],
+  "next_measurement": [
+    "field recall on local gold set",
+    "retry/continuation state machine",
+    "OCR process RSS and timeout",
+    "cache invalidation on changed bytes and engine versions"
+  ]
+}

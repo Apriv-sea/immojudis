@@ -150,6 +150,24 @@ def test_unsupported_llm_measurement_is_rejected() -> None:
     assert result.rejected_measurements[0]["reason"] == "evidence_quote_not_found"
 
 
+def test_zero_surface_candidate_is_ignored_without_losing_valid_pdf_evidence() -> None:
+    text = (
+        "Surface habitable : 0,00 m². Loi Carrez 72,50 m². "
+        "Le bien comprend séjour 20 m² et chambre 10 m²."
+    )
+    asset = extract_surface_facts_from_text(text, document_label="PV descriptif")
+
+    assert asset is not None
+    assert [candidate.value_m2 for candidate in asset.explicit_surfaces] == [Decimal("72.50")]
+    assert "Loi Carrez" in (asset.explicit_surfaces[0].evidence.quote or "")
+
+    result = reason_about_surfaces([asset], context=text, property_type="apartment")
+
+    assert result.selected is not None
+    assert result.selected.value_m2 == Decimal("72.50")
+    assert result.contradictions
+
+
 def _explicit_asset(asset_id: str, lot: str, value: Decimal, quote: str) -> ExtractedAsset:
     return ExtractedAsset(
         asset_id=asset_id,

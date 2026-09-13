@@ -255,18 +255,28 @@ def _extracted_document_profile(payload: dict[str, object]) -> dict[str, object]
         label=payload.get("label"),
         url=payload.get("url"),
     )
+    extraction_status = str(payload.get("extraction_status") or "").strip().lower()
+    if payload.get("complete") is False or payload.get("failed_pages"):
+        extraction_status = "incomplete"
+    if extraction_status not in {"extracted", "incomplete", "failed", "empty"}:
+        extraction_status = "extracted" if clean_text(payload.get("text")) else "empty"
+    if extraction_status == "extracted" and not clean_text(payload.get("text")):
+        extraction_status = "empty"
     return {
         "label": payload.get("label") or None,
         "url": payload.get("url") or None,
         "document_type": document_type,
         "family": _document_family(document_type),
-        "extraction_status": "extracted" if clean_text(payload.get("text")) else "empty",
+        "extraction_status": extraction_status,
         "sha256": payload.get("sha256"),
         "text_chars": int(payload.get("text_chars") or len(str(payload.get("text") or ""))),
         "page_count": int(payload.get("page_count") or 0),
         "ocr_pages": int(payload.get("ocr_pages") or 0),
         "confidence": float(payload.get("confidence") or 0),
         "method": payload.get("extraction_method") or None,
+        "complete": payload.get("complete") is not False and extraction_status == "extracted",
+        "failed_pages": payload.get("failed_pages") or [],
+        "blank_pages": payload.get("blank_pages") or [],
     }
 
 
